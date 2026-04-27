@@ -20,6 +20,9 @@ public sealed class ModWindow : MonoBehaviour
 
     public SlotRepository Repo { get; private set; } = null!;
 
+    private readonly SlotListPanel   _list   = new();
+    private readonly SlotDetailPanel _detail = new();
+
     private void Awake()
     {
         _rect = new Rect(Config.WindowX.Value, Config.WindowY.Value,
@@ -62,10 +65,11 @@ public sealed class ModWindow : MonoBehaviour
 
     private void DrawWindow(int id)
     {
-        GUILayout.BeginVertical();
-        GUILayout.Label($"{KoreanStrings.AppTitle}  ·  {KoreanStrings.HotkeyHint}");
-        GUILayout.Label("(slots will appear here in Task 16)");
-        GUILayout.EndVertical();
+        GUILayout.BeginHorizontal();
+        _list.Draw(Repo, 240f);
+        GUILayout.Space(8);
+        _detail.Draw(Repo.All[_list.Selected], inGame: Core.HeroLocator.IsInGame());
+        GUILayout.EndHorizontal();
         GUI.DragWindow(new Rect(0, 0, 10000, 24));
     }
 }
