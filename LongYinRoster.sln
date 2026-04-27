@@ -3,6 +3,10 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{00957514-F19B-4ABD-80CE-2BDA16595FBA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LongYinRoster", "src\LongYinRoster\LongYinRoster.csproj", "{18F5909B-8F3E-44A7-8372-95446CFE9733}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -10,5 +14,14 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{18F5909B-8F3E-44A7-8372-95446CFE9733}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{18F5909B-8F3E-44A7-8372-95446CFE9733}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{18F5909B-8F3E-44A7-8372-95446CFE9733}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{18F5909B-8F3E-44A7-8372-95446CFE9733}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{18F5909B-8F3E-44A7-8372-95446CFE9733} = {00957514-F19B-4ABD-80CE-2BDA16595FBA}
 	EndGlobalSection
 EndGlobal
