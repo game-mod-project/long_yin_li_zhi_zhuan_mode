@@ -52,5 +52,11 @@
     <Compile Include="../LongYinRoster/Util/Logger.cs">
       <Link>Util/Logger.cs</Link>
     </Compile>
+    <Compile Include="../LongYinRoster/Slots/SaveFileScanner.cs">
+      <Link>Slots/SaveFileScanner.cs</Link>
+    </Compile>
+    <Compile Include="../LongYinRoster/Util/PathProvider.cs">
+      <Link>Util/PathProvider.cs</Link>
+    </Compile>
   </ItemGroup>
 </Project>
