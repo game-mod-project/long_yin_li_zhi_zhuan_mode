@@ -27,6 +27,14 @@
       <HintPath>$(BepInExInterop)/Newtonsoft.Json.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <Reference Include="Il2Cppmscorlib">
+      <HintPath>$(BepInExInterop)/Il2Cppmscorlib.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Il2CppSystem">
+      <HintPath>$(BepInExInterop)/Il2CppSystem.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="Assembly-CSharp">
       <HintPath>$(BepInExInterop)/Assembly-CSharp.dll</HintPath>
       <Private>false</Private>

@@ -22,4 +22,10 @@
        Task 3 starts with NO partial-source entries. Tasks 5–9 will each add
        their own <Compile Include="..."> as they implement their class. This
        keeps the test project compilable at every step. -->
+
+  <ItemGroup>
+    <Compile Include="../LongYinRoster/Core/PortabilityFilter.cs">
+      <Link>Core/PortabilityFilter.cs</Link>
+    </Compile>
+  </ItemGroup>
 </Project>
