@@ -33,5 +33,11 @@
     <Compile Include="../LongYinRoster/Slots/SlotPayload.cs">
       <Link>Slots/SlotPayload.cs</Link>
     </Compile>
+    <Compile Include="../LongYinRoster/Slots/SlotEntry.cs">
+      <Link>Slots/SlotEntry.cs</Link>
+    </Compile>
+    <Compile Include="../LongYinRoster/Slots/SlotFile.cs">
+      <Link>Slots/SlotFile.cs</Link>
+    </Compile>
   </ItemGroup>
 </Project>
