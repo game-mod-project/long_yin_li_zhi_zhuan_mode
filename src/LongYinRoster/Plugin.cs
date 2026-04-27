@@ -1,6 +1,7 @@
 using BepInEx;
 using BepInEx.Unity.IL2CPP;
 using LongYinRoster.Util;
+using ModCfg = LongYinRoster.Config;
 
 namespace LongYinRoster;
 
@@ -15,6 +16,7 @@ public sealed class Plugin : BasePlugin
     public override void Load()
     {
         Logger.Init(this.Log);
+        ModCfg.Bind(this.Config);
         Logger.Info($"Loaded {NAME} v{VERSION}");
     }
 }
