@@ -31,7 +31,60 @@ public sealed class ModWindow : MonoBehaviour
         var slotDir = PathProvider.Resolve(Config.SlotDirectory.Value);
         Repo = new SlotRepository(slotDir, Config.MaxSlots.Value);
 
+        // wire panel callbacks
+        _list.OnSaveCurrentRequested = CaptureCurrent;
+
         Logger.Info($"ModWindow Awake (slots dir: {slotDir})");
+    }
+
+    private void CaptureCurrent()
+    {
+        var slot = Repo.AllocateNextFree();
+        if (slot < 0)
+        {
+            ToastService.Push(KoreanStrings.ToastErrSlotsFull, ToastKind.Error);
+            return;
+        }
+
+        var player = Core.HeroLocator.GetPlayer();
+        if (player == null)
+        {
+            ToastService.Push(KoreanStrings.ToastErrNoPlayer, ToastKind.Error);
+            return;
+        }
+
+        try
+        {
+            var json    = Core.SerializerService.Serialize(player);
+            var jObj    = Newtonsoft.Json.Linq.JObject.Parse(json);
+            var summary = SlotMetadata.FromPlayerJson(jObj);
+
+            var label = $"{summary.HeroName} {summary.HeroNickName} {DateTime.Now:MM-dd HH:mm}";
+            var payload = new SlotPayload
+            {
+                Meta = new SlotPayloadMeta(
+                    SchemaVersion: SlotFile.CurrentSchemaVersion,
+                    ModVersion: Plugin.VERSION,
+                    SlotIndex: slot,
+                    UserLabel: label,
+                    UserComment: "",
+                    CaptureSource: "live",
+                    CaptureSourceDetail: "",
+                    CapturedAt: DateTime.Now,
+                    GameSaveVersion: "1.0.0 f8.2",
+                    GameSaveDetail: "",
+                    Summary: summary),
+                Player = jObj,
+            };
+            Repo.Write(slot, payload);
+            Repo.Reload();
+            ToastService.Push(string.Format(KoreanStrings.ToastCaptured, slot), ToastKind.Success);
+        }
+        catch (Exception ex)
+        {
+            ToastService.Push(string.Format(KoreanStrings.ToastErrCapture, ex.Message), ToastKind.Error);
+            Logger.Error($"CaptureCurrent failed: {ex}");
+        }
     }
 
     private void Update()
