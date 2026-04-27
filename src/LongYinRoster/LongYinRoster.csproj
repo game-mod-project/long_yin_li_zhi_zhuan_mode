@@ -49,7 +49,10 @@
     </Reference>
   </ItemGroup>
 
-  <Target Name="DeployToBepInEx" AfterTargets="Build">
+  <Target Name="DeployToBepInEx" AfterTargets="Build"
+          Condition="'$(Configuration)' == 'Release'"
+          Inputs="$(OutputPath)$(AssemblyName).dll"
+          Outputs="$(PluginDeployDir)/$(AssemblyName).dll">
     <MakeDir Directories="$(PluginDeployDir)" />
     <Copy SourceFiles="$(OutputPath)$(AssemblyName).dll"
           DestinationFolder="$(PluginDeployDir)" />

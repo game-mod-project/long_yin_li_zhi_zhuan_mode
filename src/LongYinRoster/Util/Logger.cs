@@ -2,7 +2,7 @@ using BepInEx.Logging;
 
 namespace LongYinRoster.Util;
 
-public static class Log
+public static class Logger
 {
     private static ManualLogSource? _src;
 
