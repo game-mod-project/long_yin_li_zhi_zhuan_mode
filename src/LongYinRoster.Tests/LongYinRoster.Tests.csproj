@@ -13,6 +13,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Reference Include="BepInEx.Core">
+      <HintPath>$(BepInExCore)/BepInEx.Core.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
     <None Update="fixtures/**/*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
@@ -38,6 +45,12 @@
     </Compile>
     <Compile Include="../LongYinRoster/Slots/SlotFile.cs">
       <Link>Slots/SlotFile.cs</Link>
+    </Compile>
+    <Compile Include="../LongYinRoster/Slots/SlotRepository.cs">
+      <Link>Slots/SlotRepository.cs</Link>
+    </Compile>
+    <Compile Include="../LongYinRoster/Util/Logger.cs">
+      <Link>Util/Logger.cs</Link>
     </Compile>
   </ItemGroup>
 </Project>
