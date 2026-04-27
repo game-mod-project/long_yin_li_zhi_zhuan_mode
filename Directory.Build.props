@@ -1,6 +1,6 @@
 <Project>
   <PropertyGroup>
-    <GameDir>E:/Games/龙胤立志传.v1.0.0f8.2/LongYinLiZhiZhuan</GameDir>
+    <GameDir Condition="'$(GameDir)' == ''">E:/Games/龙胤立志传.v1.0.0f8.2/LongYinLiZhiZhuan</GameDir>
     <BepInExCore>$(GameDir)/BepInEx/core</BepInExCore>
     <BepInExInterop>$(GameDir)/BepInEx/interop</BepInExInterop>
     <PluginDeployDir>$(GameDir)/BepInEx/plugins/LongYinRoster</PluginDeployDir>
