@@ -27,5 +27,11 @@
     <Compile Include="../LongYinRoster/Core/PortabilityFilter.cs">
       <Link>Core/PortabilityFilter.cs</Link>
     </Compile>
+    <Compile Include="../LongYinRoster/Slots/SlotMetadata.cs">
+      <Link>Slots/SlotMetadata.cs</Link>
+    </Compile>
+    <Compile Include="../LongYinRoster/Slots/SlotPayload.cs">
+      <Link>Slots/SlotPayload.cs</Link>
+    </Compile>
   </ItemGroup>
 </Project>
