@@ -29,8 +29,10 @@ public static class SaveFileScanner
     /// Hero 파일의 처음 N 바이트만 읽어 첫 영웅(heroID=0)의 핵심 메타만 추출.
     /// 잘린 JSON에서도 graceful 하게 반환. 구현은 IL2CPP-bound Newtonsoft 호환을 위해
     /// 수동 brace-counting으로 hero[0] JSON substring을 추출한 뒤 JObject.Parse 한다.
+    /// 기본값 524288 (512KB) 은 현재까지 관측된 최대 hero[0] 크기(~237KB)에 4배 안전마진.
+    /// 35MB 전체 파일 대비 1.5% 만 읽으므로 ListAvailable 응답성 유지.
     /// </summary>
-    public static HeroHeader ParseHeader(string heroFilePath, int headerByteLimit = 4096)
+    public static HeroHeader ParseHeader(string heroFilePath, int headerByteLimit = 524288)
     {
         try
         {
