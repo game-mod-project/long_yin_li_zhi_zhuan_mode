@@ -488,3 +488,6 @@ $RECYCLE.BIN/
 
 # oh-my-claudecode ephemeral state
 .omc/
+
+# Release packaging output
+dist/
