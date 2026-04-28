@@ -22,6 +22,26 @@ public sealed class ModWindow : MonoBehaviour
     private Rect _rect;
     private static readonly int WindowId = "LongYinRoster".GetHashCode();
 
+    // Harmony Input patch 가 매 frame 참조하는 static singleton.
+    private static ModWindow? _instance;
+
+    /// <summary>
+    /// 게임의 Input.GetMouseButton* 호출을 차단해야 하는지 여부.
+    /// 메인 창이 보이고 mouse 가 창 영역 안 OR 다이얼로그가 떠있으면 true.
+    /// </summary>
+    public static bool ShouldBlockMouse
+    {
+        get
+        {
+            if (_instance == null || !_instance._visible) return false;
+            if (_instance._confirm.IsVisible || _instance._input.IsVisible) return true;
+
+            var mp      = Input.mousePosition;
+            var screenY = Screen.height - mp.y;
+            return _instance._rect.Contains(new Vector2(mp.x, screenY));
+        }
+    }
+
     public SlotRepository Repo { get; private set; } = null!;
 
     private readonly SlotListPanel   _list    = new();
@@ -31,6 +51,8 @@ public sealed class ModWindow : MonoBehaviour
 
     private void Awake()
     {
+        _instance = this;
+
         _rect = new Rect(Config.WindowX.Value, Config.WindowY.Value,
                          Config.WindowW.Value, Config.WindowH.Value);
 
@@ -208,6 +230,12 @@ public sealed class ModWindow : MonoBehaviour
     private void Update()
     {
         if (Input.GetKeyDown(Config.ToggleHotkey.Value)) Toggle();
+
+        // 다른 mod 가 매 frame Time.timeScale 을 1로 force 할 수 있으므로,
+        // 창이 열려있는 동안 매 frame 강제로 0 유지. Toggle() 시점만 설정하면 다른 mod
+        // 의 LateUpdate 에서 덮어써질 위험.
+        if (_visible && Config.PauseGameWhileOpen.Value && Time.timeScale != 0f)
+            Time.timeScale = 0f;
     }
 
     public void Toggle()
