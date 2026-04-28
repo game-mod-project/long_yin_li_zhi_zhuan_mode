@@ -3,20 +3,23 @@
 **龙胤立志传 (LongYinLiZhiZhuan) v1.0.0 f8.2** 의 BepInEx 6 IL2CPP 플러그인.
 플레이어 캐릭터(`heroID=0`) 스냅샷을 최대 20슬롯에 저장 / 관리한다.
 
-## 무엇을 할 수 있나 (v0.1)
+## 무엇을 할 수 있나 (v0.2)
 
 - **캡처** — 인게임에서 `F11` → `[+] 현재 캐릭터 저장` → 빈 슬롯 또는 선택한 슬롯에 현재 플레이어 데이터를 JSON 으로 저장.
+- **파일에서 가져오기** *(v0.2 신규)* — `[F] 파일에서` → 게임 자체 SaveSlot 0~10 목록 → 선택한 슬롯의 캐릭터를 mod 슬롯에 import.
 - **슬롯 관리** — 라벨 변경 / 메모 / 삭제. 슬롯 디테일 패널에 캐릭터 이름·전투력·무공·인벤토리 수·금전·천부 표시.
 - **같은 슬롯 덮어쓰기** — 차있는 슬롯에 다시 캡처 시도하면 확인 다이얼로그.
+- **창 안 입력 차단** *(v0.2 신규)* — 모드 창 영역 안 클릭 / 마우스 휠이 게임으로 propagate 안 됨 (Harmony patch on `Input.GetMouseButton*` / `GetAxis("Mouse ScrollWheel")`).
 - **자동 저장 디렉토리** — `BepInEx/plugins/LongYinRoster/Slots/` (cfg 로 변경 가능).
 
-### 아직 안 되는 것 (v0.2 예정)
+### 아직 안 되는 것 (v0.3 예정)
 
-다음 기능은 게임 안 검증 결과 IL2CPP 환경의 reference-link 문제로 v0.1 에서 제외:
+다음 기능은 게임 안 검증 결과 IL2CPP 환경의 reference-link 문제로 v0.2 에서도 제외:
 
 - **Apply** (slot → game) — 슬롯의 캐릭터로 현재 게임 캐릭터 덮어쓰기. 디테일 패널의 `▼ 현재 플레이어로 덮어쓰기` 버튼은 disabled.
 - **자동백업 슬롯 0 복원** — `Restore` 버튼 disabled.
-- **파일에서 가져오기** — 게임 자체 SaveSlot 0~10 의 캐릭터를 mod 슬롯에 import. `[F] 파일에서` 버튼은 placeholder.
+
+이 두 기능은 `SerializerService.Populate` 가 IL2CPP 환경에서 silent no-op 이라는 한계 + HeroList swap 시 reference 필드 (장비/무공/포트레이트/문파) link 깨지는 문제 때문에 v0.3 의 PinpointPatcher 패턴 (게임 자체 setter method 호출) 으로 재설계 예정.
 
 ## 요구 사항
 
