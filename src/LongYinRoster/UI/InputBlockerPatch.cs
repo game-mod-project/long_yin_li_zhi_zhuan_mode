@@ -53,4 +53,30 @@ public static class InputBlockerPatch
         }
         return true;
     }
+
+    // Mouse ScrollWheel — 게임이 zoom 에 사용. 모드 창 영역 안에서 휠 돌릴 때 차단
+    // (FilePickerDialog 의 ScrollView 가 휠 받으면서 게임 zoom 이 함께 돌아가는 문제).
+    [HarmonyPatch(nameof(Input.GetAxis), typeof(string))]
+    [HarmonyPrefix]
+    private static bool GetAxis_Prefix(string axisName, ref float __result)
+    {
+        if (ModWindow.ShouldBlockMouse && axisName == "Mouse ScrollWheel")
+        {
+            __result = 0f;
+            return false;
+        }
+        return true;
+    }
+
+    [HarmonyPatch(nameof(Input.GetAxisRaw), typeof(string))]
+    [HarmonyPrefix]
+    private static bool GetAxisRaw_Prefix(string axisName, ref float __result)
+    {
+        if (ModWindow.ShouldBlockMouse && axisName == "Mouse ScrollWheel")
+        {
+            __result = 0f;
+            return false;
+        }
+        return true;
+    }
 }

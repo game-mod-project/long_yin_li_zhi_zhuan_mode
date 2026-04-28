@@ -2,9 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Text.Json;
 using LongYinRoster.Util;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 
 namespace LongYinRoster.Slots;
 
@@ -23,13 +22,18 @@ public sealed record SaveSlotInfo(
     string   HeroNickName,
     float    FightScore);
 
+/// <summary>
+/// 게임 자체 SaveSlot N (0~10) 디렉토리에서 Hero/Info 파일을 읽어 영웅 메타와 raw JSON 을
+/// 추출한다. IL2CPP-bound Newtonsoft 의존을 피하려고 모든 파싱은 System.Text.Json + 수동
+/// brace-counter 로 처리.
+/// </summary>
 public static class SaveFileScanner
 {
     /// <summary>
     /// Hero 파일의 처음 N 바이트만 읽어 첫 영웅(heroID=0)의 핵심 메타만 추출.
-    /// 잘린 JSON에서도 graceful 하게 반환. 구현은 IL2CPP-bound Newtonsoft 호환을 위해
-    /// 수동 brace-counting으로 hero[0] JSON substring을 추출한 뒤 JObject.Parse 한다.
-    /// 기본값 524288 (512KB) 은 현재까지 관측된 최대 hero[0] 크기(~237KB)에 4배 안전마진.
+    /// 잘린 JSON 에서도 graceful 하게 반환. brace-counting 으로 hero[0] JSON substring 을
+    /// 잘라낸 뒤 JsonDocument.Parse 로 필드 추출.
+    /// 기본값 524288 (512KB) 은 hero[0] 최대 관측 크기(~237KB) 의 ~2배 안전마진.
     /// 35MB 전체 파일 대비 1.5% 만 읽으므로 ListAvailable 응답성 유지.
     /// </summary>
     public static HeroHeader ParseHeader(string heroFilePath, int headerByteLimit = 524288)
@@ -44,51 +48,16 @@ public static class SaveFileScanner
                 fs.Read(buf, 0, len);
             }
             var slice = Encoding.UTF8.GetString(buf);
+            var heroJson = ExtractFirstObject(slice);
+            if (heroJson == null) return new HeroHeader("", "", 0f);
 
-            // hero[0] = 배열의 첫 객체. '[' 다음의 첫 '{' 부터 매칭되는 '}' 까지를 substring 으로 잘라냄.
-            int start = slice.IndexOf('{');
-            if (start < 0) return new HeroHeader("", "", 0f);
+            using var doc = JsonDocument.Parse(heroJson);
+            var root = doc.RootElement;
+            if (root.ValueKind != JsonValueKind.Object) return new HeroHeader("", "", 0f);
 
-            int end   = -1;
-            int depth = 0;
-            bool inString  = false;
-            bool escape    = false;
-            for (int i = start; i < slice.Length; i++)
-            {
-                char c = slice[i];
-                if (escape)         { escape = false; continue; }
-                if (c == '\\')      { escape = true;  continue; }
-                if (c == '"')       { inString = !inString; continue; }
-                if (inString)       continue;
-                if (c == '{')       depth++;
-                else if (c == '}')
-                {
-                    depth--;
-                    if (depth == 0) { end = i; break; }
-                }
-            }
-            if (end < 0)
-            {
-                // hero[0] 가 슬라이스 안에서 닫히지 않음 → 잘린 JSON.
-                return new HeroHeader("", "", 0f);
-            }
-
-            var heroJson = slice.Substring(start, end - start + 1);
-            var obj      = JObject.Parse(heroJson);
-
-            string heroName     = obj["heroName"]?.ToString()     ?? "";
-            string heroNickName = obj["heroNickName"]?.ToString() ?? "";
-            float  fightScore   = 0f;
-            var    fsTok        = obj["fightScore"];
-            if (fsTok != null)
-            {
-                var s = fsTok.ToString();
-                if (!string.IsNullOrEmpty(s) && float.TryParse(s,
-                        System.Globalization.NumberStyles.Float,
-                        System.Globalization.CultureInfo.InvariantCulture,
-                        out var f))
-                    fightScore = f;
-            }
+            string heroName     = TryGetString(root, "heroName");
+            string heroNickName = TryGetString(root, "heroNickName");
+            float  fightScore   = TryGetFloat(root, "fightScore");
             return new HeroHeader(heroName, heroNickName, fightScore);
         }
         catch (Exception ex)
@@ -119,9 +88,12 @@ public static class SaveFileScanner
             {
                 try
                 {
-                    var infoJson = JObject.Parse(File.ReadAllText(info));
-                    saveDetail = (string?)infoJson["SaveDetail"] ?? "";
-                    DateTime.TryParse((string?)infoJson["SaveTime"], out saveTime);
+                    using var infoDoc = JsonDocument.Parse(File.ReadAllText(info));
+                    var infoRoot = infoDoc.RootElement;
+                    saveDetail = TryGetString(infoRoot, "SaveDetail");
+                    var saveTimeStr = TryGetString(infoRoot, "SaveTime");
+                    if (!string.IsNullOrEmpty(saveTimeStr))
+                        DateTime.TryParse(saveTimeStr, out saveTime);
                 }
                 catch (Exception ex) { Logger.Warn($"Info parse failed for slot {i}: {ex.Message}"); }
 
@@ -141,17 +113,73 @@ public static class SaveFileScanner
         return result;
     }
 
-    /// <summary>주어진 SaveSlot 의 Hero 파일 전체를 읽어 heroID=0 인 영웅 JSON 반환.</summary>
-    public static JObject LoadHero0(int saveSlotIndex)
+    /// <summary>
+    /// 주어진 SaveSlot 의 Hero 파일에서 heroID=0 영웅의 raw JSON string 을 반환한다.
+    /// SlotPayload.Player 와 같은 형식 (raw HeroData JSON) 이라 import 흐름에서 그대로 사용 가능.
+    /// </summary>
+    public static string LoadHero0(int saveSlotIndex)
     {
         var path = Path.Combine(PathProvider.GameSaveDir, $"SaveSlot{saveSlotIndex}", "Hero");
-        var arr  = JArray.Parse(File.ReadAllText(path));
-        for (int i = 0; i < arr.Count; i++)
+        var text = File.ReadAllText(path);
+
+        using var doc = JsonDocument.Parse(text);
+        var root = doc.RootElement;
+        if (root.ValueKind != JsonValueKind.Array)
+            throw new InvalidDataException($"SaveSlot{saveSlotIndex}/Hero is not a JSON array");
+
+        foreach (var el in root.EnumerateArray())
         {
-            var item = arr[i];
-            if (item is JObject obj && (int?)obj["heroID"] == 0)
-                return obj;
+            if (el.ValueKind != JsonValueKind.Object) continue;
+            if (el.TryGetProperty("heroID", out var idEl)
+                && idEl.ValueKind == JsonValueKind.Number
+                && idEl.TryGetInt32(out var id)
+                && id == 0)
+            {
+                return el.GetRawText();
+            }
         }
         throw new InvalidOperationException($"heroID=0 not found in SaveSlot{saveSlotIndex}");
+    }
+
+    // -------------------------------------------------------------- helpers
+
+    /// <summary>
+    /// 잘린 또는 큰 JSON 슬라이스에서 첫 '{' 부터 매칭되는 '}' 까지 substring 을 추출.
+    /// 매칭 못 찾으면 null. JsonDocument 가 잘린 JSON 에 대해 throw 하기 전에 단축회로.
+    /// </summary>
+    private static string? ExtractFirstObject(string slice)
+    {
+        int start = slice.IndexOf('{');
+        if (start < 0) return null;
+
+        int depth = 0;
+        bool inString = false;
+        bool escape   = false;
+        for (int i = start; i < slice.Length; i++)
+        {
+            char c = slice[i];
+            if (escape)    { escape = false; continue; }
+            if (c == '\\') { escape = true;  continue; }
+            if (c == '"')  { inString = !inString; continue; }
+            if (inString)  continue;
+            if (c == '{')  depth++;
+            else if (c == '}')
+            {
+                depth--;
+                if (depth == 0) return slice.Substring(start, i - start + 1);
+            }
+        }
+        return null;  // 매칭되는 '}' 못 찾음 → 잘린 JSON
+    }
+
+    private static string TryGetString(JsonElement el, string key) =>
+        el.TryGetProperty(key, out var v) && v.ValueKind == JsonValueKind.String
+            ? v.GetString() ?? "" : "";
+
+    private static float TryGetFloat(JsonElement el, string key)
+    {
+        if (!el.TryGetProperty(key, out var v)) return 0f;
+        if (v.ValueKind == JsonValueKind.Number && v.TryGetSingle(out var f)) return f;
+        return 0f;
     }
 }

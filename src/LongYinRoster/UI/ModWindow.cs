@@ -34,7 +34,9 @@ public sealed class ModWindow : MonoBehaviour
         get
         {
             if (_instance == null || !_instance._visible) return false;
-            if (_instance._confirm.IsVisible || _instance._input.IsVisible) return true;
+            if (_instance._confirm.IsVisible
+                || _instance._input.IsVisible
+                || _instance._picker.IsVisible) return true;
 
             var mp      = Input.mousePosition;
             var screenY = Screen.height - mp.y;
@@ -44,10 +46,11 @@ public sealed class ModWindow : MonoBehaviour
 
     public SlotRepository Repo { get; private set; } = null!;
 
-    private readonly SlotListPanel   _list    = new();
-    private readonly SlotDetailPanel _detail  = new();
-    private readonly ConfirmDialog   _confirm = new();
-    private readonly InputDialog     _input   = new();
+    private readonly SlotListPanel    _list     = new();
+    private readonly SlotDetailPanel  _detail   = new();
+    private readonly ConfirmDialog    _confirm  = new();
+    private readonly InputDialog      _input    = new();
+    private readonly FilePickerDialog _picker   = new();
 
     private void Awake()
     {
@@ -60,10 +63,11 @@ public sealed class ModWindow : MonoBehaviour
         Repo = new SlotRepository(slotDir, Config.MaxSlots.Value);
 
         // wire panel callbacks
-        _list.OnSaveCurrentRequested = RequestCapture;
-        _detail.OnRenameRequested    = RequestRename;
-        _detail.OnCommentRequested   = RequestComment;
-        _detail.OnDeleteRequested    = RequestDelete;
+        _list.OnSaveCurrentRequested    = RequestCapture;
+        _list.OnImportFromFileRequested = RequestImportFromFile;
+        _detail.OnRenameRequested       = RequestRename;
+        _detail.OnCommentRequested      = RequestComment;
+        _detail.OnDeleteRequested       = RequestDelete;
         // Apply (slot → game) 와 Restore (slot 0 → game) 는 v0.1 미지원 — 디테일 패널이
         // 버튼을 disabled 표시한다.
 
@@ -227,6 +231,70 @@ public sealed class ModWindow : MonoBehaviour
             });
     }
 
+    /// <summary>
+    /// [F] 파일에서 핸들러 — 게임 자체 SaveSlot 0~10 list → 사용자 선택 → mod 슬롯에 import.
+    /// </summary>
+    private void RequestImportFromFile()
+    {
+        try
+        {
+            var slots = SaveFileScanner.ListAvailable();
+            _picker.Show(slots, DoImportFromFile);
+        }
+        catch (Exception ex)
+        {
+            ToastService.Push($"✘ 게임 저장 슬롯 스캔 실패: {ex.Message}", ToastKind.Error);
+            Logger.Error($"RequestImportFromFile failed: {ex}");
+        }
+    }
+
+    private void DoImportFromFile(int gameSaveSlotIndex)
+    {
+        // mod 슬롯 결정 — 현재 _list.Selected 가 빈 사용자 슬롯이면 그것, 아니면 다음 빈 슬롯.
+        int modSlot = _list.Selected;
+        if (modSlot <= 0 || modSlot >= Repo.All.Count || !Repo.All[modSlot].IsEmpty)
+            modSlot = Repo.AllocateNextFree();
+
+        if (modSlot < 0)
+        {
+            ToastService.Push(KoreanStrings.ToastErrSlotsFull, ToastKind.Error);
+            return;
+        }
+
+        try
+        {
+            var json    = SaveFileScanner.LoadHero0(gameSaveSlotIndex);
+            var summary = SlotMetadata.FromPlayerJson(json);
+
+            var label = $"{summary.HeroName} {summary.HeroNickName} (SaveSlot{gameSaveSlotIndex})";
+            var payload = new SlotPayload
+            {
+                Meta = new SlotPayloadMeta(
+                    SchemaVersion: SlotFile.CurrentSchemaVersion,
+                    ModVersion: Plugin.VERSION,
+                    SlotIndex: modSlot,
+                    UserLabel: label,
+                    UserComment: "",
+                    CaptureSource: "file",
+                    CaptureSourceDetail: $"SaveSlot{gameSaveSlotIndex}/Hero",
+                    CapturedAt: DateTime.Now,
+                    GameSaveVersion: "1.0.0 f8.2",
+                    GameSaveDetail: "",
+                    Summary: summary),
+                Player = json,
+            };
+            Repo.Write(modSlot, payload);
+            Repo.Reload();
+            ToastService.Push(string.Format(KoreanStrings.ToastCaptured, modSlot), ToastKind.Success);
+            Logger.Info($"slot {modSlot} imported from SaveSlot{gameSaveSlotIndex}");
+        }
+        catch (Exception ex)
+        {
+            ToastService.Push(string.Format(KoreanStrings.ToastErrCapture, ex.Message), ToastKind.Error);
+            Logger.Error($"DoImportFromFile(SaveSlot{gameSaveSlotIndex} → mod {modSlot}) failed: {ex}");
+        }
+    }
+
     private void Update()
     {
         if (Input.GetKeyDown(Config.ToggleHotkey.Value)) Toggle();
@@ -253,7 +321,7 @@ public sealed class ModWindow : MonoBehaviour
         if (!_visible) return;
 
         // 다이얼로그 표시 중에는 메인 창 입력을 차단해 modal 효과를 만든다.
-        bool modal = _confirm.IsVisible || _input.IsVisible;
+        bool modal = _confirm.IsVisible || _input.IsVisible || _picker.IsVisible;
         GUI.enabled = !modal;
         _rect = GUILayout.Window(WindowId, _rect, (GUI.WindowFunction)DrawWindow,
                                  KoreanStrings.AppTitle);
@@ -261,6 +329,7 @@ public sealed class ModWindow : MonoBehaviour
 
         _confirm.Draw();
         _input.Draw();
+        _picker.Draw();
 
         // persist position/size
         Config.WindowX.Value = _rect.x;
