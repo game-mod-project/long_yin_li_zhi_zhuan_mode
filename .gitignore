@@ -485,3 +485,6 @@ $RECYCLE.BIN/
 
 # Superpowers brainstorm/specs metadata
 .superpowers/
+
+# oh-my-claudecode ephemeral state
+.omc/
