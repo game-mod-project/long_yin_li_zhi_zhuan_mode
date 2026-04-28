@@ -34,6 +34,12 @@ public static class KoreanStrings
     public const string ConfirmDeleteMain     = "슬롯 {0}을(를) 삭제합니다. 되돌릴 수 없습니다.";
     public const string Delete                = "삭제";
 
+    public const string InputTitleRename      = "슬롯 이름 변경";
+    public const string InputPromptRename     = "슬롯 {0} 의 새 이름을 입력하세요.";
+    public const string InputTitleComment     = "슬롯 메모 변경";
+    public const string InputPromptComment    = "슬롯 {0} 의 메모를 입력하세요. (비워두면 메모 제거)";
+    public const string SaveBtn               = "저장";
+
     public const string FilePickerTitle       = "파일에서 가져오기";
     public const string FilePickerImport      = "이 슬롯에서 가져오기";
     public const string FilePickerCurrentLoad = "⚠현재 로드 중";

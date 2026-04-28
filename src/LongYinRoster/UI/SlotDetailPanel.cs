@@ -47,16 +47,16 @@ public sealed class SlotDetailPanel
 
         if (entry.Index == 0)
         {
-            GUI.enabled = inGame;
-            if (GUILayout.Button(KoreanStrings.RestoreBtn))
-                OnRestoreRequested?.Invoke(entry.Index);
+            // Restore (slot 0 → game) v0.1 미지원 — Apply 와 같은 IL2CPP reference-link 문제.
+            GUI.enabled = false;
+            GUILayout.Button(KoreanStrings.RestoreBtn + " (v0.2 예정)");
             GUI.enabled = true;
         }
         else
         {
-            GUI.enabled = inGame;
-            if (GUILayout.Button(KoreanStrings.ApplyBtn))
-                OnApplyRequested?.Invoke(entry.Index);
+            // Apply (slot → game) v0.1 미지원.
+            GUI.enabled = false;
+            GUILayout.Button(KoreanStrings.ApplyBtn + " (v0.2 예정)");
             GUI.enabled = true;
 
             GUILayout.BeginHorizontal();

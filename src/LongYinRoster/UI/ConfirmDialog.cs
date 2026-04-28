@@ -27,6 +27,9 @@ public sealed class ConfirmDialog
     private string _cancelLabel  = "취소";
     private Action? _onConfirm;
 
+    private float _lastW;
+    private float _lastH;
+
     public bool IsVisible => _visible;
 
     public void Show(string title, string body, string confirmLabel, Action onConfirm,
@@ -47,11 +50,24 @@ public sealed class ConfirmDialog
         var prev = GUI.enabled;
         GUI.enabled = true;
 
-        const float W = 480f, H = 200f;
-        var rect = new Rect((Screen.width - W) / 2f, (Screen.height - H) / 2f, W, H);
+        // body 의 줄 수에 비례해 다이얼로그 높이를 가변. wordWrap GUIStyle 은 strip 되어
+        // 사용 불가하므로 호출자가 \n 으로 줄을 구분해 전달한다.
+        int lines = _body.Length == 0 ? 1 : (CountChar(_body, '\n') + 1);
+        float h = 140f + lines * 22f;
+        const float W = 500f;
+        _lastW = W;
+        _lastH = h;
+        var rect = new Rect((Screen.width - W) / 2f, (Screen.height - h) / 2f, W, h);
         GUILayout.Window(WindowId, rect, (GUI.WindowFunction)DrawWindow, _title);
 
         GUI.enabled = prev;
+    }
+
+    private static int CountChar(string s, char c)
+    {
+        int n = 0;
+        for (int i = 0; i < s.Length; i++) if (s[i] == c) n++;
+        return n;
     }
 
     private void DrawWindow(int id)
@@ -59,9 +75,12 @@ public sealed class ConfirmDialog
         GUI.enabled = true;
         try
         {
+            DialogStyle.FillBackground(_lastW, _lastH);
             GUILayout.Space(18);
-            GUILayout.Label(_body);
-            GUILayout.Space(24);
+            // wordWrap label 이 strip 되었으므로 호출자가 \n 으로 분리한 라인을 각각 Label.
+            foreach (var line in _body.Split('\n'))
+                GUILayout.Label(line);
+            GUILayout.Space(20);
 
             // FlexibleSpace 사용 불가 (strip). 명시 Space 로 좌-버튼-간격-버튼-우 정렬.
             // 총 폭 480 - window padding 약간 = 약 460. 40 + 140 + 60 + 140 + 40 = 420.

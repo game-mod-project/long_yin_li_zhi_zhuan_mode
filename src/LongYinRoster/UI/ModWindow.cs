@@ -9,6 +9,10 @@ namespace LongYinRoster.UI;
 /// <summary>
 /// IMGUI 메인 창. F11 토글. BepInEx 6 IL2CPP-CoreCLR 환경에서 MonoBehaviour
 /// 서브클래스는 IntPtr 생성자가 필요하다 (Il2CppInterop 인스턴스화 경로).
+///
+/// v0.1 범위: 라이브 캡처 (game → slot), 같은 슬롯 덮어쓰기, 슬롯 메타 보기.
+/// Apply (slot → game), 자동백업 복원은 v0.2 에서 재설계 — IL2CPP 환경의 game-state
+/// reference 필드(장비/무공/포트레이트/문파)와 link 가 깨지는 문제 때문.
 /// </summary>
 public sealed class ModWindow : MonoBehaviour
 {
@@ -23,6 +27,7 @@ public sealed class ModWindow : MonoBehaviour
     private readonly SlotListPanel   _list    = new();
     private readonly SlotDetailPanel _detail  = new();
     private readonly ConfirmDialog   _confirm = new();
+    private readonly InputDialog     _input   = new();
 
     private void Awake()
     {
@@ -34,6 +39,11 @@ public sealed class ModWindow : MonoBehaviour
 
         // wire panel callbacks
         _list.OnSaveCurrentRequested = RequestCapture;
+        _detail.OnRenameRequested    = RequestRename;
+        _detail.OnCommentRequested   = RequestComment;
+        _detail.OnDeleteRequested    = RequestDelete;
+        // Apply (slot → game) 와 Restore (slot 0 → game) 는 v0.1 미지원 — 디테일 패널이
+        // 버튼을 disabled 표시한다.
 
         Logger.Info($"ModWindow Awake (slots dir: {slotDir})");
     }
@@ -112,6 +122,89 @@ public sealed class ModWindow : MonoBehaviour
         }
     }
 
+    // ---------------------------------------------------------------- D 단계 핸들러
+
+    private void RequestRename(int slot)
+    {
+        if (slot < 1 || slot >= Repo.All.Count) return;
+        var entry = Repo.All[slot];
+        if (entry.IsEmpty || entry.Meta == null) return;
+
+        _input.Show(
+            title: KoreanStrings.InputTitleRename,
+            prompt: string.Format(KoreanStrings.InputPromptRename, slot),
+            initialValue: entry.Meta.UserLabel,
+            confirmLabel: KoreanStrings.SaveBtn,
+            onConfirm: newLabel =>
+            {
+                try
+                {
+                    Repo.Rename(slot, newLabel);
+                    Repo.Reload();
+                    ToastService.Push(string.Format(KoreanStrings.ToastRenamed, slot), ToastKind.Success);
+                }
+                catch (Exception ex)
+                {
+                    ToastService.Push($"✘ 이름 변경 실패: {ex.Message}", ToastKind.Error);
+                    Logger.Error($"Rename(slot={slot}) failed: {ex}");
+                }
+            });
+    }
+
+    private void RequestComment(int slot)
+    {
+        if (slot < 1 || slot >= Repo.All.Count) return;
+        var entry = Repo.All[slot];
+        if (entry.IsEmpty || entry.Meta == null) return;
+
+        _input.Show(
+            title: KoreanStrings.InputTitleComment,
+            prompt: string.Format(KoreanStrings.InputPromptComment, slot),
+            initialValue: entry.Meta.UserComment,
+            confirmLabel: KoreanStrings.SaveBtn,
+            onConfirm: newComment =>
+            {
+                try
+                {
+                    Repo.UpdateComment(slot, newComment);
+                    Repo.Reload();
+                    ToastService.Push($"✔ 슬롯 {slot} 메모를 저장했습니다.", ToastKind.Success);
+                }
+                catch (Exception ex)
+                {
+                    ToastService.Push($"✘ 메모 저장 실패: {ex.Message}", ToastKind.Error);
+                    Logger.Error($"UpdateComment(slot={slot}) failed: {ex}");
+                }
+            });
+    }
+
+    private void RequestDelete(int slot)
+    {
+        if (slot < 1 || slot >= Repo.All.Count) return;
+        var entry = Repo.All[slot];
+        if (entry.IsEmpty) return;
+
+        var label = entry.Meta?.UserLabel ?? "";
+        _confirm.Show(
+            title: KoreanStrings.ConfirmTitleDelete,
+            body: string.Format(KoreanStrings.ConfirmDeleteMain, $"{slot} ({label})"),
+            confirmLabel: KoreanStrings.Delete,
+            onConfirm: () =>
+            {
+                try
+                {
+                    Repo.Delete(slot);
+                    Repo.Reload();
+                    ToastService.Push(string.Format(KoreanStrings.ToastDeleted, slot), ToastKind.Success);
+                }
+                catch (Exception ex)
+                {
+                    ToastService.Push($"✘ 슬롯 삭제 실패: {ex.Message}", ToastKind.Error);
+                    Logger.Error($"Delete(slot={slot}) failed: {ex}");
+                }
+            });
+    }
+
     private void Update()
     {
         if (Input.GetKeyDown(Config.ToggleHotkey.Value)) Toggle();
@@ -131,13 +224,15 @@ public sealed class ModWindow : MonoBehaviour
         ToastService.Draw();
         if (!_visible) return;
 
-        // confirm dialog 표시 중에는 메인 창 입력을 차단해 modal 효과를 만든다.
-        GUI.enabled = !_confirm.IsVisible;
+        // 다이얼로그 표시 중에는 메인 창 입력을 차단해 modal 효과를 만든다.
+        bool modal = _confirm.IsVisible || _input.IsVisible;
+        GUI.enabled = !modal;
         _rect = GUILayout.Window(WindowId, _rect, (GUI.WindowFunction)DrawWindow,
                                  KoreanStrings.AppTitle);
         GUI.enabled = true;
 
         _confirm.Draw();
+        _input.Draw();
 
         // persist position/size
         Config.WindowX.Value = _rect.x;
@@ -148,6 +243,7 @@ public sealed class ModWindow : MonoBehaviour
 
     private void DrawWindow(int id)
     {
+        DialogStyle.FillBackground(_rect.width, _rect.height);
         GUILayout.BeginHorizontal();
         _list.Draw(Repo, 240f);
         GUILayout.Space(8);

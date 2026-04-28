@@ -1,8 +1,19 @@
 using System.Collections.Generic;
-using Newtonsoft.Json.Linq;
+using System.IO;
+using System.Text;
+using System.Text.Encodings.Web;
+using System.Text.Json;
 
 namespace LongYinRoster.Core;
 
+/// <summary>
+/// Apply 흐름에서 슬롯 데이터의 faction(문파)/runtime(위치·관계) 필드를 제거해 현재 게임의
+/// 컨텍스트를 보존한다. 캐릭터 본질(스탯/무공/장비/평판) 만 교체.
+///
+/// IL2CPP 환경의 Newtonsoft type-identity 문제 (HANDOFF §4.1) 를 피하려고
+/// System.Text.Json 으로 작성. 디스크에서 읽은 raw player JSON string 을 그대로 받아
+/// 새 JSON string 을 반환.
+/// </summary>
 public static class PortabilityFilter
 {
     private static readonly HashSet<string> _faction = new()
@@ -39,9 +50,26 @@ public static class PortabilityFilter
 
     public static string StripForApply(string fullPlayerJson)
     {
-        var obj = JObject.Parse(fullPlayerJson);
-        foreach (var key in _faction)  obj.Remove(key);
-        foreach (var key in _runtime)  obj.Remove(key);
-        return obj.ToString(Newtonsoft.Json.Formatting.None);
+        using var doc = JsonDocument.Parse(fullPlayerJson);
+        var root = doc.RootElement;
+        if (root.ValueKind != JsonValueKind.Object) return fullPlayerJson;
+
+        using var ms = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(ms, new JsonWriterOptions
+        {
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+            Indented = false,
+        }))
+        {
+            writer.WriteStartObject();
+            foreach (var prop in root.EnumerateObject())
+            {
+                if (_faction.Contains(prop.Name)) continue;
+                if (_runtime.Contains(prop.Name)) continue;
+                prop.WriteTo(writer);
+            }
+            writer.WriteEndObject();
+        }
+        return Encoding.UTF8.GetString(ms.ToArray());
     }
 }

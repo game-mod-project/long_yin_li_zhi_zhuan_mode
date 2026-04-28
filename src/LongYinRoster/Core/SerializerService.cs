@@ -1,22 +1,28 @@
 using System;
-using LongYinRoster.Util;
 using Newtonsoft.Json;
-using Logger = LongYinRoster.Util.Logger;
 
 namespace LongYinRoster.Core;
 
 /// <summary>
-/// HeroData 직렬화 / 역직렬화 게이트웨이.
+/// HeroData 직렬화 게이트웨이.
 ///
-/// 조사(Task 17 직전) 결과 IL2CPP-bound Newtonsoft.Json 의 사용 가능 표면:
-/// - JsonConvert.SerializeObject(Il2CppSystem.Object) → string ✓
-/// - JsonConvert.PopulateObject ✗ (부재)
-/// - JsonSerializer.Populate(JsonReader, Object) ✓ (인스턴스 메서드, PopulateObject 대체)
-/// - JsonSerializer.Create() ✓
-/// - JsonTextReader(Il2CppSystem.IO.TextReader) ✓
+/// v0.1 의 범위: Serialize (game → JSON) 만 사용. 캡처 / 디스크 저장 / 디테일 패널 표시에
+/// 충분.
 ///
-/// HeroData 의 onSerializing/onDeserialized 콜백이 [Serializable] 표시되어 있어
-/// 이 경로로 호출 시 게임 자체 직렬화 hook 이 자동 발화된다.
+/// Apply (slot → game) 흐름은 v0.1 에서 제외:
+///   - JsonSerializer.Populate(reader, il2target) — IL2CPP 환경에서 silent no-op
+///   - DeserializeObject + IntPtr wrap + HeroList swap — 부분 작동하나 game-state 의
+///     reference 필드(장비/무공/포트레이트/문파)와 link 안 됨. v0.2 에서 PinpointPatcher
+///     기반 partial-field copy 로 재설계.
+///
+/// IL2CPP-bound Newtonsoft.Json 의 사용 가능 표면 (HANDOFF §4.1 참고):
+///   - JsonConvert.SerializeObject(Il2CppSystem.Object) → string  ✓
+///   - JsonConvert.PopulateObject                                 ✗ (부재)
+///   - JsonSerializer.Populate(JsonReader, Object)                ✓ but no-op in IL2CPP
+///   - JsonConvert.DeserializeObject(string, Il2CppSystem.Type)   ✓ but returns base
+///
+/// HeroData 의 [OnSerializing] / [OnDeserialized] 콜백은 [Serializable] 표시되어 있어
+/// 직렬화 경로에서 게임 자체 hook 이 자동 발화한다.
 /// </summary>
 public static class SerializerService
 {
@@ -32,33 +38,5 @@ public static class SerializerService
         }
 
         return JsonConvert.SerializeObject(il2);
-    }
-
-    /// <summary>JSON 을 기존 HeroData 에 in-place 로 적용 (PopulateObject 대체 경로).</summary>
-    /// <remarks>Task 18 의 적용 흐름에서 호출. 1차 구현 — 통합 테스트로 검증 필요.</remarks>
-    public static void Populate(string json, object target)
-    {
-        if (string.IsNullOrEmpty(json)) throw new ArgumentException("json is empty", nameof(json));
-        if (target == null) throw new ArgumentNullException(nameof(target));
-
-        if (target is not Il2CppSystem.Object il2target)
-        {
-            throw new InvalidOperationException(
-                "Populate requires an Il2CppSystem.Object target (HeroData proxy).");
-        }
-
-        try
-        {
-            var sr     = new Il2CppSystem.IO.StringReader(json);
-            var reader = new JsonTextReader(sr);
-            var ser    = JsonSerializer.Create();
-            ser.Populate(reader, il2target);
-            Logger.Info($"Populate succeeded on {target.GetType().Name}");
-        }
-        catch (Exception ex)
-        {
-            Logger.Error($"Populate failed: {ex.Message}");
-            throw;
-        }
     }
 }

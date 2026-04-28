@@ -24,8 +24,8 @@ public static class Config
     {
         ToggleHotkey       = cfg.Bind("General", "ToggleHotkey",       KeyCode.F11,
                                       "모드 창 토글 단축키");
-        PauseGameWhileOpen = cfg.Bind("General", "PauseGameWhileOpen", false,
-                                      "모드 창이 열려 있는 동안 Time.timeScale=0");
+        PauseGameWhileOpen = cfg.Bind("General", "PauseGameWhileOpen", true,
+                                      "모드 창이 열려 있는 동안 Time.timeScale=0 (게임 input 통과 차단)");
         SlotDirectory      = cfg.Bind("General", "SlotDirectory",      "<PluginPath>/Slots",
                                       "슬롯 파일 디렉터리. <PluginPath> = BepInEx/plugins/LongYinRoster");
         MaxSlots           = cfg.Bind("General", "MaxSlots",            20,
