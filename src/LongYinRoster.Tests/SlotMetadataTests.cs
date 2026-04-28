@@ -9,15 +9,20 @@ namespace LongYinRoster.Tests;
 
 public class SlotMetadataTests
 {
-    private static JObject Player =>
-        JArray.Parse(File.ReadAllText(
-            Path.Combine(AppContext.BaseDirectory, "fixtures", "slot3_hero.json")))
-        [0] as JObject ?? throw new InvalidOperationException();
+    private static string PlayerJson
+    {
+        get
+        {
+            var arr = JArray.Parse(File.ReadAllText(
+                Path.Combine(AppContext.BaseDirectory, "fixtures", "slot3_hero.json")));
+            return (arr[0] as JObject ?? throw new InvalidOperationException()).ToString();
+        }
+    }
 
     [Fact]
     public void FromPlayerJson_Populates_All_Summary_Fields_From_Frozen_Fixture()
     {
-        var meta = SlotMetadata.FromPlayerJson(Player);
+        var meta = SlotMetadata.FromPlayerJson(PlayerJson);
 
         meta.HeroName.Should().Be("초한월");
         meta.HeroNickName.Should().Be("단월검");

@@ -26,6 +26,10 @@ public static class KoreanStrings
     public const string Cancel                = "취소";
     public const string Apply                 = "덮어쓰기";
 
+    public const string ConfirmTitleCaptureOverwrite = "슬롯 캡처 덮어쓰기 확인";
+    public const string ConfirmCaptureOverwriteMain  = "슬롯 {0}({1})의 기존 데이터를 현재 캐릭터로 덮어씁니다. 되돌릴 수 없습니다.";
+    public const string Overwrite                    = "덮어쓰기";
+
     public const string ConfirmTitleDelete    = "슬롯 삭제";
     public const string ConfirmDeleteMain     = "슬롯 {0}을(를) 삭제합니다. 되돌릴 수 없습니다.";
     public const string Delete                = "삭제";

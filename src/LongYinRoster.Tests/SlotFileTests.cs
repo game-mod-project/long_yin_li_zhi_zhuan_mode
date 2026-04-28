@@ -1,8 +1,8 @@
 using System;
 using System.IO;
+using System.Text.Json;
 using FluentAssertions;
 using LongYinRoster.Slots;
-using Newtonsoft.Json.Linq;
 using Xunit;
 
 namespace LongYinRoster.Tests;
@@ -18,7 +18,7 @@ public class SlotFileTests : IDisposable
         try { Directory.Delete(_tmp, recursive: true); } catch { }
     }
 
-    private static JObject SamplePlayer() => JObject.Parse(@"{""heroID"":0,""heroName"":""테스트""}");
+    private const string SamplePlayer = @"{""heroID"":0,""heroName"":""테스트""}";
 
     private SlotPayload SamplePayload(int idx) => new()
     {
@@ -29,7 +29,7 @@ public class SlotFileTests : IDisposable
             CapturedAt: new DateTime(2026, 4, 27, 19, 0, 0),
             GameSaveVersion: "1.0.0 f8.2", GameSaveDetail: "",
             Summary: new SlotMetadata("테스트", "", false, 18, 1, 100f, 0, 0, 0, 0, 0L, 0)),
-        Player = SamplePlayer(),
+        Player = SamplePlayer,
     };
 
     [Fact]
@@ -42,7 +42,9 @@ public class SlotFileTests : IDisposable
         loaded.Meta.SlotIndex.Should().Be(1);
         loaded.Meta.UserLabel.Should().Be("테스트");
         loaded.Meta.SchemaVersion.Should().Be(1);
-        ((string?)loaded.Player["heroName"]).Should().Be("테스트");
+
+        using var doc = JsonDocument.Parse(loaded.Player);
+        doc.RootElement.GetProperty("heroName").GetString().Should().Be("테스트");
     }
 
     [Fact]

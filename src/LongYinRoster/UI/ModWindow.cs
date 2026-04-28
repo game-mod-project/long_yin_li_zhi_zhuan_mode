@@ -20,8 +20,9 @@ public sealed class ModWindow : MonoBehaviour
 
     public SlotRepository Repo { get; private set; } = null!;
 
-    private readonly SlotListPanel   _list   = new();
-    private readonly SlotDetailPanel _detail = new();
+    private readonly SlotListPanel   _list    = new();
+    private readonly SlotDetailPanel _detail  = new();
+    private readonly ConfirmDialog   _confirm = new();
 
     private void Awake()
     {
@@ -32,20 +33,45 @@ public sealed class ModWindow : MonoBehaviour
         Repo = new SlotRepository(slotDir, Config.MaxSlots.Value);
 
         // wire panel callbacks
-        _list.OnSaveCurrentRequested = CaptureCurrent;
+        _list.OnSaveCurrentRequested = RequestCapture;
 
         Logger.Info($"ModWindow Awake (slots dir: {slotDir})");
     }
 
-    private void CaptureCurrent()
+    /// <summary>
+    /// [+] 버튼 핸들러. 사용자가 선택한 슬롯이 차있으면 확인 다이얼로그를 띄운다.
+    /// 선택이 자동백업(0) 이거나 OOR 이면 가장 낮은 빈 사용자 슬롯으로 fallback.
+    /// </summary>
+    private void RequestCapture()
     {
-        var slot = Repo.AllocateNextFree();
+        int slot = _list.Selected;
+        if (slot <= 0 || slot >= Repo.All.Count)
+            slot = Repo.AllocateNextFree();
+
         if (slot < 0)
         {
             ToastService.Push(KoreanStrings.ToastErrSlotsFull, ToastKind.Error);
             return;
         }
 
+        var entry = Repo.All[slot];
+        if (entry.IsEmpty)
+        {
+            DoCapture(slot);
+        }
+        else
+        {
+            var existingLabel = entry.Meta?.UserLabel ?? "";
+            _confirm.Show(
+                title: KoreanStrings.ConfirmTitleCaptureOverwrite,
+                body: string.Format(KoreanStrings.ConfirmCaptureOverwriteMain, slot, existingLabel),
+                confirmLabel: KoreanStrings.Overwrite,
+                onConfirm: () => DoCapture(slot));
+        }
+    }
+
+    private void DoCapture(int slot)
+    {
         var player = Core.HeroLocator.GetPlayer();
         if (player == null)
         {
@@ -56,8 +82,7 @@ public sealed class ModWindow : MonoBehaviour
         try
         {
             var json    = Core.SerializerService.Serialize(player);
-            var jObj    = Newtonsoft.Json.Linq.JObject.Parse(json);
-            var summary = SlotMetadata.FromPlayerJson(jObj);
+            var summary = SlotMetadata.FromPlayerJson(json);
 
             var label = $"{summary.HeroName} {summary.HeroNickName} {DateTime.Now:MM-dd HH:mm}";
             var payload = new SlotPayload
@@ -74,7 +99,7 @@ public sealed class ModWindow : MonoBehaviour
                     GameSaveVersion: "1.0.0 f8.2",
                     GameSaveDetail: "",
                     Summary: summary),
-                Player = jObj,
+                Player = json,
             };
             Repo.Write(slot, payload);
             Repo.Reload();
@@ -83,7 +108,7 @@ public sealed class ModWindow : MonoBehaviour
         catch (Exception ex)
         {
             ToastService.Push(string.Format(KoreanStrings.ToastErrCapture, ex.Message), ToastKind.Error);
-            Logger.Error($"CaptureCurrent failed: {ex}");
+            Logger.Error($"DoCapture(slot={slot}) failed: {ex}");
         }
     }
 
@@ -106,8 +131,13 @@ public sealed class ModWindow : MonoBehaviour
         ToastService.Draw();
         if (!_visible) return;
 
+        // confirm dialog 표시 중에는 메인 창 입력을 차단해 modal 효과를 만든다.
+        GUI.enabled = !_confirm.IsVisible;
         _rect = GUILayout.Window(WindowId, _rect, (GUI.WindowFunction)DrawWindow,
                                  KoreanStrings.AppTitle);
+        GUI.enabled = true;
+
+        _confirm.Draw();
 
         // persist position/size
         Config.WindowX.Value = _rect.x;

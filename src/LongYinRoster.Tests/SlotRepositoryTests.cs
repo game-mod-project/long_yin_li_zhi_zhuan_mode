@@ -3,7 +3,6 @@ using System.IO;
 using System.Linq;
 using FluentAssertions;
 using LongYinRoster.Slots;
-using Newtonsoft.Json.Linq;
 using Xunit;
 
 namespace LongYinRoster.Tests;
@@ -24,7 +23,7 @@ public class SlotRepositoryTests : IDisposable
             1, "0.1.0", idx, $"slot{idx}", "", "live", "",
             DateTime.UtcNow, "1.0.0 f8.2", "",
             new SlotMetadata("h", "", false, 18, 1, 0, 0, 0, 0, 0, 0, 0)),
-        Player = JObject.Parse(@"{""heroID"":0}"),
+        Player = @"{""heroID"":0}",
     };
 
     [Fact]
