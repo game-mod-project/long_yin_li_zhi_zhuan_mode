@@ -61,5 +61,8 @@
     <Compile Include="../LongYinRoster/Core/ApplyResult.cs">
       <Link>Core/ApplyResult.cs</Link>
     </Compile>
+    <Compile Include="../LongYinRoster/Core/IL2CppListOps.cs">
+      <Link>Core/IL2CppListOps.cs</Link>
+    </Compile>
   </ItemGroup>
 </Project>

@@ -35,3 +35,28 @@ public class ApplyResultTests
         r.HasFatalError.Should().BeTrue();
     }
 }
+
+public class IL2CppListOpsTests
+{
+    [Fact]
+    public void Count_ReturnsItemCount_ForStandardList()
+    {
+        var list = new System.Collections.Generic.List<int> { 10, 20, 30 };
+        IL2CppListOps.Count(list).Should().Be(3);
+    }
+
+    [Fact]
+    public void Get_ReturnsItemAt_ForStandardList()
+    {
+        var list = new System.Collections.Generic.List<string> { "a", "b", "c" };
+        IL2CppListOps.Get(list, 1).Should().Be("b");
+    }
+
+    [Fact]
+    public void Clear_ClearsStandardList()
+    {
+        var list = new System.Collections.Generic.List<int> { 1, 2, 3 };
+        IL2CppListOps.Clear(list);
+        list.Count.Should().Be(0);
+    }
+}
