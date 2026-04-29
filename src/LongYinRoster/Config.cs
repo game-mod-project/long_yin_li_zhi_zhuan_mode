@@ -16,7 +16,7 @@ public static class Config
     public static ConfigEntry<float>   WindowH = null!;
 
     public static ConfigEntry<bool>    AutoBackupBeforeApply   = null!;
-    public static ConfigEntry<bool>    RunPinpointPatchOnApply = null!;
+    public static ConfigEntry<bool>    AllowApplyToGame        = null!;
 
     public static ConfigEntry<int>     LogLevel = null!;
 
@@ -38,10 +38,10 @@ public static class Config
         WindowW = cfg.Bind("UI", "WindowW",  720f, "");
         WindowH = cfg.Bind("UI", "WindowH",  480f, "");
 
-        AutoBackupBeforeApply   = cfg.Bind("Behavior", "AutoBackupBeforeApply",   true,
-                                           "덮어쓰기 직전 슬롯 0에 자동 저장 (체크박스 기본값)");
-        RunPinpointPatchOnApply = cfg.Bind("Behavior", "RunPinpointPatchOnApply", true,
-                                           "덮어쓰기 후 PinpointPatcher 호출");
+        AutoBackupBeforeApply = cfg.Bind("Behavior", "AutoBackupBeforeApply", true,
+                                         "덮어쓰기 직전 슬롯 0에 자동 저장 (실패 시 자동복원의 source)");
+        AllowApplyToGame      = cfg.Bind("Behavior", "AllowApplyToGame",      true,
+                                         "Apply 자체 kill switch. dump phase 에서 false 권장");
 
         LogLevel = cfg.Bind("Logging", "LogLevel", 3,
                             new ConfigDescription(

@@ -299,9 +299,9 @@ public sealed class ModWindow : MonoBehaviour
     {
         if (Input.GetKeyDown(Config.ToggleHotkey.Value)) Toggle();
 
-        // 다른 mod 가 매 frame Time.timeScale 을 1로 force 할 수 있으므로,
-        // 창이 열려있는 동안 매 frame 강제로 0 유지. Toggle() 시점만 설정하면 다른 mod
-        // 의 LateUpdate 에서 덮어써질 위험.
+        // [F12] HeroDataDump trigger — v0.3 plan Task 1 임시 핸들러. plan Task 21 에서 제거.
+        if (Input.GetKeyDown(KeyCode.F12)) Core.HeroDataDump.DumpToLog();
+
         if (_visible && Config.PauseGameWhileOpen.Value && Time.timeScale != 0f)
             Time.timeScale = 0f;
     }
