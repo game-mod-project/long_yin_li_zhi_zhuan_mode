@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using LongYinRoster.Slots;
 using LongYinRoster.Util;
 using UnityEngine;
@@ -302,7 +303,7 @@ public sealed class ModWindow : MonoBehaviour
         // [F12] HeroDataDump trigger — v0.3 plan Task 1 임시 핸들러. plan Task 21 에서 제거.
         if (Input.GetKeyDown(KeyCode.F12)) Core.HeroDataDump.DumpToLog();
 
-        // [F11 + S] 임시 — SetSimpleFields 단독 smoke. plan Task 18 에서 제거.
+        // [F11 + S] — SetSimpleFields 단독 smoke. detail 보강.
         if (Input.GetKey(KeyCode.F11) && Input.GetKeyDown(KeyCode.S))
         {
             try
@@ -319,7 +320,9 @@ public sealed class ModWindow : MonoBehaviour
                         System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!
                         .Invoke(null, new object[] { doc.RootElement, player, res });
                     Logger.Info($"smoke S: applied={res.AppliedFields.Count} skipped={res.SkippedFields.Count} warned={res.WarnedFields.Count}");
-                    foreach (var f in res.WarnedFields) Logger.Info($"smoke S warn: {f}");
+                    foreach (var f in res.AppliedFields) Logger.Info($"  applied: {f}");
+                    foreach (var f in res.SkippedFields) Logger.Info($"  skipped: {f}");
+                    foreach (var f in res.WarnedFields)  Logger.Info($"  warn: {f}");
                 }
                 else
                 {
@@ -327,6 +330,117 @@ public sealed class ModWindow : MonoBehaviour
                 }
             }
             catch (Exception ex) { Logger.Error($"smoke S: {ex}"); }
+        }
+
+        // [F11 + 1] 진단 — 가설 A vs B. ChangeHornorLv / ChangeGovernLv (flag 없는 single-arg).
+        // 가설 B (IL2CPP invoke 자체 함정) 가설 A (Boolean flag 함정) 결정.
+        if (Input.GetKey(KeyCode.F11) && Input.GetKeyDown(KeyCode.Alpha1))
+        {
+            try
+            {
+                var player = Core.HeroLocator.GetPlayer();
+                if (player == null) { Logger.Warn("smoke 1: player null"); return; }
+                var t = player.GetType();
+                const System.Reflection.BindingFlags F =
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic |
+                    System.Reflection.BindingFlags.Instance;
+
+                // current 값 read (before)
+                var hornorBefore = t.GetProperty("hornorLv", F)?.GetValue(player) ?? t.GetField("hornorLv", F)?.GetValue(player);
+                var governBefore = t.GetProperty("governLv", F)?.GetValue(player) ?? t.GetField("governLv", F)?.GetValue(player);
+                Logger.Info($"smoke 1 BEFORE: hornorLv={hornorBefore}, governLv={governBefore}");
+
+                // ChangeHornorLv(+5) / ChangeGovernLv(+3) 호출
+                var hornorM = t.GetMethod("ChangeHornorLv", F, null, new[] { typeof(int) }, null);
+                var governM = t.GetMethod("ChangeGovernLv", F, null, new[] { typeof(int) }, null);
+                if (hornorM == null) Logger.Warn("smoke 1: ChangeHornorLv method NOT FOUND");
+                else
+                {
+                    Logger.Info($"smoke 1: ChangeHornorLv method = {hornorM} (declaringType={hornorM.DeclaringType?.FullName})");
+                    hornorM.Invoke(player, new object[] { 5 });
+                }
+                if (governM == null) Logger.Warn("smoke 1: ChangeGovernLv method NOT FOUND");
+                else
+                {
+                    Logger.Info($"smoke 1: ChangeGovernLv method = {governM}");
+                    governM.Invoke(player, new object[] { 3 });
+                }
+
+                // current 값 read (after)
+                var hornorAfter = t.GetProperty("hornorLv", F)?.GetValue(player) ?? t.GetField("hornorLv", F)?.GetValue(player);
+                var governAfter = t.GetProperty("governLv", F)?.GetValue(player) ?? t.GetField("governLv", F)?.GetValue(player);
+                Logger.Info($"smoke 1 AFTER:  hornorLv={hornorAfter}, governLv={governAfter}");
+                Logger.Info($"smoke 1 RESULT: hornorLv changed={!object.Equals(hornorBefore, hornorAfter)}, governLv changed={!object.Equals(governBefore, governAfter)}");
+            }
+            catch (Exception ex) { Logger.Error($"smoke 1: {ex}"); }
+        }
+
+        // [F11 + 2] 진단 — Boolean padding=true 로 ChangeFame(+1000, true) 호출.
+        // fame 변경 → 가설 A (Boolean flag 함정) 지지.
+        if (Input.GetKey(KeyCode.F11) && Input.GetKeyDown(KeyCode.Alpha2))
+        {
+            try
+            {
+                var player = Core.HeroLocator.GetPlayer();
+                if (player == null) { Logger.Warn("smoke 2: player null"); return; }
+                var t = player.GetType();
+                const System.Reflection.BindingFlags F =
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic |
+                    System.Reflection.BindingFlags.Instance;
+
+                var fameBefore = t.GetProperty("fame", F)?.GetValue(player) ?? t.GetField("fame", F)?.GetValue(player);
+                Logger.Info($"smoke 2 BEFORE: fame={fameBefore}");
+
+                // try padding=false (default — Task 7 의 InvokeMethod 처럼)
+                var fameM = t.GetMethod("ChangeFame", F, null, new[] { typeof(float), typeof(bool) }, null);
+                if (fameM == null)
+                    Logger.Warn("smoke 2: ChangeFame(Single,Boolean) method NOT FOUND");
+                else
+                {
+                    Logger.Info($"smoke 2: ChangeFame method = {fameM} (declaringType={fameM.DeclaringType?.FullName})");
+
+                    // (a) padding=false
+                    fameM.Invoke(player, new object[] { 1000f, false });
+                    var fameAfterFalse = t.GetProperty("fame", F)?.GetValue(player) ?? t.GetField("fame", F)?.GetValue(player);
+                    Logger.Info($"smoke 2 AFTER false: fame={fameAfterFalse} (delta={(float)(fameAfterFalse ?? 0f) - (float)(fameBefore ?? 0f)})");
+
+                    // (b) padding=true
+                    fameM.Invoke(player, new object[] { 1000f, true });
+                    var fameAfterTrue = t.GetProperty("fame", F)?.GetValue(player) ?? t.GetField("fame", F)?.GetValue(player);
+                    Logger.Info($"smoke 2 AFTER true:  fame={fameAfterTrue} (delta={(float)(fameAfterTrue ?? 0f) - (float)(fameAfterFalse ?? 0f)})");
+                }
+            }
+            catch (Exception ex) { Logger.Error($"smoke 2: {ex}"); }
+        }
+
+        // [F11 + 3] 진단 — type / method DeclaringType inspect (IL2CPP wrapper 여부).
+        if (Input.GetKey(KeyCode.F11) && Input.GetKeyDown(KeyCode.Alpha3))
+        {
+            try
+            {
+                var player = Core.HeroLocator.GetPlayer();
+                if (player == null) { Logger.Warn("smoke 3: player null"); return; }
+                var t = player.GetType();
+                Logger.Info($"smoke 3: player type = {t.AssemblyQualifiedName}");
+                Logger.Info($"smoke 3: BaseType = {t.BaseType?.FullName}");
+                Logger.Info($"smoke 3: namespace = {t.Namespace}");
+                Logger.Info($"smoke 3: assembly = {t.Assembly.FullName}");
+
+                const System.Reflection.BindingFlags F =
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic |
+                    System.Reflection.BindingFlags.Instance;
+                foreach (var name in new[] { "ChangeHornorLv", "ChangeFame", "SetFavor", "ChangeAttri" })
+                {
+                    var ms = t.GetMethods(F);
+                    foreach (var m in ms)
+                    {
+                        if (m.Name != name) continue;
+                        var pars = string.Join(",", m.GetParameters().Select(p => p.ParameterType.FullName));
+                        Logger.Info($"smoke 3: {name} -> {m.DeclaringType?.FullName}.{name}({pars})");
+                    }
+                }
+            }
+            catch (Exception ex) { Logger.Error($"smoke 3: {ex}"); }
         }
 
         if (_visible && Config.PauseGameWhileOpen.Value && Time.timeScale != 0f)
