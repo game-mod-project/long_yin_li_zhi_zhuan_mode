@@ -532,13 +532,13 @@ Decision criteria: § 7.2 의 "🟢 / 🟡 / ⚪ / ⛔" 분류는 dump 에서 ga
 | 천부 | `heroTagPoint` (Single) | 🟢 (Delta) | **`ChangeTagPoint(Single, Boolean)`** — Delta |
 | 명예 | `fame` (Single) | 🟢 (Delta) | **`ChangeFame(Single, Boolean)`** — Delta |
 | 명예 | `badFame` (Single) | 🟢 (Delta) | **`ChangeBadFame(Single, Boolean, HeroData, Boolean)`** — Delta |
-| 명예 | `hornorLv` (Int32) | 🟢 (Delta) | **`ChangeHornorLv(Int32)`** — Delta |
-| 명예 | `governLv` (Int32) | 🟢 (Delta) | **`ChangeGovernLv(Int32)`** — Delta |
+| 명예 | `hornorLv` (Int32) | ⛔ | `ChangeHornorLv(Int32)` 존재하지만 force-related — `PortabilityFilter._faction` 가 strip (§2.2 N4). SimpleFieldMatrix 에서 제거 |
+| 명예 | `governLv` (Int32) | ⛔ | `ChangeGovernLv(Int32)` 존재하지만 force-related — `PortabilityFilter._faction` 가 strip (§2.2 N4). SimpleFieldMatrix 에서 제거 |
 | 충성/호감 | `favor` (Single) | 🟢 | **`SetFavor(Single, Boolean)`** — Direct (또는 `ChangeFavor(...)` Delta) |
 | 충성/호감 | `loyal` (Single) | 🟢 (Delta) | **`ChangeLoyal(Single, Boolean)`** — Delta. `ResetLoyal()` 도 사용 가능 |
 | 충성/호감 | `chaos` / `evil` / `armor` (Single) | ⚪ | property setter 만 |
 | 충성/호감 | `medResist` (Single) | ⚪ | property setter 만. `GetMedResist()` 는 read-only |
-| 공헌 | `forceContribution` / `governContribution` (Single) | 🟢 (Delta) | **`ChangeForceContribution(Single, Boolean, Int32)`** / **`ChangeGovernContribution(Single, Boolean)`** — Delta |
+| 공헌 | `forceContribution` / `governContribution` (Single) | ⛔ | `ChangeForceContribution(Single, Boolean, Int32)` / `ChangeGovernContribution(Single, Boolean)` 존재하지만 force-related — `PortabilityFilter._faction` 가 strip (§2.2 N4). SimpleFieldMatrix 에서 제거 |
 | 공헌 | `lastFightContribution` / `lastMonthContribution` / `lastYearContribution` / `thisMonthContribution` / `thisYearContribution` (Single) | ⚪ | property setter 만. `ClearContributionRecord()` 만 reset. **공헌 이력은 history-like 이므로 Apply 시점 의미 모호** — v0.4 검토 |
 | 시스템 | `salary` (Int32) / `population` (Int32) | 🟢 derived | `RefreshHeroSalaryAndPopulation()` 가 재계산 — step 6 으로 위임 |
 | 시스템 | `selfHouseTotalAdd` (Single) | 🟢 (Delta) | **`ChangeSelfHouseTotalAdd(Single)`** — Delta |
@@ -580,8 +580,6 @@ dump 에서 game-self setter / changer 가 발견된 simple-value 필드만 entr
 |---|---|---|---|---|---|
 | 명예 | `fame` | `fame` | Single | `ChangeFame` | Delta `(new - cur, false)` |
 | 악명 | `badFame` | `badFame` | Single | `ChangeBadFame` | Delta `(new - cur, false, null, false)` |
-| 영예 lv | `hornorLv` | `hornorLv` | Int32 | `ChangeHornorLv` | Delta `(new - cur)` |
-| 통치 lv | `governLv` | `governLv` | Int32 | `ChangeGovernLv` | Delta `(new - cur)` |
 | HP | `hp` | `hp` | Single | `ChangeHp` | Delta `(new - cur, false, false, false, false)` |
 | Mana | `mana` | `mana` | Single | `ChangeMana` | Delta `(new - cur, false, false, false)` |
 | Power | `power` | `power` | Single | `ChangePower` | Delta `(new - cur, false)` |
@@ -590,8 +588,6 @@ dump 에서 game-self setter / changer 가 발견된 simple-value 필드만 entr
 | 중독 | `poisonInjury` | `poisonInjury` | Single | `ChangePoisonInjury` | Delta `(new - cur, false, false, false)` |
 | 충성 | `loyal` | `loyal` | Single | `ChangeLoyal` | Delta `(new - cur, false)` |
 | 호감 | `favor` | `favor` | Single | `SetFavor` | Direct `(new, false)` |
-| 가문 공헌 | `forceContribution` | `forceContribution` | Single | `ChangeForceContribution` | Delta `(new - cur, false, 0)` |
-| 통치 공헌 | `governContribution` | `governContribution` | Single | `ChangeGovernContribution` | Delta `(new - cur, false)` |
 | 자기집 add | `selfHouseTotalAdd` | `selfHouseTotalAdd` | Single | `ChangeSelfHouseTotalAdd` | Delta `(new - cur)` |
 | 천부 포인트 | `heroTagPoint` | `heroTagPoint` | Single | `ChangeTagPoint` | Delta `(new - cur, false)` |
 | 활성 무공 | `nowActiveSkill` | `nowActiveSkill` | Int32 | (⚪) | `SetNowActiveSkill` 가 `KungfuSkillLvData` 인자 받음 — Step 2 후 별도 처리 |
@@ -605,6 +601,13 @@ dump 에서 game-self setter / changer 가 발견된 simple-value 필드만 entr
 - `heroName`, `heroNickName`, `heroFamilyName`, `settingName`, `isFemale`, `age`, `nature`, `talent`, `generation`, `voicePitch`, `chaos`, `evil`, `armor`, `medResist`, `heroStrengthLv`, `summonID/Lv`, `defaultSkinID`, `skinColorDark`, AI / Buff / Mission / Log / Cd / Dirty 일체.
 
 이들은 v0.4 후보 (Open Q1 갱신 — 매트릭스의 Misc property setter only 필드는 game method 추가 enumerate 또는 Harmony patch 우회로 풀어야).
+
+**hornorLv / governLv / forceContribution / governContribution 제외 사유**:
+이 4 필드는 dump 매핑 시 game-self setter (`ChangeHornorLv` 등) 발견됐지만,
+`PortabilityFilter._faction` 이 force-related 로 strip — spec §2.2 N4 의 force-preserve
+정책. 따라서 SimpleFieldMatrix 에서 제거 (matrix 가 strip 된 필드를 read 시 "not in
+slot JSON" skip 발생). v0.4 에서 사용자 옵션 (force-state 도 backup) 검토 가능.
+22 dump-evidenced row → 18 entry (Task 7-fix 에서 정정).
 
 #### Step 2 — RebuildKungfuSkills
 

@@ -22,6 +22,11 @@ public static class PinpointPatcher
         if (slotPlayerJson == null) throw new ArgumentNullException(nameof(slotPlayerJson));
         if (currentPlayer == null) throw new ArgumentNullException(nameof(currentPlayer));
 
+        // HeroLocator 의 cache 가 stale 일 수 있어 (다른 세이브 로드 후 등) Apply 진입 시
+        // invalidate. currentPlayer 인자 자체는 호출자가 fresh fetch 했어야 하지만, 후속
+        // step 의 helper 가 HeroLocator.GetPlayer() 다시 호출하면 일관 보장.
+        HeroLocator.InvalidateCache();
+
         var res = new ApplyResult();
         using var doc = JsonDocument.Parse(slotPlayerJson);
         var slot = doc.RootElement;
@@ -146,6 +151,14 @@ public static class PinpointPatcher
     ///   Void ChangeLivingSkill(Int32, Single, Boolean, Boolean)
     ///   Void ChangeLivingSkillExp(Int32, Single, Boolean)
     /// 추가 boolean flag 들은 InvokeMethod 가 default(Boolean)=false 로 padding.
+    ///
+    /// **Boolean flag default false 의 의미**: dump 의 ChangeAttri / ChangeFightSkill /
+    /// ChangeLivingSkill / ChangeLivingSkillExp 시그니처가 (Int32 index, Single delta,
+    /// Boolean log, Boolean refreshDerived) — 마지막 두 boolean 의 의미는 dump 만으로 추정.
+    /// false default 의 가정: log=false (silent), refreshDerived=false (Step 6
+    /// RefreshSelfState 가 derived 재계산 책임). Step 6 (Task 12) 가 미와이어 상태에서
+    /// SetSimpleFields 만 호출하면 base stat 는 변경되지만 정보창 의 totalAttri 갱신 안 됨.
+    /// 통합 Apply (Task 16) 에서는 Step 6 가 항상 같이 호출되므로 일관 동작.
     /// </summary>
     private static void ApplyListIndexedSpecialCase(JsonElement slot, object player, SimpleFieldEntry entry, ApplyResult res)
     {
@@ -223,6 +236,11 @@ public static class PinpointPatcher
     /// ChangeHp(Single, Boolean, Boolean, Boolean, Boolean)). caller 는 primary 인자만 전달
     /// 하고, 나머지는 default(T) 로 padding 한다 — bool=false, int=0, float=0f, ref-type=null.
     /// 만약 같은 이름의 overload 가 여럿이면 caller 의 args.Length 이상이고 최소인 것을 선택.
+    ///
+    /// **Tiebreaker**: 동일 길이 overload 가 여러 개면 first-encountered 가 win.
+    /// 현재 SimpleFieldMatrix 의 18 entry 는 모두 unambiguous (각 method name 마다 1
+    /// signature). 추후 같은 name 의 overload 가 entry 의 setter 로 추가되면 명시
+    /// signature mapping 필요.
     /// </summary>
     private static void InvokeMethod(object obj, string methodName, object?[] args)
     {

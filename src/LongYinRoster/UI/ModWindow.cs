@@ -308,6 +308,7 @@ public sealed class ModWindow : MonoBehaviour
         {
             try
             {
+                Core.HeroLocator.InvalidateCache();
                 var player = Core.HeroLocator.GetPlayer();
                 if (player == null) { Logger.Warn("smoke S: player null"); return; }
                 if (!Repo.All[1].IsEmpty)
@@ -338,6 +339,7 @@ public sealed class ModWindow : MonoBehaviour
         {
             try
             {
+                Core.HeroLocator.InvalidateCache();
                 var player = Core.HeroLocator.GetPlayer();
                 if (player == null) { Logger.Warn("smoke 1: player null"); return; }
                 var t = player.GetType();
@@ -381,6 +383,7 @@ public sealed class ModWindow : MonoBehaviour
         {
             try
             {
+                Core.HeroLocator.InvalidateCache();
                 var player = Core.HeroLocator.GetPlayer();
                 if (player == null) { Logger.Warn("smoke 2: player null"); return; }
                 var t = player.GetType();
@@ -418,6 +421,7 @@ public sealed class ModWindow : MonoBehaviour
         {
             try
             {
+                Core.HeroLocator.InvalidateCache();
                 var player = Core.HeroLocator.GetPlayer();
                 if (player == null) { Logger.Warn("smoke 3: player null"); return; }
                 var t = player.GetType();

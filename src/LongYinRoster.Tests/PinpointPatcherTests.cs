@@ -76,4 +76,14 @@ public class SimpleFieldMatrixTests
             e.Type.Should().NotBeNull();
         }
     }
+
+    [Fact]
+    public void Entries_Count_Matches_Spec()
+    {
+        // spec §7.2.1 Step 1 매트릭스 row count.
+        // 22 dump-evidenced rows - 4 force-related (hornorLv/governLv/forceContribution/
+        // governContribution) → 18. force-related 는 PortabilityFilter._faction 가 strip
+        // 하므로 matrix 에서 제거. 변경 시 spec §7.2 / §7.2.1 동기화.
+        SimpleFieldMatrix.Entries.Count.Should().Be(18);
+    }
 }

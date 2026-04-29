@@ -29,7 +29,12 @@ public static class SimpleFieldMatrix
     /// dump 결과로 확정된 매트릭스. plan Task 2 직후 채워진다. 빈 list 면 schema test
     /// 실패 — Task 2 가 완료 안 됐다는 신호.
     ///
-    /// spec §7.2.1 Step 1 의 22 entry 와 1:1 (table row 순서 유지).
+    /// spec §7.2.1 Step 1 의 18 entry 와 1:1 (table row 순서 유지).
+    /// 22 dump-evidenced row 중 force-related 4 row (hornorLv / governLv /
+    /// forceContribution / governContribution) 는 PortabilityFilter._faction 가
+    /// strip — spec §2.2 N4 force-preserve 정책 일관 유지를 위해 matrix 에서 제거.
+    /// 변경 시 spec §7.2 / §7.2.1 동기화.
+    ///
     /// 특이 케이스:
     /// - `nowActiveSkill`: SetterMethod=null, Style=None — Step 2 후 별도 처리.
     /// - `skinID`: JsonPath/PropertyName 은 skinID 만 표시 (대표). SetSkin 은 multi-arg
@@ -42,8 +47,6 @@ public static class SimpleFieldMatrix
     {
         new SimpleFieldEntry("명예",            "fame",                "fame",                typeof(float), "ChangeFame",                 SetterStyle.Delta),
         new SimpleFieldEntry("악명",            "badFame",             "badFame",             typeof(float), "ChangeBadFame",              SetterStyle.Delta),
-        new SimpleFieldEntry("영예 lv",         "hornorLv",            "hornorLv",            typeof(int),   "ChangeHornorLv",             SetterStyle.Delta),
-        new SimpleFieldEntry("통치 lv",         "governLv",            "governLv",            typeof(int),   "ChangeGovernLv",             SetterStyle.Delta),
         new SimpleFieldEntry("HP",              "hp",                  "hp",                  typeof(float), "ChangeHp",                   SetterStyle.Delta),
         new SimpleFieldEntry("Mana",            "mana",                "mana",                typeof(float), "ChangeMana",                 SetterStyle.Delta),
         new SimpleFieldEntry("Power",           "power",               "power",               typeof(float), "ChangePower",                SetterStyle.Delta),
@@ -52,8 +55,6 @@ public static class SimpleFieldMatrix
         new SimpleFieldEntry("중독",            "poisonInjury",        "poisonInjury",        typeof(float), "ChangePoisonInjury",         SetterStyle.Delta),
         new SimpleFieldEntry("충성",            "loyal",               "loyal",               typeof(float), "ChangeLoyal",                SetterStyle.Delta),
         new SimpleFieldEntry("호감",            "favor",               "favor",               typeof(float), "SetFavor",                   SetterStyle.Direct),
-        new SimpleFieldEntry("가문 공헌",       "forceContribution",   "forceContribution",   typeof(float), "ChangeForceContribution",    SetterStyle.Delta),
-        new SimpleFieldEntry("통치 공헌",       "governContribution",  "governContribution",  typeof(float), "ChangeGovernContribution",   SetterStyle.Delta),
         new SimpleFieldEntry("자기집 add",      "selfHouseTotalAdd",   "selfHouseTotalAdd",   typeof(float), "ChangeSelfHouseTotalAdd",    SetterStyle.Delta),
         new SimpleFieldEntry("천부 포인트",     "heroTagPoint",        "heroTagPoint",        typeof(float), "ChangeTagPoint",             SetterStyle.Delta),
         new SimpleFieldEntry("활성 무공",       "nowActiveSkill",      "nowActiveSkill",      typeof(int),   null,                         SetterStyle.None),
