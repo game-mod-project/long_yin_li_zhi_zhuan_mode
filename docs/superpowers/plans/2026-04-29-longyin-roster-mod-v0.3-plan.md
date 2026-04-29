@@ -1054,99 +1054,39 @@ EOF
 
 **Files:**
 - Modify: `src/LongYinRoster/Core/PinpointPatcher.cs`
-- Modify: `src/LongYinRoster/UI/ModWindow.cs` (임시 [F11+K] 핸들러)
 
-- [ ] **Step 1: RebuildKungfuSkills body 채우기**
+- [ ] **Step 1: RebuildKungfuSkills body 채우기 — placeholder skip (v0.4 후보)**
 
-`PinpointPatcher.cs` 의 `RebuildKungfuSkills` 를 다음으로 교체. 매트릭스에서 확정된 Add method 시그니처를 spec §7.2.1 의 "Step 2 RebuildKungfuSkills" 에서 가져온다 (예: `AddKungfuSkill(int id, int lv, int exp, bool equipped)`).
+dump 결과 (spec §7.2.1 Step 2): primitive-factory `AddKungfuSkill(int id, int lv, ...)` 가 부재. 모든 Add 가 `KungfuSkillLvData` wrapper 객체 인자. v0.3 는 placeholder + Logger.Warn 만:
+
 ```csharp
     private static void RebuildKungfuSkills(JsonElement slot, object player, ApplyResult res)
     {
-        var il2List = ReadFieldOrProperty(player, "kungfuSkills");
-        if (il2List == null) { res.SkippedFields.Add("kungfuSkills — list field missing"); return; }
-        IL2CppListOps.Clear(il2List);
-
-        if (!slot.TryGetProperty("kungfuSkills", out var arr) || arr.ValueKind != JsonValueKind.Array)
-        {
-            res.SkippedFields.Add("kungfuSkills — not in slot JSON");
-            return;
-        }
-
-        for (int i = 0; i < arr.GetArrayLength(); i++)
-        {
-            var entry = arr[i];
-            int  id       = entry.GetProperty("id").GetInt32();
-            int  lv       = entry.TryGetProperty("lv", out var lvEl)         ? lvEl.GetInt32()   : 0;
-            int  exp      = entry.TryGetProperty("exp", out var expEl)       ? expEl.GetInt32()  : 0;
-            bool equipped = entry.TryGetProperty("equiped", out var eqEl)    ? eqEl.GetBoolean() : false;
-            try
-            {
-                // spec §7.2.1 의 "Step 2 RebuildKungfuSkills" Add 시그니처. dump 결과로 다르면 교체.
-                InvokeMethod(player, "AddKungfuSkill", new object[] { id, lv, exp, equipped });
-                res.AppliedFields.Add($"kungfuSkill[{id}]");
-            }
-            catch (Exception ex)
-            {
-                res.WarnedFields.Add($"kungfuSkill[{id}] — {ex.GetType().Name}: {ex.Message}");
-            }
-        }
+        // v0.3: collection rebuild 미지원 — primitive-factory AddKungfuSkill 가 dump 에 부재
+        // (모든 Add method 가 KungfuSkillLvData wrapper 객체 인자). v0.4 후보 (spec §12).
+        res.SkippedFields.Add("kungfuSkills — collection rebuild deferred to v0.4");
     }
 ```
 
-**중요**: `"AddKungfuSkill"` method 명 + 인자 list 가 spec §7.2.1 매트릭스와 다르면 spec 따라 교체. spec §7.2.1 가 "AddKungfuSkill(id, lv, exp, equipped)" 가 아니면 위 InvokeMethod 줄을 spec 의 시그니처대로 수정.
-
-- [ ] **Step 2: 빌드 + 24 tests pass**
+- [ ] **Step 2: 빌드 + 24 tests pass** (smoke handler 추가 안 함 — placeholder skip 검증 충분)
 
 ```bash
 DOTNET_CLI_UI_LANGUAGE=en dotnet build src/LongYinRoster/LongYinRoster.csproj -c Release && DOTNET_CLI_UI_LANGUAGE=en dotnet test
 ```
 Expected: 둘 다 OK.
 
-- [ ] **Step 3: 임시 [F11+K] 핸들러 추가**
+- [ ] **Step 3: smoke-md 갱신** — B2 = "v0.3 placeholder skip (v0.4 후보)" 기록. 게임 안 검증 불필요 — Phase 5 통합 smoke C1 에서 토스트의 skipped 카운트로 검증.
 
-`ModWindow.cs` 의 `Update` 안 [F11+S] 다음에 추가:
-```csharp
-        if (Input.GetKey(KeyCode.F11) && Input.GetKeyDown(KeyCode.K))
-        {
-            try
-            {
-                var player = Core.HeroLocator.GetPlayer();
-                if (player == null) { Logger.Warn("smoke K: player null"); return; }
-                if (!Repo.All[1].IsEmpty)
-                {
-                    var slot1 = Slots.SlotFile.Read(Repo.PathFor(1));
-                    var stripped = Core.PortabilityFilter.StripForApply(slot1.Player);
-                    using var doc = System.Text.Json.JsonDocument.Parse(stripped);
-                    var res = new Core.ApplyResult();
-                    typeof(Core.PinpointPatcher).GetMethod("RebuildKungfuSkills",
-                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!
-                        .Invoke(null, new object[] { doc.RootElement, player, res });
-                    Logger.Info($"smoke K: applied={res.AppliedFields.Count} warned={res.WarnedFields.Count}");
-                }
-            }
-            catch (Exception ex) { Logger.Error($"smoke K: {ex}"); }
-        }
-```
-
-- [ ] **Step 4: Smoke B2**
-
-준비: 슬롯 1 에 무공 list 가 있는 캡처 존재. 캐릭터의 무공을 의도적으로 변경 (학습/삭제).
-검증: `[F11+K]` → 로그에 `smoke K: applied=N` (N = 슬롯의 무공 수). 캐릭터 무공창 확인 → 슬롯 1 시점 무공으로 복귀.
-실패 시: `WarnedFields` 에 어떤 method missing 인지 확인 → spec §7.2.1 의 시그니처 확인 → 매트릭스/코드 수정 후 재시도.
-
-- [ ] **Step 5: smoke-md 갱신**
-
-`docs/superpowers/specs/2026-04-29-v0.3-smoke.md` 에 B2 항목 갱신.
-
-- [ ] **Step 6: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
-git add src/LongYinRoster/Core/PinpointPatcher.cs src/LongYinRoster/UI/ModWindow.cs docs/superpowers/specs/2026-04-29-v0.3-smoke.md
+git add src/LongYinRoster/Core/PinpointPatcher.cs docs/superpowers/specs/2026-04-29-v0.3-smoke.md
 git commit -m "$(cat <<'EOF'
-feat(core): RebuildKungfuSkills step 2 + smoke B2 verified
+feat(core): RebuildKungfuSkills step 2 — v0.3 placeholder skip (v0.4 후보)
 
-v0.3 plan Task 8: PinpointPatcher Step 2. Clear=raw + Add=AddKungfuSkill (spec
-§7.2.1). 임시 [F11+K] 핸들러로 단독 smoke 통과 (Task 18 에서 제거).
+v0.3 plan Task 8: dump 결과 primitive-factory AddKungfuSkill 부재. v0.4 에서
+KungfuSkillLvData wrapper factory 또는 Harmony patch 후 활성. v0.3 는 placeholder
+skip + Logger.Warn 만.
 
 Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 EOF
@@ -1159,48 +1099,19 @@ EOF
 
 **Files:**
 - Modify: `src/LongYinRoster/Core/PinpointPatcher.cs`
-- Modify: `src/LongYinRoster/UI/ModWindow.cs`
 
-- [ ] **Step 1: RebuildItemList body 채우기**
+- [ ] **Step 1: RebuildItemList body 채우기 — placeholder skip (v0.4 후보)**
 
-`PinpointPatcher.cs` 의 `RebuildItemList`:
+dump 결과 (spec §7.2.1 Step 3): primitive-factory `AddItem(int, int)` 가 부재. 모든 Add/Get 가 `ItemData` wrapper 객체 인자.
+
 ```csharp
     private static void RebuildItemList(JsonElement slot, object player, ApplyResult res)
     {
-        var itemListData = ReadFieldOrProperty(player, "itemListData");
-        if (itemListData == null) { res.SkippedFields.Add("itemListData — field missing"); return; }
-        var allItem = ReadFieldOrProperty(itemListData, "allItem");
-        if (allItem == null) { res.SkippedFields.Add("itemListData.allItem — field missing"); return; }
-        IL2CppListOps.Clear(allItem);
-
-        if (!slot.TryGetProperty("itemListData", out var ild) ||
-            !ild.TryGetProperty("allItem", out var arr) ||
-            arr.ValueKind != JsonValueKind.Array)
-        {
-            res.SkippedFields.Add("itemListData.allItem — not in slot JSON");
-            return;
-        }
-
-        for (int i = 0; i < arr.GetArrayLength(); i++)
-        {
-            var entry = arr[i];
-            int id    = entry.GetProperty("id").GetInt32();
-            int count = entry.TryGetProperty("count", out var cEl) ? cEl.GetInt32() : 1;
-            try
-            {
-                // spec §7.2.1 의 "Step 3 RebuildItemList" Add 시그니처.
-                InvokeMethod(player, "AddItemToList", new object[] { id, count });
-                res.AppliedFields.Add($"item[{id}]x{count}");
-            }
-            catch (Exception ex)
-            {
-                res.WarnedFields.Add($"item[{id}] — {ex.GetType().Name}: {ex.Message}");
-            }
-        }
+        // v0.3: collection rebuild 미지원 — primitive-factory AddItem 가 dump 에 부재
+        // (모든 Add method 가 ItemData wrapper 객체 인자). v0.4 후보 (spec §12).
+        res.SkippedFields.Add("itemListData.allItem — collection rebuild deferred to v0.4");
     }
 ```
-
-**중요**: `"AddItemToList"` 시그니처를 spec §7.2.1 매트릭스 따라 교체. 시그니처가 다르면 InvokeMethod 라인 + 인자 추출 부분도 교체.
 
 - [ ] **Step 2: 빌드 + 24 tests**
 
@@ -1208,46 +1119,17 @@ EOF
 DOTNET_CLI_UI_LANGUAGE=en dotnet build src/LongYinRoster/LongYinRoster.csproj -c Release && DOTNET_CLI_UI_LANGUAGE=en dotnet test
 ```
 
-- [ ] **Step 3: 임시 [F11+I] 핸들러 추가**
+- [ ] **Step 3: smoke-md 갱신** — B3 = "v0.3 placeholder skip (v0.4 후보)". 게임 안 검증 불필요.
 
-`ModWindow.cs` 의 [F11+K] 다음에 추가 (구조는 [F11+K] 와 동일, method 이름 `RebuildItemList` 만 다름):
-```csharp
-        if (Input.GetKey(KeyCode.F11) && Input.GetKeyDown(KeyCode.I))
-        {
-            try
-            {
-                var player = Core.HeroLocator.GetPlayer();
-                if (player == null) { Logger.Warn("smoke I: player null"); return; }
-                if (!Repo.All[1].IsEmpty)
-                {
-                    var slot1 = Slots.SlotFile.Read(Repo.PathFor(1));
-                    var stripped = Core.PortabilityFilter.StripForApply(slot1.Player);
-                    using var doc = System.Text.Json.JsonDocument.Parse(stripped);
-                    var res = new Core.ApplyResult();
-                    typeof(Core.PinpointPatcher).GetMethod("RebuildItemList",
-                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!
-                        .Invoke(null, new object[] { doc.RootElement, player, res });
-                    Logger.Info($"smoke I: applied={res.AppliedFields.Count} warned={res.WarnedFields.Count}");
-                }
-            }
-            catch (Exception ex) { Logger.Error($"smoke I: {ex}"); }
-        }
-```
-
-- [ ] **Step 4: Smoke B3**
-
-준비: 슬롯 1 에 인벤토리 데이터 있음. 캐릭터 인벤토리 변경 (아이템 추가/삭제).
-검증: [F11+I] → 로그 `smoke I: applied=N`. 인벤토리창 확인.
-
-- [ ] **Step 5: smoke-md 갱신 + Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
-git add src/LongYinRoster/Core/PinpointPatcher.cs src/LongYinRoster/UI/ModWindow.cs docs/superpowers/specs/2026-04-29-v0.3-smoke.md
+git add src/LongYinRoster/Core/PinpointPatcher.cs docs/superpowers/specs/2026-04-29-v0.3-smoke.md
 git commit -m "$(cat <<'EOF'
-feat(core): RebuildItemList step 3 + smoke B3 verified
+feat(core): RebuildItemList step 3 — v0.3 placeholder skip (v0.4 후보)
 
-v0.3 plan Task 9: PinpointPatcher Step 3 (인벤토리). Clear+AddItemToList. 임시
-[F11+I] smoke 통과.
+v0.3 plan Task 9: dump 결과 primitive-factory AddItem 부재 (모든 Add 가 ItemData
+wrapper 객체 인자). v0.4 에서 ItemData factory 또는 Harmony patch 후 활성.
 
 Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 EOF
@@ -1260,48 +1142,18 @@ EOF
 
 **Files:**
 - Modify: `src/LongYinRoster/Core/PinpointPatcher.cs`
-- Modify: `src/LongYinRoster/UI/ModWindow.cs`
 
-- [ ] **Step 1: RebuildSelfStorage body 채우기**
+- [ ] **Step 1: RebuildSelfStorage body 채우기 — placeholder skip (v0.4 후보)**
 
-`PinpointPatcher.cs` 의 `RebuildSelfStorage`. itemListData 와 동일 패턴이지만 `selfStorage.allItem` 사용 + spec §7.2.1 의 Add method (예: `AddToStorage(id, count)`):
+dump 결과 (spec §7.2.1 Step 4): Step 9 와 같은 사유 — primitive-factory 부재.
+
 ```csharp
     private static void RebuildSelfStorage(JsonElement slot, object player, ApplyResult res)
     {
-        var selfStorage = ReadFieldOrProperty(player, "selfStorage");
-        if (selfStorage == null) { res.SkippedFields.Add("selfStorage — field missing"); return; }
-        var allItem = ReadFieldOrProperty(selfStorage, "allItem");
-        if (allItem == null) { res.SkippedFields.Add("selfStorage.allItem — field missing"); return; }
-        IL2CppListOps.Clear(allItem);
-
-        if (!slot.TryGetProperty("selfStorage", out var ss) ||
-            !ss.TryGetProperty("allItem", out var arr) ||
-            arr.ValueKind != JsonValueKind.Array)
-        {
-            res.SkippedFields.Add("selfStorage.allItem — not in slot JSON");
-            return;
-        }
-
-        for (int i = 0; i < arr.GetArrayLength(); i++)
-        {
-            var entry = arr[i];
-            int id    = entry.GetProperty("id").GetInt32();
-            int count = entry.TryGetProperty("count", out var cEl) ? cEl.GetInt32() : 1;
-            try
-            {
-                // spec §7.2.1 의 "Step 4 RebuildSelfStorage" Add 시그니처.
-                InvokeMethod(player, "AddToStorage", new object[] { id, count });
-                res.AppliedFields.Add($"storage[{id}]x{count}");
-            }
-            catch (Exception ex)
-            {
-                res.WarnedFields.Add($"storage[{id}] — {ex.GetType().Name}: {ex.Message}");
-            }
-        }
+        // v0.3: collection rebuild 미지원 — primitive-factory 부재 (Step 9 와 같은 사유). v0.4 후보.
+        res.SkippedFields.Add("selfStorage.allItem — collection rebuild deferred to v0.4");
     }
 ```
-
-**중요**: `"AddToStorage"` 가 spec §7.2.1 의 시그니처와 다르면 교체. method 자체 없으면 (⚪) selfStorage step 을 미지원으로 처리 — 매트릭스에서 v0.4 후보로 분류.
 
 - [ ] **Step 2: 빌드 + 24 tests**
 
@@ -1309,22 +1161,17 @@ EOF
 DOTNET_CLI_UI_LANGUAGE=en dotnet build src/LongYinRoster/LongYinRoster.csproj -c Release && DOTNET_CLI_UI_LANGUAGE=en dotnet test
 ```
 
-- [ ] **Step 3: 임시 [F11+G] 핸들러 추가**
+- [ ] **Step 3: smoke-md 갱신** — B4 = "v0.3 placeholder skip (v0.4 후보)". 게임 안 검증 불필요.
 
-(`G` = 창고/storage 머릿글자) `ModWindow.cs` 에 [F11+I] 다음에 추가, 동일 구조, method 이름 `RebuildSelfStorage`, 로그 prefix `smoke G`.
-
-- [ ] **Step 4: Smoke B4**
-
-창고 변경 후 [F11+G] → 로그 + 게임 창고창 확인.
-
-- [ ] **Step 5: smoke-md 갱신 + Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
-git add src/LongYinRoster/Core/PinpointPatcher.cs src/LongYinRoster/UI/ModWindow.cs docs/superpowers/specs/2026-04-29-v0.3-smoke.md
+git add src/LongYinRoster/Core/PinpointPatcher.cs docs/superpowers/specs/2026-04-29-v0.3-smoke.md
 git commit -m "$(cat <<'EOF'
-feat(core): RebuildSelfStorage step 4 + smoke B4 verified
+feat(core): RebuildSelfStorage step 4 — v0.3 placeholder skip (v0.4 후보)
 
-v0.3 plan Task 10: PinpointPatcher Step 4 (창고). 임시 [F11+G] smoke 통과.
+v0.3 plan Task 10: dump 결과 primitive-factory 부재 (Step 9 와 같은 사유). v0.4
+후보.
 
 Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 EOF
@@ -1341,34 +1188,20 @@ EOF
 
 - [ ] **Step 1: RebuildHeroTagData body 채우기**
 
-천부(heroTagData) 의 schema 는 dump 산출물 + spec §7.2.1 의 "Step 5" 가 명시. 일반적 패턴:
+천부(heroTagData) 의 schema 는 dump 산출물 + spec §7.2.1 의 "Step 5" 가 명시. dump 후 확정 매핑 — `AddTag(Int32 id, Single lv, String source, Boolean isPermanent, Boolean isHidden)` (5-arg) + `ClearAllTempTag()` (IL2CppListOps.Clear 대신 — IL2CPP wrapper 호환성 더 좋음):
+
 ```csharp
     private static void RebuildHeroTagData(JsonElement slot, object player, ApplyResult res)
     {
-        // heroTagPoint (남은 천부 포인트) 단순 set — spec §7.2.1 매핑
-        if (slot.TryGetProperty("heroTagPoint", out var ptEl) && ptEl.ValueKind == JsonValueKind.Number)
-        {
-            try
-            {
-                var current = ReadFieldOrProperty(player, "heroTagPoint");
-                int newPt = ptEl.GetInt32();
-                int curPt = current is int ci ? ci : 0;
-                // spec §7.2.1: ChangeHeroTagPoint(delta) 또는 SetHeroTagPoint(value)
-                InvokeMethod(player, "ChangeHeroTagPoint", new object[] { newPt - curPt });
-                res.AppliedFields.Add($"heroTagPoint {curPt}→{newPt}");
-            }
-            catch (Exception ex)
-            {
-                res.WarnedFields.Add($"heroTagPoint — {ex.GetType().Name}: {ex.Message}");
-            }
-        }
+        // heroTagPoint 는 Step 1 SetSimpleFields 에서 ChangeTagPoint(delta) 로 처리됨.
+        // 본 step 은 heroTagData.allTag 만 담당.
 
-        // heroTagData (천부 list) — 일반적 schema: { allTag: [{id, lv}] }
         var heroTagData = ReadFieldOrProperty(player, "heroTagData");
         if (heroTagData == null) { res.SkippedFields.Add("heroTagData — field missing"); return; }
-        var allTag = ReadFieldOrProperty(heroTagData, "allTag");
-        if (allTag == null) { res.SkippedFields.Add("heroTagData.allTag — field missing"); return; }
-        IL2CppListOps.Clear(allTag);
+
+        // spec §7.2.1: ClearAllTempTag() 가 dump 에 발견 — IL2CPP wrapper 호환성을 위해 raw clear 대신 호출
+        try { InvokeMethod(player, "ClearAllTempTag", null); }
+        catch (Exception ex) { res.WarnedFields.Add($"ClearAllTempTag — {ex.GetType().Name}: {ex.Message}"); }
 
         if (!slot.TryGetProperty("heroTagData", out var htd) ||
             !htd.TryGetProperty("allTag", out var arr) ||
@@ -1381,12 +1214,15 @@ EOF
         for (int i = 0; i < arr.GetArrayLength(); i++)
         {
             var entry = arr[i];
-            int id = entry.GetProperty("id").GetInt32();
-            int lv = entry.TryGetProperty("lv", out var lvEl) ? lvEl.GetInt32() : 1;
+            int    id          = entry.GetProperty("id").GetInt32();
+            float  lv          = entry.TryGetProperty("lv", out var lvEl)            ? lvEl.GetSingle()         : 1f;
+            string source      = entry.TryGetProperty("source", out var sEl)         ? (sEl.GetString() ?? "")  : "";
+            bool   isPermanent = entry.TryGetProperty("isPermanent", out var pEl)    ? pEl.GetBoolean()         : true;
+            bool   isHidden    = entry.TryGetProperty("isHidden", out var hEl)       ? hEl.GetBoolean()         : false;
             try
             {
-                // spec §7.2.1 의 "Step 5 RebuildHeroTagData" Add 시그니처.
-                InvokeMethod(player, "AddHeroTag", new object[] { id, lv });
+                // spec §7.2.1 Step 5 매핑: AddTag(Int32 id, Single lv, String source, Boolean isPermanent, Boolean isHidden)
+                InvokeMethod(player, "AddTag", new object[] { id, lv, source, isPermanent, isHidden });
                 res.AppliedFields.Add($"heroTag[{id}]Lv{lv}");
             }
             catch (Exception ex)
@@ -1397,7 +1233,7 @@ EOF
     }
 ```
 
-**중요**: spec §7.2.1 의 Step 5 매핑이 다른 method 명/schema 면 교체. heroTagData schema 도 dump 후 확인.
+**중요**: heroTagData 의 entry schema 의 정확한 field name (id / lv / source / isPermanent / isHidden) 은 추정이고 실제 캡처 JSON 의 schema 와 다를 수 있음. **Task 11 시작 전 슬롯 1 의 캡처 JSON 의 `heroTagData.allTag` entry 한 항목을 inspect 해서 정확한 field 명 확인 필요**. dump 에 `RemoveTag(Int32, Boolean)` 도 있으니 v0.4 에서 더 정밀한 partial diff 가능.
 
 - [ ] **Step 2: 빌드 + 24 tests**
 
@@ -1407,7 +1243,7 @@ DOTNET_CLI_UI_LANGUAGE=en dotnet build src/LongYinRoster/LongYinRoster.csproj -c
 
 - [ ] **Step 3: 임시 [F11+T] 핸들러 추가**
 
-(`T` = talent) [F11+G] 다음에 추가, method 이름 `RebuildHeroTagData`, 로그 prefix `smoke T`.
+(`T` = talent) [F11+S] 다음에 추가, method 이름 `RebuildHeroTagData`, 로그 prefix `smoke T`.
 
 - [ ] **Step 4: Smoke B5**
 
@@ -1442,14 +1278,11 @@ EOF
 ```csharp
     private static void RefreshSelfState(object player, ApplyResult res)
     {
-        // spec §7.2.1 "Step 6 RefreshSelfState" 매핑. dump 결과로 method 이름 다르면 교체.
-        TryInvokeNoArg(player, "RefreshMaxAttriAndSkill", res);
-        TryInvokeNoArg(player, "GetMaxAttri",             res);
-        TryInvokeNoArg(player, "GetMaxFightSkill",        res);
-        TryInvokeNoArg(player, "GetMaxLivingSkill",       res);
-        TryInvokeNoArg(player, "GetMaxFavor",             res);
-        TryInvokeNoArg(player, "GetFinalTravelSpeed",     res);
-        // (spec §7.2.1 에 더 있으면 모두 추가)
+        // spec §7.2.1 Step 6 매핑 (dump 후 확정). 3 method 만 — HANDOFF §4.4 의 GetMaxAttri 등은
+        // read-only Single 반환 getter (refresh 효과 없음) 이므로 호출 안 함.
+        TryInvokeNoArg(player, "RefreshMaxAttriAndSkill",       res);
+        TryInvokeNoArg(player, "RefreshHeroSalaryAndPopulation", res);
+        TryInvokeNoArg(player, "RecoverState",                  res);
     }
 
     private static void TryInvokeNoArg(object obj, string methodName, ApplyResult res)
@@ -1501,7 +1334,7 @@ DOTNET_CLI_UI_LANGUAGE=en dotnet build src/LongYinRoster/LongYinRoster.csproj -c
 
 상황 1 — 단독: 캐릭터 진입 후 [F11+R] → 로그 `smoke R: applied=N skipped=M`. applied > 0 (적어도 1개 method 정상 호출).
 
-상황 2 — 누적 (step 1~5 실행 후 stat stale 검증): [F11+S] → [F11+K] → [F11+I] → [F11+G] → [F11+T] → [F11+R]. 마지막 [F11+R] 후 캐릭터 정보창의 fightScore / maxhp / 무공 max 값 등이 game-internal 계산값과 일치 (UI 재진입 없이도 갱신).
+상황 2 — 누적 (step 1~5 실행 후 stat stale 검증): [F11+S] → [F11+T] → [F11+R]. 마지막 [F11+R] 후 캐릭터 정보창의 fightScore / maxhp / 무공 max 값 등이 game-internal 계산값과 일치 (UI 재진입 없이도 갱신).
 
 - [ ] **Step 5: smoke-md 갱신 + Commit**
 
@@ -1533,11 +1366,11 @@ EOF
 ```csharp
     private static void RefreshExternalManagers(object player, ApplyResult res)
     {
-        // spec §7.2.1 "Step 7 RefreshExternalManagers" 매핑. 각 manager 의 Instance 가
-        // null 이면 skip, RefreshHero(player) signature mismatch 면 warn.
-        TryInvokeManager("HeroIconManager",   "RefreshHero", player, res);
-        TryInvokeManager("HeroPanelController","UpdateHero", player, res);
-        // (spec §7.2.1 에 더 있으면 모두 추가)
+        // spec §7.2.1 Step 7 매핑 (dump 후 확정): BigMapController.RefreshBigMapNPC 만 호출.
+        // dump 에 hero-display 매니저 (HeroIcon/HeroPanel) 미발견.
+        // AuctionController.RefreshOfferMoney 는 hero refresh 의도 아님 — 호출 안 함.
+        // 기타 시각 갱신 (포트레이트 / 영웅 아이콘 / town panel) 은 game frame 의 자연 lazy-load 에 위임.
+        TryInvokeManager("BigMapController", "RefreshBigMapNPC", player, res);
     }
 
     private static void TryInvokeManager(string typeName, string methodName, object player, ApplyResult res)
@@ -1945,7 +1778,7 @@ EOF
 
 **Files:**
 - Modify: `src/LongYinRoster/UI/SlotDetailPanel.cs`
-- Modify: `src/LongYinRoster/UI/ModWindow.cs` (임시 [F11+S/K/I/G/T/R/E] 핸들러 제거)
+- Modify: `src/LongYinRoster/UI/ModWindow.cs` (임시 [F11+S/T/R/E] 핸들러 제거)
 
 - [ ] **Step 1: SlotDetailPanel.cs 의 Apply / Restore 버튼 활성**
 
@@ -1977,7 +1810,7 @@ EOF
 
 (`(v0.x 예정)` 라벨 제거. `inGame` 이 false 이면 버튼 disable — `HeroLocator.IsInGame()` 결과.)
 
-- [ ] **Step 2: ModWindow.cs 의 [F11+S/K/I/G/T/R/E] 임시 핸들러 모두 제거**
+- [ ] **Step 2: ModWindow.cs 의 [F11+S/T/R/E] 임시 핸들러 모두 제거**
 
 `ModWindow.cs` 의 `Update` 메서드 안의 `// [F11 + S] 임시 ...` 부터 시작하는 블록들을 모두 삭제. `[F12]` 핸들러는 유지 (Task 21 에서 별도 제거).
 
@@ -2009,7 +1842,7 @@ git commit -m "$(cat <<'EOF'
 feat(ui): activate Apply/Restore buttons; remove temp smoke handlers
 
 v0.3 plan Task 18: SlotDetailPanel 의 Apply / Restore 버튼 정상 활성, (v0.x 예정)
-라벨 제거. ModWindow 의 [F11+S/K/I/G/T/R/E] 임시 smoke 핸들러 모두 제거 ([F12]
+라벨 제거. ModWindow 의 [F11+S/T/R/E] 임시 smoke 핸들러 모두 제거 ([F12]
 HeroDataDump 만 잔존, Task 21 에서 마지막 제거). 이제 UI 클릭으로 전체 7-step
 파이프라인이 호출되는 형태.
 
@@ -2184,7 +2017,7 @@ Expected: `Build succeeded.` + `Passed: 24, Failed: 0`. `'HeroDataDump' could no
 
 Run:
 ```bash
-grep -rn "HeroDataDump\|smoke C5 forced\|F11 + [SKIGTRE]" src/LongYinRoster/ docs/
+grep -rn "HeroDataDump\|smoke C5 forced\|F11 + [STRE]" src/LongYinRoster/ docs/
 ```
 Expected: 출력 없음 (또는 docs/HeroData-methods.md 의 dump 산출물 참조 정도).
 
@@ -2375,7 +2208,7 @@ v0.3.0 release 완료 조건:
 - [ ] `dotnet test` → `Passed: 24, Failed: 0`
 - [ ] Phase A/B/C/D smoke 모두 [x] (`docs/superpowers/specs/2026-04-29-v0.3-smoke.md`)
 - [ ] BepInEx 로그에 unhandled exception 0 (전체 smoke 동안)
-- [ ] `grep -rn "HeroDataDump\|smoke C5 forced\|F11 + [SKIGTRE]" src/` → 빈 출력
+- [ ] `grep -rn "HeroDataDump\|smoke C5 forced\|F11 + [STRE]" src/` → 빈 출력
 - [ ] git tag `v0.3.0` push 됨
 - [ ] GitHub release 페이지 정상
 
