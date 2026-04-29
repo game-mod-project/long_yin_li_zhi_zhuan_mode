@@ -58,5 +58,8 @@
     <Compile Include="../LongYinRoster/Util/PathProvider.cs">
       <Link>Util/PathProvider.cs</Link>
     </Compile>
+    <Compile Include="../LongYinRoster/Core/ApplyResult.cs">
+      <Link>Core/ApplyResult.cs</Link>
+    </Compile>
   </ItemGroup>
 </Project>
