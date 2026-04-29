@@ -64,5 +64,8 @@
     <Compile Include="../LongYinRoster/Core/IL2CppListOps.cs">
       <Link>Core/IL2CppListOps.cs</Link>
     </Compile>
+    <Compile Include="../LongYinRoster/Core/SimpleFieldMatrix.cs">
+      <Link>Core/SimpleFieldMatrix.cs</Link>
+    </Compile>
   </ItemGroup>
 </Project>

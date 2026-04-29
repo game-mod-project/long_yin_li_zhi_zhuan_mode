@@ -60,3 +60,20 @@ public class IL2CppListOpsTests
         list.Count.Should().Be(0);
     }
 }
+
+public class SimpleFieldMatrixTests
+{
+    [Fact]
+    public void Schema_FrozenShape()
+    {
+        SimpleFieldMatrix.Entries.Should().NotBeNull();
+        SimpleFieldMatrix.Entries.Should().NotBeEmpty();
+        foreach (var e in SimpleFieldMatrix.Entries)
+        {
+            e.Name.Should().NotBeNullOrWhiteSpace();
+            e.JsonPath.Should().NotBeNullOrWhiteSpace();
+            e.PropertyName.Should().NotBeNullOrWhiteSpace();
+            e.Type.Should().NotBeNull();
+        }
+    }
+}
