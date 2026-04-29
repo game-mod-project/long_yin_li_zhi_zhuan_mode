@@ -296,6 +296,69 @@ public sealed class ModWindow : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// 진단용 — player reference 의 RefHash, ToString, IL2CPP Pointer 를 모두 기록.
+    /// 같은 player 가 다른 Pointer 를 갖거나 frame 마다 RefHash 가 변하면 stale wrapper 가설 단서.
+    /// </summary>
+    private static void LogPlayerRef(string tag, object? player)
+    {
+        if (player == null) { Logger.Info($"{tag}: player=NULL"); return; }
+        var hash = System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(player);
+        Logger.Info($"{tag}: player.RefHash={hash:X8}, ToString={player}");
+        // IL2CPP IntPtr (Il2CppInterop pattern)
+        try
+        {
+            var ptrField = player.GetType().GetField("Pointer",
+                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Instance);
+            if (ptrField != null)
+                Logger.Info($"{tag}: player.Pointer={ptrField.GetValue(player)}");
+            else
+                Logger.Info($"{tag}: player.Pointer=(field not found)");
+        }
+        catch (Exception ex) { Logger.Info($"{tag}: Pointer read err: {ex.Message}"); }
+    }
+
+    /// <summary>
+    /// HeroList[0] 의 reference 를 HeroLocator 우회 fresh fetch.
+    /// our player 와 reference equality 비교 — 다르면 stale 가설 확정.
+    /// </summary>
+    private static object? FreshFetchHero0()
+    {
+        try
+        {
+            var ctrlType = AppDomain.CurrentDomain.GetAssemblies()
+                .SelectMany(a => { try { return a.GetTypes(); } catch { return Array.Empty<Type>(); } })
+                .FirstOrDefault(t => t.Name == "GameDataController" && t.Namespace == null);
+            if (ctrlType == null) { Logger.Warn("FreshFetchHero0: GameDataController type not found"); return null; }
+
+            const System.Reflection.BindingFlags S =
+                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.FlattenHierarchy;
+            const System.Reflection.BindingFlags I =
+                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Instance;
+
+            var inst = ctrlType.GetProperty("Instance", S)?.GetValue(null) ?? ctrlType.GetField("Instance", S)?.GetValue(null);
+            if (inst == null) { Logger.Warn("FreshFetchHero0: Instance null"); return null; }
+
+            var saveData = inst.GetType().GetProperty("gameSaveData", I)?.GetValue(inst) ?? inst.GetType().GetField("gameSaveData", I)?.GetValue(inst);
+            if (saveData == null) { Logger.Warn("FreshFetchHero0: gameSaveData null"); return null; }
+
+            var heroList = saveData.GetType().GetProperty("HeroList", I)?.GetValue(saveData) ?? saveData.GetType().GetField("HeroList", I)?.GetValue(saveData);
+            if (heroList == null) { Logger.Warn("FreshFetchHero0: HeroList null"); return null; }
+
+            // first item via Item indexer or get_Item(int)
+            var itemProp = heroList.GetType().GetProperty("Item", I);
+            if (itemProp != null) return itemProp.GetValue(heroList, new object[] { 0 });
+            var getItem = heroList.GetType().GetMethod("get_Item", I, null, new[] { typeof(int) }, null);
+            if (getItem != null) return getItem.Invoke(heroList, new object[] { 0 });
+            Logger.Warn("FreshFetchHero0: no indexer");
+            return null;
+        }
+        catch (Exception ex) { Logger.Error($"FreshFetchHero0: {ex}"); return null; }
+    }
+
     private void Update()
     {
         if (Input.GetKeyDown(Config.ToggleHotkey.Value)) Toggle();
@@ -306,13 +369,31 @@ public sealed class ModWindow : MonoBehaviour
         // [F11 + S] — SetSimpleFields 단독 smoke. detail 보강.
         if (Input.GetKey(KeyCode.F11) && Input.GetKeyDown(KeyCode.S))
         {
+            Logger.Info($"smoke S: handler invoked at frame {Time.frameCount}");
             try
             {
                 Core.HeroLocator.InvalidateCache();
                 var player = Core.HeroLocator.GetPlayer();
-                if (player == null) { Logger.Warn("smoke S: player null"); return; }
+                LogPlayerRef("smoke S", player);
+                if (player == null) return;
+
+                var fresh = FreshFetchHero0();
+                LogPlayerRef("smoke S fresh", fresh);
+                Logger.Info($"smoke S ref-equal: {object.ReferenceEquals(player, fresh)}");
+
                 if (!Repo.All[1].IsEmpty)
                 {
+                    // BEFORE stat read (fame/hp/mana)
+                    var t0 = player.GetType();
+                    const System.Reflection.BindingFlags F0 =
+                        System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic |
+                        System.Reflection.BindingFlags.Instance;
+                    object? Read(string n) => t0.GetProperty(n, F0)?.GetValue(player) ?? t0.GetField(n, F0)?.GetValue(player);
+                    var fameB = Read("fame");
+                    var hpB = Read("hp");
+                    var manaB = Read("mana");
+                    Logger.Info($"smoke S BEFORE: fame={fameB}, hp={hpB}, mana={manaB}");
+
                     var slot1 = Slots.SlotFile.Read(Repo.PathFor(1));
                     var stripped = Core.PortabilityFilter.StripForApply(slot1.Player);
                     using var doc = System.Text.Json.JsonDocument.Parse(stripped);
@@ -324,6 +405,13 @@ public sealed class ModWindow : MonoBehaviour
                     foreach (var f in res.AppliedFields) Logger.Info($"  applied: {f}");
                     foreach (var f in res.SkippedFields) Logger.Info($"  skipped: {f}");
                     foreach (var f in res.WarnedFields)  Logger.Info($"  warn: {f}");
+
+                    // AFTER stat read (immediate)
+                    var fameA = Read("fame");
+                    var hpA = Read("hp");
+                    var manaA = Read("mana");
+                    Logger.Info($"smoke S AFTER: fame={fameA}, hp={hpA}, mana={manaA}");
+                    Logger.Info($"smoke S CHANGED: fame={!object.Equals(fameB, fameA)}, hp={!object.Equals(hpB, hpA)}, mana={!object.Equals(manaB, manaA)}");
                 }
                 else
                 {
@@ -337,11 +425,18 @@ public sealed class ModWindow : MonoBehaviour
         // 가설 B (IL2CPP invoke 자체 함정) 가설 A (Boolean flag 함정) 결정.
         if (Input.GetKey(KeyCode.F11) && Input.GetKeyDown(KeyCode.Alpha1))
         {
+            Logger.Info($"smoke 1: handler invoked at frame {Time.frameCount}");
             try
             {
                 Core.HeroLocator.InvalidateCache();
                 var player = Core.HeroLocator.GetPlayer();
-                if (player == null) { Logger.Warn("smoke 1: player null"); return; }
+                LogPlayerRef("smoke 1", player);
+                if (player == null) return;
+
+                var fresh = FreshFetchHero0();
+                LogPlayerRef("smoke 1 fresh", fresh);
+                Logger.Info($"smoke 1 ref-equal: {object.ReferenceEquals(player, fresh)}");
+
                 var t = player.GetType();
                 const System.Reflection.BindingFlags F =
                     System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic |
@@ -381,18 +476,31 @@ public sealed class ModWindow : MonoBehaviour
         // fame 변경 → 가설 A (Boolean flag 함정) 지지.
         if (Input.GetKey(KeyCode.F11) && Input.GetKeyDown(KeyCode.Alpha2))
         {
+            Logger.Info($"smoke 2: handler invoked at frame {Time.frameCount}");
             try
             {
                 Core.HeroLocator.InvalidateCache();
                 var player = Core.HeroLocator.GetPlayer();
-                if (player == null) { Logger.Warn("smoke 2: player null"); return; }
+                LogPlayerRef("smoke 2", player);
+                if (player == null) return;
+
+                var fresh = FreshFetchHero0();
+                LogPlayerRef("smoke 2 fresh", fresh);
+                Logger.Info($"smoke 2 ref-equal: {object.ReferenceEquals(player, fresh)}");
+
                 var t = player.GetType();
                 const System.Reflection.BindingFlags F =
                     System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic |
                     System.Reflection.BindingFlags.Instance;
 
-                var fameBefore = t.GetProperty("fame", F)?.GetValue(player) ?? t.GetField("fame", F)?.GetValue(player);
-                Logger.Info($"smoke 2 BEFORE: fame={fameBefore}");
+                var fameProp = t.GetProperty("fame", F);
+                var fameField = t.GetField("fame", F);
+                object? ReadFame() => fameProp?.GetValue(player) ?? fameField?.GetValue(player);
+                object? ReadFreshFame() => fresh == null ? null : fameProp?.GetValue(fresh) ?? fameField?.GetValue(fresh);
+
+                var fameBefore = ReadFame();
+                var fameFreshBefore = ReadFreshFame();
+                Logger.Info($"smoke 2 BEFORE: ourFame={fameBefore}, freshFame={fameFreshBefore}");
 
                 // try padding=false (default — Task 7 의 InvokeMethod 처럼)
                 var fameM = t.GetMethod("ChangeFame", F, null, new[] { typeof(float), typeof(bool) }, null);
@@ -404,13 +512,15 @@ public sealed class ModWindow : MonoBehaviour
 
                     // (a) padding=false
                     fameM.Invoke(player, new object[] { 1000f, false });
-                    var fameAfterFalse = t.GetProperty("fame", F)?.GetValue(player) ?? t.GetField("fame", F)?.GetValue(player);
-                    Logger.Info($"smoke 2 AFTER false: fame={fameAfterFalse} (delta={(float)(fameAfterFalse ?? 0f) - (float)(fameBefore ?? 0f)})");
+                    var fameAfterFalse = ReadFame();
+                    var fameFreshAfterFalse = ReadFreshFame();
+                    Logger.Info($"smoke 2 AFTER false: ourFame={fameAfterFalse}, freshFame={fameFreshAfterFalse}");
 
                     // (b) padding=true
                     fameM.Invoke(player, new object[] { 1000f, true });
-                    var fameAfterTrue = t.GetProperty("fame", F)?.GetValue(player) ?? t.GetField("fame", F)?.GetValue(player);
-                    Logger.Info($"smoke 2 AFTER true:  fame={fameAfterTrue} (delta={(float)(fameAfterTrue ?? 0f) - (float)(fameAfterFalse ?? 0f)})");
+                    var fameAfterTrue = ReadFame();
+                    var fameFreshAfterTrue = ReadFreshFame();
+                    Logger.Info($"smoke 2 AFTER true:  ourFame={fameAfterTrue}, freshFame={fameFreshAfterTrue}");
                 }
             }
             catch (Exception ex) { Logger.Error($"smoke 2: {ex}"); }
@@ -419,11 +529,18 @@ public sealed class ModWindow : MonoBehaviour
         // [F11 + 3] 진단 — type / method DeclaringType inspect (IL2CPP wrapper 여부).
         if (Input.GetKey(KeyCode.F11) && Input.GetKeyDown(KeyCode.Alpha3))
         {
+            Logger.Info($"smoke 3: handler invoked at frame {Time.frameCount}");
             try
             {
                 Core.HeroLocator.InvalidateCache();
                 var player = Core.HeroLocator.GetPlayer();
-                if (player == null) { Logger.Warn("smoke 3: player null"); return; }
+                LogPlayerRef("smoke 3", player);
+                if (player == null) return;
+
+                var fresh = FreshFetchHero0();
+                LogPlayerRef("smoke 3 fresh", fresh);
+                Logger.Info($"smoke 3 ref-equal: {object.ReferenceEquals(player, fresh)}");
+
                 var t = player.GetType();
                 Logger.Info($"smoke 3: player type = {t.AssemblyQualifiedName}");
                 Logger.Info($"smoke 3: BaseType = {t.BaseType?.FullName}");
