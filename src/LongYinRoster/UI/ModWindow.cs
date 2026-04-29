@@ -302,6 +302,33 @@ public sealed class ModWindow : MonoBehaviour
         // [F12] HeroDataDump trigger — v0.3 plan Task 1 임시 핸들러. plan Task 21 에서 제거.
         if (Input.GetKeyDown(KeyCode.F12)) Core.HeroDataDump.DumpToLog();
 
+        // [F11 + S] 임시 — SetSimpleFields 단독 smoke. plan Task 18 에서 제거.
+        if (Input.GetKey(KeyCode.F11) && Input.GetKeyDown(KeyCode.S))
+        {
+            try
+            {
+                var player = Core.HeroLocator.GetPlayer();
+                if (player == null) { Logger.Warn("smoke S: player null"); return; }
+                if (!Repo.All[1].IsEmpty)
+                {
+                    var slot1 = Slots.SlotFile.Read(Repo.PathFor(1));
+                    var stripped = Core.PortabilityFilter.StripForApply(slot1.Player);
+                    using var doc = System.Text.Json.JsonDocument.Parse(stripped);
+                    var res = new Core.ApplyResult();
+                    typeof(Core.PinpointPatcher).GetMethod("SetSimpleFields",
+                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!
+                        .Invoke(null, new object[] { doc.RootElement, player, res });
+                    Logger.Info($"smoke S: applied={res.AppliedFields.Count} skipped={res.SkippedFields.Count} warned={res.WarnedFields.Count}");
+                    foreach (var f in res.WarnedFields) Logger.Info($"smoke S warn: {f}");
+                }
+                else
+                {
+                    Logger.Warn("smoke S: slot 1 empty — capture first");
+                }
+            }
+            catch (Exception ex) { Logger.Error($"smoke S: {ex}"); }
+        }
+
         if (_visible && Config.PauseGameWhileOpen.Value && Time.timeScale != 0f)
             Time.timeScale = 0f;
     }

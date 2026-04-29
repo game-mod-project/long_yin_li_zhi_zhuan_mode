@@ -51,9 +51,219 @@ public static class PinpointPatcher
         }
     }
 
-    // 각 step 은 Task 7~13 에서 채운다. 본 task 는 골격만 — body 는 throw 로 시작.
-    private static void SetSimpleFields(JsonElement slot, object player, ApplyResult res) =>
-        throw new NotImplementedException("Task 7 에서 채움");
+    // 각 step 은 Task 7~13 에서 채운다.
+
+    private const System.Reflection.BindingFlags F =
+        System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic |
+        System.Reflection.BindingFlags.Instance;
+
+    private static void SetSimpleFields(JsonElement slot, object player, ApplyResult res)
+    {
+        foreach (var entry in SimpleFieldMatrix.Entries)
+        {
+            // Special-case: skinID multi-arg (SetSkin(Int32, Int32))
+            if (entry.PropertyName == "skinID")
+            {
+                ApplySkinSpecialCase(slot, player, entry, res);
+                continue;
+            }
+
+            // Special-case: list-indexed (baseAttri / baseFightSkill / baseLivingSkill / expLivingSkill)
+            if (entry.JsonPath == "baseAttri" || entry.JsonPath == "baseFightSkill" ||
+                entry.JsonPath == "baseLivingSkill" || entry.JsonPath == "expLivingSkill")
+            {
+                ApplyListIndexedSpecialCase(slot, player, entry, res);
+                continue;
+            }
+
+            // Regular path
+            if (!TryReadJsonValue(slot, entry.JsonPath, entry.Type, out var newValue))
+            {
+                res.SkippedFields.Add($"{entry.Name} — not in slot JSON");
+                continue;
+            }
+
+            var currentValue = ReadFieldOrProperty(player, entry.PropertyName);
+            if (Equals(currentValue, newValue))
+            {
+                res.AppliedFields.Add($"{entry.Name} (no-op)");
+                continue;
+            }
+
+            if (entry.SetterMethod == null || entry.SetterStyle == SetterStyle.None)
+            {
+                res.SkippedFields.Add($"{entry.Name} — no setter mapped");
+                continue;
+            }
+
+            try
+            {
+                var primaryArg = entry.SetterStyle switch
+                {
+                    SetterStyle.Direct => newValue,
+                    SetterStyle.Delta  => Subtract(newValue, currentValue, entry.Type),
+                    _ => throw new InvalidOperationException("unreachable")
+                };
+                InvokeMethod(player, entry.SetterMethod!, new[] { primaryArg });
+                res.AppliedFields.Add(entry.Name);
+            }
+            catch (Exception ex)
+            {
+                res.WarnedFields.Add($"{entry.Name} — {ex.GetType().Name}: {ex.Message}");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Special-case: skinID 와 skinLv 를 함께 SetSkin(skinID, skinLv) 로 호출.
+    /// dump 시그니처: Void SetSkin(Int32, Int32). spec §7.2.1 Step 1 의 entry "스킨".
+    /// </summary>
+    private static void ApplySkinSpecialCase(JsonElement slot, object player, SimpleFieldEntry entry, ApplyResult res)
+    {
+        if (!TryReadJsonValue(slot, "skinID", typeof(int), out var skinIdVal) ||
+            !TryReadJsonValue(slot, "skinLv", typeof(int), out var skinLvVal))
+        {
+            res.SkippedFields.Add("스킨 — skinID/skinLv not in slot JSON");
+            return;
+        }
+        try
+        {
+            InvokeMethod(player, "SetSkin", new object?[] { skinIdVal, skinLvVal });
+            res.AppliedFields.Add("스킨");
+        }
+        catch (Exception ex)
+        {
+            res.WarnedFields.Add($"스킨 — {ex.GetType().Name}: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Special-case: list-indexed (baseAttri / baseFightSkill / baseLivingSkill / expLivingSkill).
+    /// JSON array 의 each index 마다 SetterMethod(index, delta, ...) 호출.
+    /// dump 시그니처:
+    ///   Void ChangeAttri(Int32, Single, Boolean, Boolean)
+    ///   Void ChangeFightSkill(Int32, Single, Boolean, Boolean)
+    ///   Void ChangeLivingSkill(Int32, Single, Boolean, Boolean)
+    ///   Void ChangeLivingSkillExp(Int32, Single, Boolean)
+    /// 추가 boolean flag 들은 InvokeMethod 가 default(Boolean)=false 로 padding.
+    /// </summary>
+    private static void ApplyListIndexedSpecialCase(JsonElement slot, object player, SimpleFieldEntry entry, ApplyResult res)
+    {
+        if (entry.SetterMethod == null) { res.SkippedFields.Add($"{entry.Name} — no setter mapped"); return; }
+        if (!slot.TryGetProperty(entry.JsonPath, out var arr) || arr.ValueKind != JsonValueKind.Array)
+        {
+            res.SkippedFields.Add($"{entry.Name} — not array in slot JSON");
+            return;
+        }
+
+        // 현재 player 의 list field 읽기 (delta 계산용)
+        var il2List = ReadFieldOrProperty(player, entry.PropertyName);
+        if (il2List == null) { res.SkippedFields.Add($"{entry.Name} — current list field missing"); return; }
+
+        int slotN = arr.GetArrayLength();
+        int curN  = IL2CppListOps.Count(il2List);
+        int n = System.Math.Min(slotN, curN);
+        int applied = 0;
+        for (int i = 0; i < n; i++)
+        {
+            try
+            {
+                float newVal = arr[i].GetSingle();
+                var curRaw = IL2CppListOps.Get(il2List, i);
+                float curVal = curRaw is float f ? f : System.Convert.ToSingle(curRaw);
+                if (System.Math.Abs(newVal - curVal) < 0.0001f) continue;
+                float delta = newVal - curVal;
+                // SetterMethod(int index, float delta, ...) — 추가 인자는 InvokeMethod 가 padding
+                InvokeMethod(player, entry.SetterMethod, new object?[] { i, delta });
+                applied++;
+            }
+            catch (Exception ex)
+            {
+                res.WarnedFields.Add($"{entry.Name}[{i}] — {ex.GetType().Name}: {ex.Message}");
+            }
+        }
+        res.AppliedFields.Add($"{entry.Name} ({applied}/{n})");
+    }
+
+    private static bool TryReadJsonValue(JsonElement slot, string path, Type type, out object? value)
+    {
+        value = null;
+        var cur = slot;
+        foreach (var part in path.Split('.'))
+        {
+            if (cur.ValueKind != JsonValueKind.Object) return false;
+            if (!cur.TryGetProperty(part, out cur)) return false;
+        }
+        try
+        {
+            if (type == typeof(int))    { value = cur.GetInt32(); return true; }
+            if (type == typeof(long))   { value = cur.GetInt64(); return true; }
+            if (type == typeof(string)) { value = cur.GetString() ?? ""; return true; }
+            if (type == typeof(bool))   { value = cur.GetBoolean(); return true; }
+            if (type == typeof(float))  { value = cur.GetSingle(); return true; }
+            if (type == typeof(double)) { value = cur.GetDouble(); return true; }
+        }
+        catch { return false; }
+        return false;
+    }
+
+    private static object? ReadFieldOrProperty(object obj, string name)
+    {
+        var t = obj.GetType();
+        var p = t.GetProperty(name, F);
+        if (p != null) return p.GetValue(obj);
+        var f = t.GetField(name, F);
+        if (f != null) return f.GetValue(obj);
+        return null;
+    }
+
+    /// <summary>
+    /// Reflection-based method invoke. dump 의 game 메서드 다수가 plan 가정보다 많은 인자를
+    /// 받는다 (e.g., ChangeFame(Single, Boolean), ChangeAttri(Int32, Single, Boolean, Boolean),
+    /// ChangeHp(Single, Boolean, Boolean, Boolean, Boolean)). caller 는 primary 인자만 전달
+    /// 하고, 나머지는 default(T) 로 padding 한다 — bool=false, int=0, float=0f, ref-type=null.
+    /// 만약 같은 이름의 overload 가 여럿이면 caller 의 args.Length 이상이고 최소인 것을 선택.
+    /// </summary>
+    private static void InvokeMethod(object obj, string methodName, object?[] args)
+    {
+        var t = obj.GetType();
+        // overload 가능성 — caller 가 제공한 args.Length 이상 받으면서 최소 길이의 method 선택
+        System.Reflection.MethodInfo? best = null;
+        foreach (var m in t.GetMethods(F))
+        {
+            if (m.Name != methodName) continue;
+            var ps = m.GetParameters();
+            if (ps.Length < args.Length) continue;
+            if (best == null || ps.Length < best.GetParameters().Length) best = m;
+        }
+        if (best == null)
+            throw new MissingMethodException(t.FullName, methodName);
+
+        var parameters = best.GetParameters();
+        var fullArgs = new object?[parameters.Length];
+        for (int i = 0; i < parameters.Length; i++)
+        {
+            if (i < args.Length)
+            {
+                fullArgs[i] = args[i];
+            }
+            else
+            {
+                var pt = parameters[i].ParameterType;
+                fullArgs[i] = pt.IsValueType ? Activator.CreateInstance(pt) : null;
+            }
+        }
+        best.Invoke(obj, fullArgs);
+    }
+
+    private static object Subtract(object? newValue, object? currentValue, Type type)
+    {
+        if (type == typeof(int))    return ((int)newValue!)    - ((int?)currentValue ?? 0);
+        if (type == typeof(long))   return ((long)newValue!)   - ((long?)currentValue ?? 0L);
+        if (type == typeof(float))  return ((float)newValue!)  - ((float?)currentValue ?? 0f);
+        if (type == typeof(double)) return ((double)newValue!) - ((double?)currentValue ?? 0d);
+        throw new InvalidOperationException($"Delta not supported for type {type.Name}");
+    }
 
     private static void RebuildKungfuSkills(JsonElement slot, object player, ApplyResult res) =>
         throw new NotImplementedException("Task 8 에서 채움");
