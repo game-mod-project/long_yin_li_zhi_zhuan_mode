@@ -70,5 +70,8 @@
     <Compile Include="../LongYinRoster/Core/ApplySelection.cs">
       <Link>Core/ApplySelection.cs</Link>
     </Compile>
+    <Compile Include="../LongYinRoster/Core/Capabilities.cs">
+      <Link>Core/Capabilities.cs</Link>
+    </Compile>
   </ItemGroup>
 </Project>
