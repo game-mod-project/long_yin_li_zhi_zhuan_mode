@@ -74,4 +74,17 @@ public static class KoreanStrings
 
     public const string GameVersionMismatch   = "이 슬롯은 게임 버전 {0}에서 캡처되었습니다. 현재 버전은 {1}입니다. 그래도 적용하시겠습니까?";
     public const string SchemaUnsupported     = "지원하지 않는 슬롯 포맷 (schemaVersion={0})";
+
+    // v0.4 — 체크박스 카테고리
+    public const string Cat_Stat            = "스탯";
+    public const string Cat_Honor           = "명예";
+    public const string Cat_TalentTag       = "천부";
+    public const string Cat_Skin            = "스킨";
+    public const string Cat_SelfHouse       = "자기집 add";
+    public const string Cat_Identity        = "정체성";
+    public const string Cat_ActiveKungfu    = "무공 active";
+    public const string Cat_ItemList        = "인벤토리";
+    public const string Cat_SelfStorage     = "창고";
+    public const string Cat_DisabledSuffix  = " (v0.5+ 후보)";
+    public const string ApplySectionHeader  = "─── Apply 항목 ───";
 }
