@@ -24,6 +24,10 @@ public sealed class ModWindow : MonoBehaviour
     // Harmony Input patch 가 매 frame 참조하는 static singleton.
     private static ModWindow? _instance;
 
+    // v0.4 — PinpointPatcher.Probe 결과 cache. OnGUI 첫 frame 에서 lazy probe.
+    public Core.Capabilities Capabilities { get; private set; } = Core.Capabilities.AllOff();
+    private bool _capabilitiesProbed = false;
+
     /// <summary>
     /// 게임의 Input.GetMouseButton* 호출을 차단해야 하는지 여부.
     /// 메인 창이 보이고 mouse 가 창 영역 안 OR 다이얼로그가 떠있으면 true.
@@ -325,7 +329,11 @@ public sealed class ModWindow : MonoBehaviour
         Core.ApplyResult res;
         try
         {
-            res = Core.PinpointPatcher.Apply(stripped, player);
+            // v0.4: slot 0 (Restore) → RestoreAll, others → 슬롯 메타의 ApplySelection
+            var selection = (slot == 0)
+                ? Core.ApplySelection.RestoreAll()
+                : loaded.Meta.ApplySelection;
+            res = Core.PinpointPatcher.Apply(stripped, player, selection);
         }
         catch (Exception ex)
         {
@@ -363,7 +371,7 @@ public sealed class ModWindow : MonoBehaviour
         {
             var slot0 = SlotFile.Read(Repo.PathFor(0));
             var stripped = Core.PortabilityFilter.StripForApply(slot0.Player);
-            var res = Core.PinpointPatcher.Apply(stripped, player);
+            var res = Core.PinpointPatcher.Apply(stripped, player, Core.ApplySelection.RestoreAll());
             if (res.HasFatalError)
                 Logger.Error("Auto-restore also failed — game state may be inconsistent");
             else
@@ -483,6 +491,13 @@ public sealed class ModWindow : MonoBehaviour
     {
         ToastService.Draw();
         if (!_visible) return;
+
+        // v0.4 — lazy Probe at first OnGUI (player must be loaded)
+        if (!_capabilitiesProbed)
+        {
+            Capabilities = Core.PinpointPatcher.Probe();
+            _capabilitiesProbed = true;
+        }
 
         // 다이얼로그 표시 중에는 메인 창 입력을 차단해 modal 효과를 만든다.
         bool modal = _confirm.IsVisible || _input.IsVisible || _picker.IsVisible;
