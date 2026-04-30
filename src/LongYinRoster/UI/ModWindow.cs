@@ -73,6 +73,18 @@ public sealed class ModWindow : MonoBehaviour
         _detail.OnDeleteRequested       = RequestDelete;
         _detail.OnApplyRequested        = RequestApply;
         _detail.OnRestoreRequested      = RequestRestore;
+        _detail.OnApplySelectionChanged = (slotIndex, sel) =>
+        {
+            try
+            {
+                Repo.UpdateApplySelection(slotIndex, sel);
+                // Reload 안 함 — selection 만 변경된 거라 file mtime 외 다른 변화 없음 (UI 재그릴 필요 없음 — sel 객체 자체가 mutation 됨)
+            }
+            catch (Exception ex)
+            {
+                Logger.Error($"UpdateApplySelection(slot={slotIndex}) failed: {ex}");
+            }
+        };
 
         Logger.Info($"ModWindow Awake (slots dir: {slotDir})");
     }
@@ -523,7 +535,7 @@ public sealed class ModWindow : MonoBehaviour
         GUILayout.BeginHorizontal();
         _list.Draw(Repo, 240f);
         GUILayout.Space(8);
-        _detail.Draw(Repo.All[_list.Selected], inGame: Core.HeroLocator.IsInGame());
+        _detail.Draw(Repo.All[_list.Selected], inGame: Core.HeroLocator.IsInGame(), cap: Capabilities);
         GUILayout.EndHorizontal();
         GUI.DragWindow(new Rect(0, 0, 10000, 24));
     }
