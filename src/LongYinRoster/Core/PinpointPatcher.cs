@@ -400,6 +400,66 @@ public static class PinpointPatcher
         }
     }
 
-    private static void RefreshExternalManagers(object player, ApplyResult res) =>
-        throw new NotImplementedException("Task 13 에서 채움");
+    private static void RefreshExternalManagers(object player, ApplyResult res)
+    {
+        // spec §7.2.1 Step 7 매핑: BigMapController.RefreshBigMapNPC 만 (HeroIcon /
+        // HeroPanel 매니저 미발견). AuctionController 는 hero refresh 의도 아님 — 호출 안 함.
+        // 나머지 시각 갱신은 game frame 의 자연 lazy-load 에 위임.
+        TryInvokeManager("BigMapController", "RefreshBigMapNPC", player, res);
+    }
+
+    private static void TryInvokeManager(string typeName, string methodName, object player, ApplyResult res)
+    {
+        try
+        {
+            var t = FindGameType(typeName);
+            if (t == null) { res.SkippedFields.Add($"mgr:{typeName} — type not found"); return; }
+            var inst = ReadStaticInstance(t);
+            if (inst == null) { res.SkippedFields.Add($"mgr:{typeName}.Instance — null"); return; }
+            var m = t.GetMethod(methodName, F);
+            if (m == null) { res.SkippedFields.Add($"mgr:{typeName}.{methodName} — missing"); return; }
+            m.Invoke(inst, new object[] { player });
+            res.AppliedFields.Add($"mgr:{typeName}.{methodName}");
+        }
+        catch (Exception ex)
+        {
+            res.WarnedFields.Add($"mgr:{typeName}.{methodName} — {ex.GetType().Name}: {ex.Message}");
+        }
+    }
+
+    private static Type? FindGameType(string typeName)
+    {
+        foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+        {
+            try
+            {
+                var t = asm.GetType(typeName, throwOnError: false);
+                if (t != null) return t;
+                foreach (var t2 in asm.GetTypes())
+                    if (t2.Name == typeName && (t2.Namespace == null || !t2.Namespace.StartsWith("LongYinRoster")))
+                        return t2;
+            }
+            catch { }
+        }
+        return null;
+    }
+
+    private static object? ReadStaticInstance(Type t)
+    {
+        const System.Reflection.BindingFlags SF = System.Reflection.BindingFlags.Public |
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static |
+            System.Reflection.BindingFlags.FlattenHierarchy;
+        var p = t.GetProperty("Instance", SF);
+        if (p != null) return p.GetValue(null);
+        var f = t.GetField("Instance", SF);
+        if (f != null) return f.GetValue(null);
+        foreach (var alt in new[] { "instance", "_instance", "s_Instance", "s_instance" })
+        {
+            var pa = t.GetProperty(alt, SF);
+            if (pa != null) return pa.GetValue(null);
+            var fa = t.GetField(alt, SF);
+            if (fa != null) return fa.GetValue(null);
+        }
+        return null;
+    }
 }
