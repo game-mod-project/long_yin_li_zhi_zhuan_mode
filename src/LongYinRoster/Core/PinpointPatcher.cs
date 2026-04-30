@@ -556,35 +556,46 @@ public static class PinpointPatcher
             }
         }
 
-        // Add each tag from slot JSON
-        if (!slot.TryGetProperty("heroTagData", out var htd) ||
-            !htd.TryGetProperty("allTag", out var arr) ||
-            arr.ValueKind != JsonValueKind.Array)
+        // Add each tag from slot JSON.
+        // v0.4 fix (D15 smoke): 실제 슬롯 JSON 구조는 spec 가정과 다름.
+        //   spec 가정 (X): heroTagData = { allTag: [{id, lv, source, isPermanent, isHidden}] }
+        //   실제 (O):     heroTagData = [{tagID, leftTime, sourceHero}]   ← Array 직접, allTag nesting 없음
+        // → htd.TryGetProperty("allTag") 가 InvalidOperationException throw (Array 에 GetProperty 호출).
+        // Fix: htd 자체가 Array. entry property 이름도 tagID/leftTime/sourceHero 로 정정.
+        if (!slot.TryGetProperty("heroTagData", out var htd) || htd.ValueKind != JsonValueKind.Array)
         {
-            res.SkippedFields.Add("heroTagData.allTag — not in slot JSON");
+            res.SkippedFields.Add("heroTagData — not array in slot JSON");
             return;
         }
 
-        for (int i = 0; i < arr.GetArrayLength(); i++)
+        for (int i = 0; i < htd.GetArrayLength(); i++)
         {
-            var entry = arr[i];
-            // entry schema 가정 (slot JSON 의 실제 schema 와 다를 수 있음 — TryGetProperty 로 fallback):
-            // { id: int, lv: float, source: string, isPermanent: bool, isHidden: bool }
-            int    id          = entry.TryGetProperty("id",          out var idEl) ? idEl.GetInt32()    : -1;
-            float  lv          = entry.TryGetProperty("lv",          out var lvEl) ? lvEl.GetSingle()   : 1f;
-            string source      = entry.TryGetProperty("source",      out var sEl)  ? (sEl.GetString() ?? "") : "";
-            bool   isPermanent = entry.TryGetProperty("isPermanent", out var pEl)  ? pEl.GetBoolean()   : true;
-            bool   isHidden    = entry.TryGetProperty("isHidden",    out var hEl)  ? hEl.GetBoolean()   : false;
+            var entry = htd[i];
+            // 실제 슬롯 schema: { tagID: int, leftTime: float, sourceHero: string|null }
+            int    id         = entry.TryGetProperty("tagID",      out var idEl) ? idEl.GetInt32()  : -1;
+            float  leftTime   = entry.TryGetProperty("leftTime",   out var ltEl) ? ltEl.GetSingle() : -1f;
+            string sourceHero = entry.TryGetProperty("sourceHero", out var shEl) && shEl.ValueKind == JsonValueKind.String
+                                ? (shEl.GetString() ?? "")
+                                : "";
             if (id < 0)
             {
-                res.WarnedFields.Add($"heroTagData[{i}] — id field missing, skipping");
+                res.WarnedFields.Add($"heroTagData[{i}] — tagID field missing, skipping");
                 continue;
             }
+
+            // AddTag(int id, float lv, string source, bool isPermanent, bool isHidden) 시그니처 매핑:
+            //   - lv: 슬롯 JSON 에 없음. game side 가 lookup 으로 결정 — 1.0 default
+            //   - source: sourceHero null 이면 ""
+            //   - isPermanent: leftTime == -1 이면 영구. 양수면 temporary
+            //   - isHidden: 슬롯 JSON 에 없음 — false default
+            bool  isPermanent = leftTime < 0f;
+            float lv          = 1.0f;
+            bool  isHidden    = false;
+
             try
             {
-                // spec §7.2.1 Step 5 매핑: AddTag(Int32 id, Single lv, String source, Boolean isPermanent, Boolean isHidden)
-                InvokeMethod(player, "AddTag", new object[] { id, lv, source, isPermanent, isHidden });
-                res.AppliedFields.Add($"heroTag[{id}]Lv{lv}");
+                InvokeMethod(player, "AddTag", new object[] { id, lv, sourceHero, isPermanent, isHidden });
+                res.AppliedFields.Add($"heroTag[{id}]");
             }
             catch (Exception ex)
             {
