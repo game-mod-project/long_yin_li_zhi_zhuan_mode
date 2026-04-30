@@ -463,7 +463,7 @@ public sealed class ModWindow : MonoBehaviour
         // v0.4 임시 PoC 진단 — Task D16 에서 제거
         if (Input.GetKeyDown(KeyCode.F12))
         {
-            Core.HeroDataDumpV04.Run(Core.HeroDataDumpV04.Mode.ActiveKungfu);
+            Core.HeroDataDumpV04.Run(Core.HeroDataDumpV04.Mode.ItemData);
         }
     }
 

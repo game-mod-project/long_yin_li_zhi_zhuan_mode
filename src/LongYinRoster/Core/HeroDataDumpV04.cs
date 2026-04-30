@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Reflection;
 using System.Text;
 using Logger = LongYinRoster.Util.Logger;
@@ -151,6 +152,78 @@ public static class HeroDataDumpV04
             }
         }
     }
-    private static void ProbeItemData(object player) => Logger.Info("ProbeItemData: TBD A4");
-    private static void ProbeItemListClear(object player) => Logger.Info("ProbeItemListClear: TBD A4");
+    private static void ProbeItemData(object player)
+    {
+        // 1) ItemData type 찾기
+        Type? itemDataType = null;
+        foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+        {
+            try
+            {
+                foreach (var t in asm.GetTypes())
+                    if (t.Name == "ItemData" && t.Namespace != "LongYinRoster.Core")
+                    { itemDataType = t; break; }
+            }
+            catch { }
+            if (itemDataType != null) break;
+        }
+        if (itemDataType == null) { Logger.Warn("ItemData type not found"); return; }
+        Logger.Info($"ItemData type: {itemDataType.FullName}");
+
+        // 2) ctors enumerate
+        foreach (var ctor in itemDataType.GetConstructors(
+            BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
+        {
+            var ps = ctor.GetParameters();
+            var sig = string.Join(",", ps.Select(p => $"{p.ParameterType.Name} {p.Name}"));
+            Logger.Info($"  ctor: ({sig})");
+        }
+
+        // 3) IntPtr ctor 존재 여부
+        var ipCtor = itemDataType.GetConstructor(new[] { typeof(IntPtr) });
+        if (ipCtor != null)
+            Logger.Info("  IntPtr ctor exists — Il2CppInterop wrapper 패턴");
+
+        // 4) static factory candidates
+        foreach (var m in itemDataType.GetMethods(
+            BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static))
+        {
+            if (m.ReturnType == itemDataType || m.ReturnType.Name == "ItemData")
+                Logger.Info($"  static factory candidate: {m.Name}({string.Join(",", m.GetParameters().Select(p => p.ParameterType.Name))})");
+        }
+
+        // 5) game 안의 기존 ItemData 확인 (player.itemListData.allItem[0])
+        var pt = player.GetType();
+        var itemListData = pt.GetProperty("itemListData")?.GetValue(player);
+        if (itemListData == null) { Logger.Warn("  player.itemListData null"); return; }
+        var allItem = itemListData.GetType().GetProperty("allItem")?.GetValue(itemListData);
+        if (allItem == null) { Logger.Warn("  player.itemListData.allItem null"); return; }
+        int n = IL2CppListOps.Count(allItem);
+        Logger.Info($"  player.itemListData.allItem count = {n}");
+        if (n > 0)
+        {
+            var first = IL2CppListOps.Get(allItem, 0);
+            Logger.Info($"    [0] type={first?.GetType().FullName}");
+            if (first != null)
+                foreach (var p in first.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance))
+                    Logger.Info($"      .{p.Name} = {p.GetValue(first)}");
+        }
+    }
+    private static void ProbeItemListClear(object player)
+    {
+        var t = player.GetType();
+        var itemListData = t.GetProperty("itemListData")?.GetValue(player);
+        var allItem = itemListData != null
+            ? itemListData.GetType().GetProperty("allItem")?.GetValue(itemListData)
+            : null;
+        int preCount = allItem != null ? IL2CppListOps.Count(allItem) : -1;
+        Logger.Info($"ProbeItemListClear: pre LoseAllItem allItem count={preCount}");
+
+        var m = t.GetMethod("LoseAllItem", BindingFlags.Public | BindingFlags.Instance);
+        if (m == null) { Logger.Warn("LoseAllItem missing"); return; }
+        Logger.Info($"  LoseAllItem method found: {m}");
+
+        // 주의 — destructive! 이 PoC 는 진단 only. 실제 clear 는 Phase B (RebuildItemList) 에서.
+        Logger.Warn("ProbeItemListClear: NOT calling LoseAllItem (destructive). diagnostic only.");
+    }
 }
