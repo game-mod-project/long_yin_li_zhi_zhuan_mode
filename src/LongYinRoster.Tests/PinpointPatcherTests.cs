@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using FluentAssertions;
 using LongYinRoster.Core;
 using Xunit;
@@ -78,12 +79,88 @@ public class SimpleFieldMatrixTests
     }
 
     [Fact]
-    public void Entries_Count_Matches_Spec()
+    public void Entries_HasSeventeenAfterV04Refactor()
     {
-        // spec §7.2.1 Step 1 매트릭스 row count.
-        // 22 dump-evidenced rows - 4 force-related (hornorLv/governLv/forceContribution/
-        // governContribution) → 18. force-related 는 PortabilityFilter._faction 가 strip
-        // 하므로 matrix 에서 제거. 변경 시 spec §7.2 / §7.2.1 동기화.
-        SimpleFieldMatrix.Entries.Count.Should().Be(18);
+        // v0.3: 18 entries (22 dump rows - 4 force-related strip).
+        // v0.4: -1 (active kungfu nowActiveSkill removed → 별도 SetActiveKungfu step in Task B10).
+        // 변경 시 spec §5.7 / §7.2.1 동기화.
+        SimpleFieldMatrix.Entries.Count.Should().Be(17);
+    }
+
+    [Fact]
+    public void Entries_HasNoActiveKungfuEntry()
+    {
+        SimpleFieldMatrix.Entries.Should().NotContain(
+            e => e.PropertyName == "nowActiveSkill");
+    }
+
+    [Fact]
+    public void Entries_InjuryAndLoyalAndFavor_AreCategoryNone()
+    {
+        // v0.4: 부상/충성/호감 backup 폐기 — Category=None 으로 표시되어 Apply 안 함 (영구 보존).
+        var noneNames = new[] { "externalInjury", "internalInjury", "poisonInjury", "loyal", "favor" };
+        foreach (var name in noneNames)
+        {
+            var e = SimpleFieldMatrix.Entries.FirstOrDefault(x => x.PropertyName == name);
+            e.Should().NotBeNull($"{name} entry must exist (kept in matrix as None — not deleted)");
+            e!.Category.Should().Be(FieldCategory.None);
+        }
+    }
+
+    [Fact]
+    public void Entries_HpManaPower_AreCategoryStat()
+    {
+        foreach (var name in new[] { "hp", "mana", "power" })
+        {
+            var e = SimpleFieldMatrix.Entries.FirstOrDefault(x => x.PropertyName == name);
+            e.Should().NotBeNull();
+            e!.Category.Should().Be(FieldCategory.Stat);
+        }
+    }
+
+    [Fact]
+    public void Entries_FameAndBadFame_AreCategoryHonor()
+    {
+        foreach (var name in new[] { "fame", "badFame" })
+        {
+            var e = SimpleFieldMatrix.Entries.FirstOrDefault(x => x.PropertyName == name);
+            e.Should().NotBeNull();
+            e!.Category.Should().Be(FieldCategory.Honor);
+        }
+    }
+
+    [Fact]
+    public void Entries_SkinID_IsCategorySkin()
+    {
+        var e = SimpleFieldMatrix.Entries.FirstOrDefault(x => x.PropertyName == "skinID");
+        e.Should().NotBeNull();
+        e!.Category.Should().Be(FieldCategory.Skin);
+    }
+
+    [Fact]
+    public void Entries_SelfHouse_IsCategorySelfHouse()
+    {
+        var e = SimpleFieldMatrix.Entries.FirstOrDefault(x => x.PropertyName == "selfHouseTotalAdd");
+        e.Should().NotBeNull();
+        e!.Category.Should().Be(FieldCategory.SelfHouse);
+    }
+
+    [Fact]
+    public void Entries_HeroTagPoint_IsCategoryTalentPoint()
+    {
+        var e = SimpleFieldMatrix.Entries.FirstOrDefault(x => x.PropertyName == "heroTagPoint");
+        e.Should().NotBeNull();
+        e!.Category.Should().Be(FieldCategory.TalentPoint);
+    }
+
+    [Fact]
+    public void Entries_BaseStatLists_AreCategoryStat()
+    {
+        foreach (var name in new[] { "baseAttri", "baseFightSkill", "baseLivingSkill", "expLivingSkill" })
+        {
+            var e = SimpleFieldMatrix.Entries.FirstOrDefault(x => x.PropertyName == name);
+            e.Should().NotBeNull();
+            e!.Category.Should().Be(FieldCategory.Stat);
+        }
     }
 }

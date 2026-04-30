@@ -2,66 +2,62 @@ using System.Collections.Generic;
 
 namespace LongYinRoster.Core;
 
+public enum SetterStyle { Direct, Delta, None }
+
 /// <summary>
-/// PinpointPatcher.SetSimpleFields 가 처리할 simple-value scalar 매트릭스.
+/// v0.4 — entry 의 selection 분류. None 은 "영구 보존" (부상/충성/호감).
+/// Stat / Honor / Skin / SelfHouse 는 ApplySelection 의 동명 flag 따라 selection.
+/// TalentPoint 는 ApplySelection.TalentTag 와 묶여 selection (heroTagPoint 가 천부 카테고리 안).
+/// </summary>
+public enum FieldCategory
+{
+    None,         // 부상/충성/호감 — Apply 안 함, 영구 보존
+    Stat,         // hp/mana/power + base stat lists
+    Honor,        // fame/badFame
+    Skin,         // skinID
+    SelfHouse,    // selfHouseTotalAdd
+    TalentPoint,  // heroTagPoint
+}
+
+public sealed record SimpleFieldEntry(
+    string         Name,
+    string         JsonPath,
+    string         PropertyName,
+    System.Type    Type,
+    string?        SetterMethod,
+    SetterStyle    SetterStyle,
+    FieldCategory  Category);
+
+/// <summary>
+/// v0.4: 17 entry. v0.3 18 entry 에서 활성 무공 (nowActiveSkill) 제거 — 별도 step (SetActiveKungfu) 로 이관.
+/// 부상/충성/호감 5 entry 의 Category=None — Apply 안 함 (v0.3 backup 폐기, 영구 보존 정책).
 ///
-/// 본 entry list 는 spec §7.2.1 의 "Step 1 SetSimpleFields" mapping 과 1:1.
-/// dump 결과 (plan Task 2) 로 채워졌다. 새 필드 추가 / 제거 시 spec §7.2.1 도 동기화.
-///
+/// PinpointPatcher.SetSimpleFields 가 entry.Category 와 ApplySelection 비교하여 selection filter.
 /// SetterStyle:
 ///   Direct  : InvokeSetter(player, method, newValue)
 ///   Delta   : InvokeSetter(player, method, newValue - currentValue)
 ///   None    : 직접 set 경로 없음 — RefreshSelfState 가 derived 로 재계산 기대
 /// </summary>
-public enum SetterStyle { Direct, Delta, None }
-
-public sealed record SimpleFieldEntry(
-    string      Name,
-    string      JsonPath,
-    string      PropertyName,
-    System.Type Type,
-    string?     SetterMethod,
-    SetterStyle SetterStyle);
-
 public static class SimpleFieldMatrix
 {
-    /// <summary>
-    /// dump 결과로 확정된 매트릭스. plan Task 2 직후 채워진다. 빈 list 면 schema test
-    /// 실패 — Task 2 가 완료 안 됐다는 신호.
-    ///
-    /// spec §7.2.1 Step 1 의 18 entry 와 1:1 (table row 순서 유지).
-    /// 22 dump-evidenced row 중 force-related 4 row (hornorLv / governLv /
-    /// forceContribution / governContribution) 는 PortabilityFilter._faction 가
-    /// strip — spec §2.2 N4 force-preserve 정책 일관 유지를 위해 matrix 에서 제거.
-    /// 변경 시 spec §7.2 / §7.2.1 동기화.
-    ///
-    /// 특이 케이스:
-    /// - `nowActiveSkill`: SetterMethod=null, Style=None — Step 2 후 별도 처리.
-    /// - `skinID`: JsonPath/PropertyName 은 skinID 만 표시 (대표). SetSkin 은 multi-arg
-    ///   (skinID, skinLv) — Task 7 SetSimpleFields 가 special-case 로 skinLv 도 같이 read.
-    /// - `baseAttri[i]` / `baseFightSkill[i]` / `baseLivingSkill[i]` / `expLivingSkill[i]`:
-    ///   List 의 각 index 를 ChangeAttri / ChangeFightSkill / ... 의 (i, delta, ...) 로
-    ///   호출. JsonPath 는 list-name (Task 7 이 enumerate).
-    /// </summary>
     public static readonly IReadOnlyList<SimpleFieldEntry> Entries = new[]
     {
-        new SimpleFieldEntry("명예",            "fame",                "fame",                typeof(float), "ChangeFame",                 SetterStyle.Delta),
-        new SimpleFieldEntry("악명",            "badFame",             "badFame",             typeof(float), "ChangeBadFame",              SetterStyle.Delta),
-        new SimpleFieldEntry("HP",              "hp",                  "hp",                  typeof(float), "ChangeHp",                   SetterStyle.Delta),
-        new SimpleFieldEntry("Mana",            "mana",                "mana",                typeof(float), "ChangeMana",                 SetterStyle.Delta),
-        new SimpleFieldEntry("Power",           "power",               "power",               typeof(float), "ChangePower",                SetterStyle.Delta),
-        new SimpleFieldEntry("외상",            "externalInjury",      "externalInjury",      typeof(float), "ChangeExternalInjury",       SetterStyle.Delta),
-        new SimpleFieldEntry("내상",            "internalInjury",      "internalInjury",      typeof(float), "ChangeInternalInjury",       SetterStyle.Delta),
-        new SimpleFieldEntry("중독",            "poisonInjury",        "poisonInjury",        typeof(float), "ChangePoisonInjury",         SetterStyle.Delta),
-        new SimpleFieldEntry("충성",            "loyal",               "loyal",               typeof(float), "ChangeLoyal",                SetterStyle.Delta),
-        new SimpleFieldEntry("호감",            "favor",               "favor",               typeof(float), "SetFavor",                   SetterStyle.Direct),
-        new SimpleFieldEntry("자기집 add",      "selfHouseTotalAdd",   "selfHouseTotalAdd",   typeof(float), "ChangeSelfHouseTotalAdd",    SetterStyle.Delta),
-        new SimpleFieldEntry("천부 포인트",     "heroTagPoint",        "heroTagPoint",        typeof(float), "ChangeTagPoint",             SetterStyle.Delta),
-        new SimpleFieldEntry("활성 무공",       "nowActiveSkill",      "nowActiveSkill",      typeof(int),   null,                         SetterStyle.None),
-        new SimpleFieldEntry("스킨",            "skinID",              "skinID",              typeof(int),   "SetSkin",                    SetterStyle.Direct),
-        new SimpleFieldEntry("baseAttri[i]",    "baseAttri",           "baseAttri",           typeof(float), "ChangeAttri",                SetterStyle.Delta),
-        new SimpleFieldEntry("baseFightSkill[i]","baseFightSkill",     "baseFightSkill",      typeof(float), "ChangeFightSkill",           SetterStyle.Delta),
-        new SimpleFieldEntry("baseLivingSkill[i]","baseLivingSkill",   "baseLivingSkill",     typeof(float), "ChangeLivingSkill",          SetterStyle.Delta),
-        new SimpleFieldEntry("expLivingSkill[i]","expLivingSkill",     "expLivingSkill",      typeof(float), "ChangeLivingSkillExp",       SetterStyle.Delta),
+        new SimpleFieldEntry("명예",              "fame",                "fame",                typeof(float), "ChangeFame",                 SetterStyle.Delta,  FieldCategory.Honor),
+        new SimpleFieldEntry("악명",              "badFame",             "badFame",             typeof(float), "ChangeBadFame",              SetterStyle.Delta,  FieldCategory.Honor),
+        new SimpleFieldEntry("HP",                "hp",                  "hp",                  typeof(float), "ChangeHp",                   SetterStyle.Delta,  FieldCategory.Stat),
+        new SimpleFieldEntry("Mana",              "mana",                "mana",                typeof(float), "ChangeMana",                 SetterStyle.Delta,  FieldCategory.Stat),
+        new SimpleFieldEntry("Power",             "power",               "power",               typeof(float), "ChangePower",                SetterStyle.Delta,  FieldCategory.Stat),
+        new SimpleFieldEntry("외상",              "externalInjury",      "externalInjury",      typeof(float), "ChangeExternalInjury",       SetterStyle.Delta,  FieldCategory.None),
+        new SimpleFieldEntry("내상",              "internalInjury",      "internalInjury",      typeof(float), "ChangeInternalInjury",       SetterStyle.Delta,  FieldCategory.None),
+        new SimpleFieldEntry("중독",              "poisonInjury",        "poisonInjury",        typeof(float), "ChangePoisonInjury",         SetterStyle.Delta,  FieldCategory.None),
+        new SimpleFieldEntry("충성",              "loyal",               "loyal",               typeof(float), "ChangeLoyal",                SetterStyle.Delta,  FieldCategory.None),
+        new SimpleFieldEntry("호감",              "favor",               "favor",               typeof(float), "SetFavor",                   SetterStyle.Direct, FieldCategory.None),
+        new SimpleFieldEntry("자기집 add",        "selfHouseTotalAdd",   "selfHouseTotalAdd",   typeof(float), "ChangeSelfHouseTotalAdd",    SetterStyle.Delta,  FieldCategory.SelfHouse),
+        new SimpleFieldEntry("천부 포인트",       "heroTagPoint",        "heroTagPoint",        typeof(float), "ChangeTagPoint",             SetterStyle.Delta,  FieldCategory.TalentPoint),
+        new SimpleFieldEntry("스킨",              "skinID",              "skinID",              typeof(int),   "SetSkin",                    SetterStyle.Direct, FieldCategory.Skin),
+        new SimpleFieldEntry("baseAttri[i]",      "baseAttri",           "baseAttri",           typeof(float), "ChangeAttri",                SetterStyle.Delta,  FieldCategory.Stat),
+        new SimpleFieldEntry("baseFightSkill[i]", "baseFightSkill",      "baseFightSkill",      typeof(float), "ChangeFightSkill",           SetterStyle.Delta,  FieldCategory.Stat),
+        new SimpleFieldEntry("baseLivingSkill[i]","baseLivingSkill",     "baseLivingSkill",     typeof(float), "ChangeLivingSkill",          SetterStyle.Delta,  FieldCategory.Stat),
+        new SimpleFieldEntry("expLivingSkill[i]", "expLivingSkill",      "expLivingSkill",      typeof(float), "ChangeLivingSkillExp",       SetterStyle.Delta,  FieldCategory.Stat),
     };
 }
