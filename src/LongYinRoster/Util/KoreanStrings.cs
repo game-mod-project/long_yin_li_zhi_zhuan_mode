@@ -57,6 +57,18 @@ public static class KoreanStrings
     public const string ToastErrSlotsFull     = "✘ 빈 슬롯이 없습니다.";
     public const string ToastErrNoPlayer      = "✘ 플레이어를 찾을 수 없습니다. 게임에 입장한 뒤 시도하세요.";
 
+    // v0.3 신규
+    public const string ToastApplyOk                 = "✓ 슬롯 {0} 적용됨 ({1}개 필드, {2}개 미지원)";
+    public const string ToastApplyDisabled           = "✘ Apply 가 설정에서 비활성됨";
+    public const string ToastErrSlotRead             = "✘ 슬롯 {0} 읽기/파싱 실패: {1}";
+    public const string ToastErrApplyAutoRestored    = "✘ 적용 실패: {0}. 자동복원 시도됨 (로그 확인)";
+    public const string ToastErrApplyNoBackup        = "✘ 적용 실패: {0}. 자동백업 비활성 — 수동 복구";
+    public const string ToastErrEmptySlot            = "✘ 슬롯이 비어 있습니다";
+    public const string ToastErrNoBackup             = "✘ 자동백업이 없습니다";
+    public const string ConfirmTitleRestore          = "↶ 자동백업 복원 확인";
+    public const string ConfirmRestoreMain           = "Apply 직전 상태로 되돌립니다.\n현재 캐릭터 본질이 슬롯 0 의 자동백업으로 교체됩니다.";
+    public const string Restore                      = "복원";
+
     public const string EmptyStateNoSlots     = "왼쪽 [+] 버튼으로 첫 캐릭터를 저장하세요";
     public const string EmptyStateNoGame      = "게임에 입장한 뒤 사용 가능합니다";
 
