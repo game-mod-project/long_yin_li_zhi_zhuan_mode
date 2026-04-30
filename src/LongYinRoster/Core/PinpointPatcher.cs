@@ -374,8 +374,31 @@ public static class PinpointPatcher
         }
     }
 
-    private static void RefreshSelfState(object player, ApplyResult res) =>
-        throw new NotImplementedException("Task 12 에서 채움");
+    private static void RefreshSelfState(object player, ApplyResult res)
+    {
+        // spec §7.2.1 Step 6 매핑 (dump 후 확정).
+        // HANDOFF §4.4 의 GetMaxAttri / GetMaxFightSkill / GetMaxLivingSkill / GetMaxFavor
+        // / GetFinalTravelSpeed 는 read-only Single-getter — refresh 효과 없음. 호출 안 함.
+        TryInvokeNoArg(player, "RefreshMaxAttriAndSkill",        res);
+        TryInvokeNoArg(player, "RefreshHeroSalaryAndPopulation", res);
+        TryInvokeNoArg(player, "RecoverState",                   res);
+    }
+
+    private static void TryInvokeNoArg(object obj, string methodName, ApplyResult res)
+    {
+        try
+        {
+            var t = obj.GetType();
+            var m = t.GetMethod(methodName, F, null, Type.EmptyTypes, null);
+            if (m == null) { res.SkippedFields.Add($"refresh:{methodName} — missing"); return; }
+            m.Invoke(obj, null);
+            res.AppliedFields.Add($"refresh:{methodName}");
+        }
+        catch (Exception ex)
+        {
+            res.WarnedFields.Add($"refresh:{methodName} — {ex.GetType().Name}: {ex.Message}");
+        }
+    }
 
     private static void RefreshExternalManagers(object player, ApplyResult res) =>
         throw new NotImplementedException("Task 13 에서 채움");

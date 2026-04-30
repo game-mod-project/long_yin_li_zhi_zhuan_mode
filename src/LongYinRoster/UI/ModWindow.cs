@@ -591,6 +591,28 @@ public sealed class ModWindow : MonoBehaviour
             catch (Exception ex) { Logger.Error($"smoke T: {ex}"); }
         }
 
+        // [F11 + R] — RefreshSelfState 단독 smoke (Task 12).
+        if (Input.GetKey(KeyCode.F11) && Input.GetKeyDown(KeyCode.R))
+        {
+            Logger.Info($"smoke R: handler invoked at frame {Time.frameCount}");
+            try
+            {
+                Core.HeroLocator.InvalidateCache();
+                var player = Core.HeroLocator.GetPlayer();
+                LogPlayerRef("smoke R", player);
+                if (player == null) return;
+                var res = new Core.ApplyResult();
+                typeof(Core.PinpointPatcher).GetMethod("RefreshSelfState",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!
+                    .Invoke(null, new object[] { player, res });
+                Logger.Info($"smoke R: applied={res.AppliedFields.Count} skipped={res.SkippedFields.Count} warned={res.WarnedFields.Count}");
+                foreach (var f in res.AppliedFields) Logger.Info($"  applied: {f}");
+                foreach (var f in res.SkippedFields) Logger.Info($"  skipped: {f}");
+                foreach (var f in res.WarnedFields)  Logger.Info($"  warn: {f}");
+            }
+            catch (Exception ex) { Logger.Error($"smoke R: {ex}"); }
+        }
+
         if (_visible && Config.PauseGameWhileOpen.Value && Time.timeScale != 0f)
             Time.timeScale = 0f;
     }
