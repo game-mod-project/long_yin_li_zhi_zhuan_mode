@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using LongYinRoster.Core;
 using LongYinRoster.Util;
 
 namespace LongYinRoster.Slots;
@@ -92,6 +93,9 @@ public sealed class SlotRepository
 
     public void UpdateComment(int index, string newComment) =>
         UpdateMeta(index, m => m with { UserComment = newComment });
+
+    public void UpdateApplySelection(int index, ApplySelection sel) =>
+        UpdateMeta(index, m => m with { ApplySelection = sel });
 
     private void UpdateMeta(int index, Func<SlotPayloadMeta, SlotPayloadMeta> patch)
     {

@@ -97,4 +97,18 @@ public class SlotRepositoryTests : IDisposable
         repo.Reload();
         repo.All[0].IsEmpty.Should().BeFalse();
     }
+
+    [Fact]
+    public void UpdateApplySelection_PersistsToFile()
+    {
+        var repo = Repo();
+        var sel = new ApplySelection { Identity = true, ItemList = true };
+        repo.Write(1, P(1));
+        repo.UpdateApplySelection(1, sel);
+        repo.Reload();
+        var loaded = repo.All[1].Meta!.ApplySelection;
+        loaded.Identity.Should().BeTrue();
+        loaded.ItemList.Should().BeTrue();
+        loaded.SelfStorage.Should().BeFalse();
+    }
 }
