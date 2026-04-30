@@ -70,7 +70,7 @@ public sealed class ModWindow : MonoBehaviour
         _detail.OnCommentRequested      = RequestComment;
         _detail.OnDeleteRequested       = RequestDelete;
         _detail.OnApplyRequested        = RequestApply;
-        // OnRestoreRequested 는 Task 17 에서 와이어링.
+        _detail.OnRestoreRequested      = RequestRestore;
 
         Logger.Info($"ModWindow Awake (slots dir: {slotDir})");
     }
@@ -373,6 +373,22 @@ public sealed class ModWindow : MonoBehaviour
         {
             Logger.Error($"Auto-restore threw: {ex}");
         }
+    }
+
+    private void RequestRestore(int _slotArg)
+    {
+        // SlotDetailPanel 의 OnRestoreRequested 가 entry.Index 를 넘기지만 Restore 는 항상 슬롯 0.
+        if (Repo.All[0].IsEmpty)
+        {
+            ToastService.Push(KoreanStrings.ToastErrNoBackup, ToastKind.Error);
+            return;
+        }
+        var label = Repo.All[0].Meta?.UserLabel ?? KoreanStrings.SlotAutoBackup;
+        _confirm.Show(
+            title: KoreanStrings.ConfirmTitleRestore,
+            body:  KoreanStrings.ConfirmRestoreMain + $"\n원본: {label}",
+            confirmLabel: KoreanStrings.Restore,
+            onConfirm: () => DoApply(slot: 0, doAutoBackup: false));
     }
 
     /// <summary>
