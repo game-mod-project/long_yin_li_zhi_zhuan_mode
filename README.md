@@ -3,7 +3,7 @@
 **龙胤立志传 (LongYinLiZhiZhuan) v1.0.0 f8.2** 의 BepInEx 6 IL2CPP 플러그인.
 플레이어 캐릭터(`heroID=0`) 스냅샷을 최대 20슬롯에 저장 / 관리한다.
 
-## 무엇을 할 수 있나 (v0.3)
+## 무엇을 할 수 있나 (v0.4)
 
 - **캡처** — 인게임에서 `F11` → `[+] 현재 캐릭터 저장` → 빈 슬롯 또는 선택한 슬롯에 현재 플레이어 데이터를 JSON 으로 저장.
 - **파일에서 가져오기** *(v0.2)* — `[F] 파일에서` → 게임 자체 SaveSlot 0~10 목록 → 선택한 슬롯의 캐릭터를 mod 슬롯에 import.
@@ -26,14 +26,23 @@
 - 명예 / 악명 / HP / Mana / Power / 부상 (외상/내상/중독) / 충성 / 호감 / 자기집 add / 천부 포인트 / 활성 무공 / 스킨 / baseAttri / baseFightSkill / baseLivingSkill / expLivingSkill
 - 천부 list (heroTagData)
 
-**v0.4 후보 (현재 미지원)**:
-- 정체성 (heroName / nickname / age 등) — property setter 만 있고 game-self method 없음
-- 무공 / 인벤토리 / 창고 / 장비 — primitive-factory Add method 부재 (KungfuSkillLvData / ItemData wrapper factory 필요)
-- 외형 (faceData / portraitID 등) — sprite reference lazy-load
+### v0.4 — 9-카테고리 체크박스 + 정체성 활성화
+
+- **9-카테고리 체크박스 UI** — 스탯 / 명예 / 천부 / 스킨 / 자기집 add / 정체성 / 무공 active / 인벤토리 / 창고 각 카테고리를 슬롯 디테일 패널에서 개별 선택. 토글 즉시 저장 (`_meta.applySelection`)
+- **정체성 활성화** — heroName / nickname / age 등 9 필드를 setter direct path 로 Apply (PoC A2 PASS). save → reload 후 정보창 정상 표시 검증 완료
+- **부상 / 충성 / 호감 backup 폐기** — v0.3 에서 Apply 시 덮어쓰던 부상 (외상/내상/중독) / 충성 / 호감 을 v0.4 에서 영구 보존 필드로 전환. 의도적 회귀 — 사회적 / 신체적 상태는 슬롯 적용과 무관하게 현재 게임 상태를 유지
+- **v0.2/v0.3 슬롯 호환** — 기존 슬롯 파일 무손실. 로드 시 V03Default 자동 적용, 파일 건드리지 않음
+
+**v0.5+ 후보 (현재 미지원)**:
+- **무공 active** — wrapper.lv vs nowActiveSkill ID 불일치 (semantic mismatch). PoC A3 FAIL. v0.5+ 에서 재조사
+- **인벤토리 / 창고** — sub-data wrapper graph 미해결 (ItemData factory PoC A4 FAIL). v0.5+ 에서 게임 내부 Add method 추가 dump 필요
+- **무공 list** — KungfuSkillLvData wrapper ctor 의 IL2CPP 한계. v0.5+ 후보
+- **외형** (faceData / portraitID 등) — sprite reference lazy-load. v0.5+ 후보
 
 **사용법**:
-1. 모드 창 (F11) → 슬롯 1~20 선택 → `▼ 현재 플레이어로 덮어쓰기` 버튼
-2. 자동백업 슬롯 0 → `↶ 복원` 버튼 으로 Apply 직전 상태 복귀
+1. 모드 창 (F11) → 슬롯 1~20 선택 → 디테일 패널에서 적용할 카테고리 체크박스 선택
+2. `▼ 현재 플레이어로 덮어쓰기` 버튼 → 선택된 카테고리만 Apply
+3. 자동백업 슬롯 0 → `↶ 복원` 버튼 으로 Apply 직전 상태 복귀
 
 ### Releases
 
@@ -42,6 +51,7 @@
 | v0.1.0 | Live capture + slot management |
 | v0.2.0 | Import from save + input gating |
 | v0.3.0 | Apply (slot → game) + Restore (stat-backup) |
+| v0.4.0 | 9-카테고리 체크박스 UI + 정체성 활성화 |
 
 ## 요구 사항
 

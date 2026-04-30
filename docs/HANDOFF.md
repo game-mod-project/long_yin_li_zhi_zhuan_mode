@@ -1,40 +1,53 @@
 # LongYin Roster Mod — 작업 핸드오프 문서
 
 **일시 중지**: 2026-04-30
-**진행 상태**: **v0.3.0 출시 완료** (PinpointPatcher 기반 Apply / Restore 흐름).
+**진행 상태**: **v0.4.0 출시 완료** (selection-aware Apply / Restore + 정체성 활성화 + 9-카테고리 체크박스 UI).
 **저장소**: https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode (`main` 브랜치)
 **프로젝트 루트**: `E:/Games/龙胤立志传.v1.0.0f8.2/LongYinLiZhiZhuan/Save/_PlayerExport/`
 **Releases**:
 - [v0.1.0](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.1.0) — Live capture + slot management
 - [v0.2.0](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.2.0) — Import from save + input gating
-- [v0.3.0] — Apply (stat-backup) + Restore + save/reload 안전성
+- [v0.3.0](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.3.0) — Apply (stat-backup) + Restore + save/reload 안전성
+- [v0.4.0] — 9-카테고리 체크박스 UI + 정체성 활성화 + 부상/충성/호감 영구 보존 회귀
 
 ---
 
 ## 1. 한 줄 요약
 
 BepInEx 6 IL2CPP 환경에서 플레이어 캐릭터 스냅샷을 20슬롯에 저장 / 관리하는 모드.
-**v0.3.0 출시 완료**: Capture / FileImport / Slot 관리 / Input gating 에 더해
-**Apply (slot → game) + Restore (slot 0 → game)** 흐름 PinpointPatcher 패턴으로 활성화.
-v0.2 에서 시도한 `JsonSerializer.Populate` (silent no-op) / `HeroList` reference swap
-(reference 필드 깨짐) 두 접근을 폐기하고 **game-self setter method 직접 호출 + 18필드 SimpleFieldMatrix
-+ heroTagData rebuild + RefreshSelfState/RefreshExternalManagers 7-step pipeline** 으로 재설계.
+**v0.4.0 출시 완료**: v0.3 의 PinpointPatcher Apply / Restore 에 더해
+**9-카테고리 체크박스 UI** (슬롯별 selection 즉시 저장) + **정체성 활성화** (heroName / nickname / age 등
+9 필드 setter direct — PoC A2 PASS) + **부상/충성/호감 영구 보존 회귀** (v0.3 의 덮어쓰기 폐기).
 
-**Scope (v0.3 stat-backup focus)**: 명예 / 악명 / HP / Mana / Power / 부상 (외상/내상/중독)
-/ 충성 / 호감 / 자기집 add / 천부 포인트 / 활성 무공 / 스킨 / baseAttri / baseFightSkill
-/ baseLivingSkill / expLivingSkill + heroTagData (천부 list). save → reload 후 캐릭터
-정보창 정상 작동 (v0.2 시도 2 의 NRE 실패점 통과).
+**Scope (v0.4)**: v0.3 stat-backup 전체 + 정체성 9 필드. 카테고리 단위 선택 Apply.
+부상 (외상/내상/중독) / 충성 / 호감 은 보존 필드로 전환 — 현재 게임 상태 유지.
+save → reload 후 정보창 정상 작동 (smoke D15 PASS, 천부 17/17 포함).
 
-**v0.4 후보**: 정체성 (heroName / nickname / age) / 무공 / 인벤토리 / 창고 / 장비 / 외형 —
-primitive-factory Add method / sprite reference lazy-load 의 IL2CPP 한계로 deferred.
-spec §7.2.1 매핑 + §12 deferred list 참고.
+**v0.5+ 후보**: 무공 active (PoC A3 FAIL — semantic mismatch) / 인벤토리 / 창고 (PoC A4 FAIL —
+sub-data wrapper graph 미해결) / 무공 list / 외형. spec §12 deferred list 참고.
 
 ---
 
-## 2. 현재 깃 히스토리 (v0.3 branch HEAD)
+## 2. 현재 깃 히스토리 (main HEAD — v0.4 완료 후)
 
 ```
-(pending) chore(release): v0.3.0 — VERSION bump + README/HANDOFF update         ← v0.3.0 tag (Task 22)
+2d4b24e chore(release): remove HeroDataDumpV04 + [F12] handler (D16)             ← v0.4 release prep
+a127206 docs: D15 smoke v0.4 PASS — 모든 항목 통과 (천부 fix eaf2938 후 17/17)
+eaf2938 fix(core): RebuildHeroTagData JSON schema 정정 — heroTagData 가 Array
+10069fd fix(ui): WindowH default 480→560 + toast on selection save failure
+8f3edf1 feat(ui): v0.4 SlotDetailPanel 9-카테고리 체크박스 grid + 즉시 저장 wiring
+c99d709 feat(strings): v0.4 — 9 카테고리 label + disabled suffix
+4e60687 feat(core): selection-aware PinpointPatcher 9-step + Probe + ModWindow wiring
+02e349e feat(core): IdentityFieldMatrix (Setter) + ItemDataFactory (v0.4 stub) per PoC results
+e9894c7 feat(slots): SlotRepository.UpdateApplySelection — toggle 즉시 저장 path
+748eaae feat(slots): _meta.applySelection schema + read/write + legacy fallback test
+30626c9 feat(core): SimpleFieldMatrix Category enum + v0.4 17 entry
+4a9be77 feat(core): v0.4 Capabilities POCO
+256bfc5 feat(core): v0.4 ApplySelection POCO + JSON helpers + 4 tests
+7d57fea poc: v0.4 ItemData PoC FAIL — defer to v0.5+
+c83e808 poc: v0.4 ActiveKungfu PoC FAIL — defer to v0.5+
+4887f01 poc: v0.4 Identity PoC PASS — setter direct (in-memory)
+(이전) chore(release): v0.3.0 — VERSION bump + README/HANDOFF update             ← v0.3.0 tag
 6929201 chore(release): remove HeroDataDump temp tool + [F12] handler            ← Task 21
 ca194bb feat(ui): activate Apply/Restore buttons; remove temp smoke handlers     ← Task 18
 853aa8f feat(ui): ModWindow.RequestApply / DoApply / AttemptAutoRestore wired    ← Task 16
@@ -248,75 +261,82 @@ _PlayerExport/
 
 ## 5. 검증된 것 / 검증 안 된 것
 
-### ✅ 게임 안에서 검증 완료 (v0.1.0 + v0.2.0 + v0.3.0)
-- BepInEx 가 우리 플러그인 정상 로드 (`Loaded LongYin Roster Mod v0.3.0`)
+### ✅ 게임 안에서 검증 완료 (v0.1.0 + v0.2.0 + v0.3.0 + v0.4.0)
+- BepInEx 가 우리 플러그인 정상 로드 (`Loaded LongYin Roster Mod v0.3.0` / v0.4.0)
 - F11 핫키, 창 드래그, 위치 영속, 한글 텍스트 정상
-- **25 unit tests all pass** (v0.3 추가: ApplyResult / IL2CppListOps / SimpleFieldMatrix schema)
-- **라이브 캡처**: `[+]` → 슬롯 1 에 503KB JSON + 토스트 (Task 17 v0.2)
+- **40 unit tests all pass** (v0.4 추가: ApplySelection / Capabilities / IdentityFieldMatrix / legacy 호환)
+- **라이브 캡처**: `[+]` → 슬롯 1 에 503KB JSON + 토스트
 - **Slot list / Slot detail panel**: 갱신 + 캐릭터 정보 정상 표시
 - **같은 슬롯 덮어쓰기**: ConfirmDialog → 취소/덮어쓰기 동작
 - **슬롯 Rename / Comment / Delete**: InputDialog / ConfirmDialog 통합
 - **FileImport** (v0.2): `[F] 파일에서` → SaveSlot list → import → `_meta.captureSource = "file"`
 - **Mouse / Wheel input gating** (v0.2): 모드 창 / 다이얼로그 영역 안 클릭 / 스크롤 차단
-- **Apply (slot → game)** (v0.3): `▼ 현재 플레이어로 덮어쓰기` → 18필드 SimpleFieldMatrix +
-  heroTagData rebuild + RefreshSelfState/RefreshExternalManagers 7-step pipeline 통과 (smoke C1 PASS)
+- **Apply (slot → game)** (v0.3): `▼ 현재 플레이어로 덮어쓰기` → SimpleFieldMatrix +
+  heroTagData rebuild + RefreshSelfState/RefreshExternalManagers 7-step pipeline (smoke C1 PASS)
 - **Restore (slot 0 → game)** (v0.3): `↶ 복원` → Apply 직전 상태 복귀 (smoke C2 PASS)
 - **자동백업** (v0.3): Apply 직전 슬롯 0 자동백업 + 실패 시 자동복원 (AttemptAutoRestore)
 - **save → reload 후 정보창 정상** (v0.3): G1/G2/G3 통과 (v0.2 시도 2 의 NRE 실패점 통과)
 - **보존 필드** (v0.3): force / location / relations 변경 안 됨 — 사회적 위치 유지
+- **9-카테고리 체크박스 default 표시** (v0.4): 슬롯 선택 시 9개 체크박스 인라인 표시 (smoke D15 PASS)
+- **Toggle 즉시 저장** (v0.4): 체크박스 토글 → `_meta.applySelection` 즉시 파일 저장
+- **정체성 Apply** (v0.4): heroName / nickname / age 등 9 필드 setter direct Apply → save → reload PASS
+- **천부 17/17** (v0.4): heroTagData JSON schema 정정 후 천부 17/17 Apply 정상 (eaf2938 fix)
+- **Restore / RestoreAll** (v0.4): 선택 카테고리 Restore + 전체 Restore 정상 동작
+- **disabled UI** (v0.4): 미지원 카테고리 (무공 active / 인벤토리 / 창고) UI 비활성화 표시
+- **legacy 호환** (v0.4): v0.2/v0.3 슬롯 파일 무손실 — V03Default 자동 적용, 파일 건드리지 않음
 
-### ⚪ v0.4 후보 (현재 미지원, deferred)
-- **정체성** (heroName / nickname / age 등) — property setter 만 있고 game-self method 없음
-- **무공 / 인벤토리 / 창고 / 장비** — primitive-factory Add method 부재 (KungfuSkillLvData /
-  ItemData wrapper factory 필요)
-- **외형** (faceData / portraitID 등) — sprite reference lazy-load
-- spec §12 deferred list 참고
+### ⚪ v0.5+ 후보 (현재 미지원, deferred)
+- **무공 active** — wrapper.lv vs nowActiveSkill ID semantic mismatch (PoC A3 FAIL). v0.5+ 에서 재조사
+- **인벤토리 / 창고** — sub-data wrapper graph 미해결 (PoC A4 FAIL). v0.5+ 에서 게임 내부 Add method 추가 dump 필요
+- **무공 list** — KungfuSkillLvData wrapper ctor 의 IL2CPP 한계. v0.5+ 후보
+- **외형** (faceData / portraitID 등) — sprite reference lazy-load. v0.5+ 후보
+- spec §12 v0.4 진행 상태 + deferred list 참고
 
 ### ⚠ 알려진 한계
 - **`PauseGameWhileOpen = true`** — 캐릭터/NPC/시간은 멈추지만 일부 UI 트랜지션은 통과. Mouse
   Harmony patch 로 보완.
 - **HeroData setter reflection** — 일반적인 Newtonsoft / reflection-driven property set 가
-  silent no-op. v0.3 는 game-self method 직접 호출로 우회.
+  silent no-op. v0.3/v0.4 는 game-self method / setter direct 로 우회.
+- **무공 active / 인벤토리 / 창고** — v0.4 에서 UI 는 존재하지만 Apply 시 건너뜀 (disabled). v0.5+ 후보.
 
 ---
 
-## 6. 다음 세션 — v0.4 후보 또는 v0.3 closure
+## 6. 다음 세션 — v0.5+ 후보 또는 maintenance 모드
 
-v0.3.0 출시 완료. PinpointPatcher 흐름 (Apply / Restore stat-backup focus) 검증 완료.
+v0.4.0 출시 완료. 9-카테고리 체크박스 UI + 정체성 활성화 + 부상/충성/호감 영구 보존 회귀 검증 완료.
 다음 세션은 다음 중 하나:
 
-### 6.A v0.4 — 매트릭스 ⚪ 활성화 (deferred fields)
+### 6.A v0.5 — 미해결 PoC 항목 재도전
 
-spec §12 deferred list 의 ⚪ 항목 활성화. 각 항목은 IL2CPP 의 별도 한계 우회 필요:
+각 항목은 v0.4 PoC 에서 실패 원인이 확인된 상태. 추가 dump / 우회 전략 필요:
 
-#### 6.A.1 정체성 (heroName / nickname / age)
-- 현재: property setter 만 있고 game-self method 없음
-- 접근: Harmony Postfix on HeroData 의 setter? 또는 reflection 으로 backing field 직접 set?
-- 검증: save → reload → 정보창 이름 정상 표시
+#### 6.A.1 무공 list (kungfuSkills)
+- 현재: `KungfuSkillLvData` wrapper ctor 의 IL2CPP 한계
+- 접근: game 자체 `AddKungfuSkill` 시그니처 deeper dump. IL2CppListOps.Add ctor 후보 enumerate
 
-#### 6.A.2 무공 (kungfuSkills list)
-- 현재: `KungfuSkillLvData` wrapper class 의 primitive-factory Add method 부재
-- 접근: `KungfuSkillLvData` constructor (IL2CPP IntPtr ctor) 직접 호출 + IL2CppListOps.Add?
-- 또는: game-self method 가 있는지 deeper dump
+#### 6.A.2 무공 active semantic 재조사
+- 현재: PoC A3 FAIL — wrapper.lv vs nowActiveSkill ID mismatch (semantic mismatch)
+- 접근: nowActiveSkill 의 실제 ID 매핑 방식 재조사. HeroDataDump round 2 필요
 
-#### 6.A.3 인벤토리 / 창고 / 장비 (itemListData / selfStorage / nowEquipment)
-- 현재: `ItemData` wrapper factory 부재. ID-link sprite asset lazy-load
-- 접근: equipped item 의 reference 해석 — game 자체 `EquipItem(ItemData)` method 호출 후 inventory move
+#### 6.A.3 인벤토리 / 창고 (itemListData / selfStorage)
+- 현재: PoC A4 FAIL — sub-data wrapper graph 미해결
+- 접근: game 자체 `GetItem` / `AddItem` method 후보 enumerate. ItemData wrapper ctor 경로 재시도
 
 #### 6.A.4 외형 (faceData / portraitID)
-- 현재: sprite reference lazy-load — 새 HeroData 가 sprite trigger 못 함
-- 접근: HeroData 생성 후 game-self `RefreshPortrait()` 또는 sprite cache invalidate
+- 현재: sprite reference lazy-load
+- 접근: game-self `RefreshPortrait()` 또는 sprite cache invalidate method 탐색
 
-### 6.B v0.3 closure (후속 없음)
+### 6.B maintenance 모드
 
-v0.3.0 GitHub release 후 모드 maintenance 모드. 게임 패치 (v1.0.0 f8.3+) 시 재검증 + breakage fix.
+v0.4.0 GitHub release 후 모드 maintenance 모드. 게임 패치 (v1.0.0 f8.3+) 시 재검증 + breakage fix.
 
 ### 6.C 첫 작업
 
-어느 방향이든 **v0.3 release packaging (Task 23) 가 먼저**:
-- `dist/LongYinRoster_v0.3.0.zip` 생성
-- `git tag v0.3.0` + push
-- `gh release create v0.3.0 ...` + 게임-load verify (사용자 게이트)
+**v0.4.0 release packaging (D18) 가 먼저**:
+- VERSION 파일 → `0.4.0`
+- `dist/LongYinRoster_v0.4.0.zip` 생성
+- `git tag v0.4.0` + push
+- `gh release create v0.4.0 ...` + 게임-load verify (사용자 게이트)
 
 ---
 
@@ -324,21 +344,20 @@ v0.3.0 GitHub release 후 모드 maintenance 모드. 게임 패치 (v1.0.0 f8.3+
 
 **다음 세션 첫 메시지에 붙여넣을 요약**:
 
-> LongYin Roster Mod **v0.3.0 출시 완료** (PinpointPatcher 기반 Apply / Restore 활성).
+> LongYin Roster Mod **v0.4.0 출시 완료** (9-카테고리 체크박스 UI + 정체성 활성화 + 부상/충성/호감 영구 보존 회귀).
 > 프로젝트 루트:
 > `E:/Games/龙胤立志传.v1.0.0f8.2/LongYinLiZhiZhuan/Save/_PlayerExport/`. 핸드오프 문서:
 > `docs/HANDOFF.md`, spec: `docs/superpowers/specs/2026-04-29-longyin-roster-mod-v0.3-design.md`.
 >
-> v0.3 scope: **stat-backup focus** (18필드 SimpleFieldMatrix + heroTagData rebuild
-> + RefreshSelfState/RefreshExternalManagers 7-step pipeline). save → reload 후 정보창
-> 정상 (G1/G2/G3 통과). smoke C1/C2 PASS.
+> v0.4 scope: v0.3 stat-backup + **정체성 9 필드 (setter direct)** + **카테고리 단위 선택 Apply**
+> (`_meta.applySelection` 슬롯별 저장). 부상/충성/호감 보존 필드 전환. smoke D15 PASS, 40/40 tests PASS.
 >
 > **다음 단계 후보**:
-> - **Task 23** (release packaging): dist zip + `git tag v0.3.0` + GitHub release. 사용자 게이트
->   = `gh release create` + 게임-load verify.
-> - **v0.4** (deferred 매트릭스 ⚪ 활성화): 정체성 / 무공 / 인벤토리 / 외형 — 각 항목별
->   IL2CPP 한계 우회 필요. spec §12 + HANDOFF §6.A 참고.
-> - **v0.3 closure**: maintenance 모드.
+> - **D18** (release packaging): VERSION → 0.4.0 + dist zip + `git tag v0.4.0` + GitHub release.
+>   사용자 게이트 = `gh release create` + 게임-load verify.
+> - **v0.5** (deferred 재도전): 무공 list / 외형 / 인벤토리 sub-data wrapper graph /
+>   무공 active semantic 재조사. spec §12 v0.4 진행 상태 + HANDOFF §6.A 참고.
+> - **maintenance 모드**: v0.4.0 GitHub release 후 게임 패치 대응.
 
 ---
 

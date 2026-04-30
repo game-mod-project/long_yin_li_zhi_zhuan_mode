@@ -879,6 +879,21 @@ v0.3 release 직전 (plan 마지막 task):
 - **자동 smoke harness** — IL2CPP 안 deterministic 게임 상태 변경. v0.4 검토.
 - **Reverse export (game → 다른 player save)** — 별도 모드로 분리 권장.
 
+### v0.4 진행 상태
+
+v0.4.0 출시 완료 (2026-04-30). 위 항목들의 실제 처리 결과:
+
+| §12 항목 | v0.4 결과 |
+|---|---|
+| §7.2 매트릭스 ⚪ — **정체성** (heroName / nickname / age 등) | **v0.4 에서 활성화** — setter direct path (commit eaf2938 chain). PoC A2 PASS. save → reload PASS |
+| §7.2 매트릭스 ⚪ — **무공 active** | **v0.5+ 로 재deferred** — PoC A3 FAIL. wrapper.lv vs nowActiveSkill ID semantic mismatch |
+| §7.2 매트릭스 ⚪ — **인벤토리 / 창고** | **v0.5+ 로 재deferred** — PoC A4 FAIL. sub-data wrapper graph 미해결 |
+| §7.2 매트릭스 ⚪ — **무공 list** | **v0.5+ 후보** — KungfuSkillLvData wrapper ctor IL2CPP 한계. v0.4 에서 미도전 |
+| Detail panel 의 "마지막 Apply 결과" 섹션 | v0.4 에서 다루지 않음. v0.5+ 유지 |
+| **필드 단위 selective Apply** (체크박스 매트릭스) | **v0.4 에서 카테고리 단위로 활성화** — 9-카테고리 체크박스 (스탯/명예/천부/스킨/자기집 add/정체성/무공 active/인벤토리/창고). 슬롯별 `_meta.applySelection` 즉시 저장. 필드 단위 cherry-pick 은 여전히 v0.5+ 후보 |
+| Sprite / portrait 명시적 reload | v0.4 에서 다루지 않음. v0.5+ 유지 |
+| 자동 smoke harness | v0.4 에서 미구현. v0.5+ 검토 |
+
 ---
 
 ## 13. Open Questions (dump 결과 후 확정)
