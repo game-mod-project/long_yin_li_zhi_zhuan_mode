@@ -303,8 +303,76 @@ public static class PinpointPatcher
         res.SkippedFields.Add("selfStorage.allItem — collection rebuild deferred to v0.4");
     }
 
-    private static void RebuildHeroTagData(JsonElement slot, object player, ApplyResult res) =>
-        throw new NotImplementedException("Task 11 에서 채움");
+    private static void RebuildHeroTagData(JsonElement slot, object player, ApplyResult res)
+    {
+        // Clear: game-self ClearAllTempTag (raw clear 보다 안전 — IL2CPP wrapper 호환)
+        try
+        {
+            InvokeMethod(player, "ClearAllTempTag", System.Array.Empty<object>());
+            res.AppliedFields.Add("heroTagData (cleared)");
+        }
+        catch (Exception ex)
+        {
+            // ClearAllTempTag 가 dump 에 있는지 미확인 — 없으면 IL2CppListOps fallback
+            try
+            {
+                var heroTagData = ReadFieldOrProperty(player, "heroTagData");
+                if (heroTagData != null)
+                {
+                    var allTag = ReadFieldOrProperty(heroTagData, "allTag");
+                    if (allTag != null)
+                    {
+                        IL2CppListOps.Clear(allTag);
+                        res.AppliedFields.Add("heroTagData (cleared via IL2CppListOps fallback)");
+                    }
+                }
+                else
+                {
+                    res.WarnedFields.Add($"heroTagData clear — {ex.GetType().Name}: {ex.Message}");
+                }
+            }
+            catch (Exception ex2)
+            {
+                res.WarnedFields.Add($"heroTagData clear — {ex2.GetType().Name}: {ex2.Message}");
+            }
+        }
+
+        // Add each tag from slot JSON
+        if (!slot.TryGetProperty("heroTagData", out var htd) ||
+            !htd.TryGetProperty("allTag", out var arr) ||
+            arr.ValueKind != JsonValueKind.Array)
+        {
+            res.SkippedFields.Add("heroTagData.allTag — not in slot JSON");
+            return;
+        }
+
+        for (int i = 0; i < arr.GetArrayLength(); i++)
+        {
+            var entry = arr[i];
+            // entry schema 가정 (slot JSON 의 실제 schema 와 다를 수 있음 — TryGetProperty 로 fallback):
+            // { id: int, lv: float, source: string, isPermanent: bool, isHidden: bool }
+            int    id          = entry.TryGetProperty("id",          out var idEl) ? idEl.GetInt32()    : -1;
+            float  lv          = entry.TryGetProperty("lv",          out var lvEl) ? lvEl.GetSingle()   : 1f;
+            string source      = entry.TryGetProperty("source",      out var sEl)  ? (sEl.GetString() ?? "") : "";
+            bool   isPermanent = entry.TryGetProperty("isPermanent", out var pEl)  ? pEl.GetBoolean()   : true;
+            bool   isHidden    = entry.TryGetProperty("isHidden",    out var hEl)  ? hEl.GetBoolean()   : false;
+            if (id < 0)
+            {
+                res.WarnedFields.Add($"heroTagData[{i}] — id field missing, skipping");
+                continue;
+            }
+            try
+            {
+                // spec §7.2.1 Step 5 매핑: AddTag(Int32 id, Single lv, String source, Boolean isPermanent, Boolean isHidden)
+                InvokeMethod(player, "AddTag", new object[] { id, lv, source, isPermanent, isHidden });
+                res.AppliedFields.Add($"heroTag[{id}]Lv{lv}");
+            }
+            catch (Exception ex)
+            {
+                res.WarnedFields.Add($"heroTag[{id}] — {ex.GetType().Name}: {ex.Message}");
+            }
+        }
+    }
 
     private static void RefreshSelfState(object player, ApplyResult res) =>
         throw new NotImplementedException("Task 12 에서 채움");

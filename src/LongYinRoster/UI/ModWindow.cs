@@ -564,6 +564,33 @@ public sealed class ModWindow : MonoBehaviour
             catch (Exception ex) { Logger.Error($"smoke 3: {ex}"); }
         }
 
+        // [F11 + T] — RebuildHeroTagData 단독 smoke (Task 11).
+        if (Input.GetKey(KeyCode.F11) && Input.GetKeyDown(KeyCode.T))
+        {
+            Logger.Info($"smoke T: handler invoked at frame {Time.frameCount}");
+            try
+            {
+                Core.HeroLocator.InvalidateCache();
+                var player = Core.HeroLocator.GetPlayer();
+                LogPlayerRef("smoke T", player);
+                if (player == null) return;
+                if (Repo.All[1].IsEmpty) { Logger.Warn("smoke T: slot 1 empty"); return; }
+
+                var slot1 = Slots.SlotFile.Read(Repo.PathFor(1));
+                var stripped = Core.PortabilityFilter.StripForApply(slot1.Player);
+                using var doc = System.Text.Json.JsonDocument.Parse(stripped);
+                var res = new Core.ApplyResult();
+                typeof(Core.PinpointPatcher).GetMethod("RebuildHeroTagData",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!
+                    .Invoke(null, new object[] { doc.RootElement, player, res });
+                Logger.Info($"smoke T: applied={res.AppliedFields.Count} skipped={res.SkippedFields.Count} warned={res.WarnedFields.Count}");
+                foreach (var f in res.AppliedFields) Logger.Info($"  applied: {f}");
+                foreach (var f in res.SkippedFields) Logger.Info($"  skipped: {f}");
+                foreach (var f in res.WarnedFields)  Logger.Info($"  warn: {f}");
+            }
+            catch (Exception ex) { Logger.Error($"smoke T: {ex}"); }
+        }
+
         if (_visible && Config.PauseGameWhileOpen.Value && Time.timeScale != 0f)
             Time.timeScale = 0f;
     }
