@@ -73,5 +73,11 @@
     <Compile Include="../LongYinRoster/Core/Capabilities.cs">
       <Link>Core/Capabilities.cs</Link>
     </Compile>
+    <Compile Include="../LongYinRoster/Core/IdentityFieldMatrix.cs">
+      <Link>Core/IdentityFieldMatrix.cs</Link>
+    </Compile>
+    <Compile Include="../LongYinRoster/Core/ItemDataFactory.cs">
+      <Link>Core/ItemDataFactory.cs</Link>
+    </Compile>
   </ItemGroup>
 </Project>
