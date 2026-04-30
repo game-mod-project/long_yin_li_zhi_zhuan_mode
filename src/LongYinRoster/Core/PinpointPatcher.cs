@@ -290,8 +290,12 @@ public static class PinpointPatcher
         res.SkippedFields.Add("kungfuSkills — collection rebuild deferred to v0.4");
     }
 
-    private static void RebuildItemList(JsonElement slot, object player, ApplyResult res) =>
-        throw new NotImplementedException("Task 9 에서 채움");
+    private static void RebuildItemList(JsonElement slot, object player, ApplyResult res)
+    {
+        // v0.3: collection rebuild 미지원 — primitive-factory AddItem 가 dump 에 부재
+        // (모든 Add method 가 ItemData wrapper 객체 인자). v0.4 후보 (spec §12).
+        res.SkippedFields.Add("itemListData.allItem — collection rebuild deferred to v0.4");
+    }
 
     private static void RebuildSelfStorage(JsonElement slot, object player, ApplyResult res) =>
         throw new NotImplementedException("Task 10 에서 채움");
