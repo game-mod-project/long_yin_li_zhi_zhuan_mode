@@ -82,6 +82,7 @@ public sealed class ModWindow : MonoBehaviour
             }
             catch (Exception ex)
             {
+                ToastService.Push($"✘ 슬롯 {slotIndex} selection 저장 실패: {ex.Message}", ToastKind.Error);
                 Logger.Error($"UpdateApplySelection(slot={slotIndex}) failed: {ex}");
             }
         };

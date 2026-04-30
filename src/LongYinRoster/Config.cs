@@ -36,7 +36,7 @@ public static class Config
         WindowX = cfg.Bind("UI", "WindowX", 1100f, "");
         WindowY = cfg.Bind("UI", "WindowY",  100f, "");
         WindowW = cfg.Bind("UI", "WindowW",  720f, "");
-        WindowH = cfg.Bind("UI", "WindowH",  480f, "");
+        WindowH = cfg.Bind("UI", "WindowH",  560f, "");   // v0.4: 480 → 560 (체크박스 grid +60~80px)
 
         AutoBackupBeforeApply = cfg.Bind("Behavior", "AutoBackupBeforeApply", true,
                                          "덮어쓰기 직전 슬롯 0에 자동 저장 (실패 시 자동복원의 source)");
