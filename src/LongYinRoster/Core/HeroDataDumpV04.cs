@@ -87,7 +87,70 @@ public static class HeroDataDumpV04
         // 원래 값 복구 (게임 상태 오염 방지)
         try { t.GetProperty("heroName")?.SetValue(player, original); } catch { }
     }
-    private static void ProbeActiveKungfu(object player) => Logger.Info("ProbeActiveKungfu: TBD A3");
+    private static void ProbeActiveKungfu(object player)
+    {
+        var t = player.GetType();
+
+        // 1) 현재 nowActiveSkill 읽기
+        int currentID = (int)(t.GetProperty("nowActiveSkill")?.GetValue(player) ?? -1);
+        Logger.Info($"ProbeActiveKungfu: current nowActiveSkill={currentID}");
+
+        // 2) kungfuSkills list 의 entry 들 enumerate
+        var ksList = t.GetProperty("kungfuSkills")?.GetValue(player);
+        if (ksList == null) { Logger.Warn("kungfuSkills null"); return; }
+        int n = IL2CppListOps.Count(ksList);
+        Logger.Info($"  kungfuSkills count = {n}");
+
+        object? testWrapper = null;
+        int testID = -1;
+        for (int i = 0; i < n; i++)
+        {
+            var entry = IL2CppListOps.Get(ksList, i);
+            if (entry == null) continue;
+            var idProp = entry.GetType().GetProperty("skillID")
+                      ?? entry.GetType().GetProperty("ID")
+                      ?? entry.GetType().GetProperty("id");
+            var lvProp = entry.GetType().GetProperty("lv");
+            int id = idProp != null ? (int)idProp.GetValue(entry)! : -1;
+            int lv = lvProp != null ? (int)lvProp.GetValue(entry)! : -1;
+            Logger.Info($"  [{i}] type={entry.GetType().Name} skillID={id} lv={lv}");
+
+            // 첫 entry 를 test 후보 (currentID 아닌 것)
+            if (testWrapper == null && id != currentID && id > 0) { testWrapper = entry; testID = id; }
+        }
+
+        if (testWrapper == null) { Logger.Warn("no test wrapper candidate"); return; }
+        Logger.Info($"  test candidate: skillID={testID}");
+
+        // 3) SetNowActiveSkill 호출
+        var m = t.GetMethod("SetNowActiveSkill",
+                             BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+        if (m == null) { Logger.Warn("SetNowActiveSkill missing"); return; }
+        try
+        {
+            m.Invoke(player, new[] { testWrapper });
+            int after = (int)(t.GetProperty("nowActiveSkill")?.GetValue(player) ?? -1);
+            Logger.Info($"ProbeActiveKungfu: SetNowActiveSkill done — nowActiveSkill={after} " +
+                        $"{(after == testID ? "PASS" : "FAIL — value not changed")}");
+        }
+        catch (Exception ex)
+        {
+            Logger.Warn($"SetNowActiveSkill threw: {ex.GetType().Name}: {ex.Message}");
+        }
+
+        // 원복
+        if (currentID > 0)
+        {
+            // 원래 wrapper 다시 찾아서 복원
+            for (int i = 0; i < n; i++)
+            {
+                var entry = IL2CppListOps.Get(ksList, i);
+                if (entry == null) continue;
+                int id = (int)(entry.GetType().GetProperty("skillID")?.GetValue(entry) ?? -1);
+                if (id == currentID) { try { m.Invoke(player, new[] { entry }); } catch { } break; }
+            }
+        }
+    }
     private static void ProbeItemData(object player) => Logger.Info("ProbeItemData: TBD A4");
     private static void ProbeItemListClear(object player) => Logger.Info("ProbeItemListClear: TBD A4");
 }
