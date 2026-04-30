@@ -483,12 +483,6 @@ public sealed class ModWindow : MonoBehaviour
 
         if (_visible && Config.PauseGameWhileOpen.Value && Time.timeScale != 0f)
             Time.timeScale = 0f;
-
-        // v0.4 임시 PoC 진단 — Task D16 에서 제거
-        if (Input.GetKeyDown(KeyCode.F12))
-        {
-            Core.HeroDataDumpV04.Run(Core.HeroDataDumpV04.Mode.ItemData);
-        }
     }
 
     public void Toggle()
