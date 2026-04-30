@@ -297,8 +297,11 @@ public static class PinpointPatcher
         res.SkippedFields.Add("itemListData.allItem — collection rebuild deferred to v0.4");
     }
 
-    private static void RebuildSelfStorage(JsonElement slot, object player, ApplyResult res) =>
-        throw new NotImplementedException("Task 10 에서 채움");
+    private static void RebuildSelfStorage(JsonElement slot, object player, ApplyResult res)
+    {
+        // v0.3: collection rebuild 미지원 — primitive-factory 부재 (Step 9 와 같은 사유). v0.4 후보.
+        res.SkippedFields.Add("selfStorage.allItem — collection rebuild deferred to v0.4");
+    }
 
     private static void RebuildHeroTagData(JsonElement slot, object player, ApplyResult res) =>
         throw new NotImplementedException("Task 11 에서 채움");
