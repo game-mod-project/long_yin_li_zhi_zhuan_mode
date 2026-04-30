@@ -1,4 +1,5 @@
 using System;
+using LongYinRoster.Core;
 
 namespace LongYinRoster.Slots;
 
@@ -26,4 +27,5 @@ public sealed record SlotPayloadMeta(
     DateTime CapturedAt,
     string   GameSaveVersion,
     string   GameSaveDetail,
-    SlotMetadata Summary);
+    SlotMetadata   Summary,
+    ApplySelection ApplySelection);

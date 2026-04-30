@@ -133,7 +133,8 @@ public sealed class ModWindow : MonoBehaviour
                     CapturedAt: DateTime.Now,
                     GameSaveVersion: "1.0.0 f8.2",
                     GameSaveDetail: "",
-                    Summary: summary),
+                    Summary: summary,
+                    ApplySelection: Core.ApplySelection.V03Default()),
                 Player = json,
             };
             Repo.Write(slot, payload);
@@ -291,7 +292,8 @@ public sealed class ModWindow : MonoBehaviour
                         CapturedAt: DateTime.Now,
                         GameSaveVersion: "1.0.0 f8.2",
                         GameSaveDetail: "",
-                        Summary: nowSummary),
+                        Summary: nowSummary,
+                        ApplySelection: Core.ApplySelection.V03Default()),
                     Player = nowJson,
                 };
                 Repo.WriteAutoBackup(payload);
@@ -438,7 +440,8 @@ public sealed class ModWindow : MonoBehaviour
                     CapturedAt: DateTime.Now,
                     GameSaveVersion: "1.0.0 f8.2",
                     GameSaveDetail: "",
-                    Summary: summary),
+                    Summary: summary,
+                    ApplySelection: Core.ApplySelection.V03Default()),
                 Player = json,
             };
             Repo.Write(modSlot, payload);

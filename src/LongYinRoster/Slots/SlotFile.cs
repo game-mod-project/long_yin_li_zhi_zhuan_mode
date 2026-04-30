@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Text;
 using System.Text.Json;
+using LongYinRoster.Core;
 
 namespace LongYinRoster.Slots;
 
@@ -100,6 +101,18 @@ public static class SlotFile
             w.WriteNumber("talentCount",      s.TalentCount);
             w.WriteEndObject();
 
+            w.WriteStartObject("applySelection");
+            w.WriteBoolean("stat",         m.ApplySelection.Stat);
+            w.WriteBoolean("honor",        m.ApplySelection.Honor);
+            w.WriteBoolean("talentTag",    m.ApplySelection.TalentTag);
+            w.WriteBoolean("skin",         m.ApplySelection.Skin);
+            w.WriteBoolean("selfHouse",    m.ApplySelection.SelfHouse);
+            w.WriteBoolean("identity",     m.ApplySelection.Identity);
+            w.WriteBoolean("activeKungfu", m.ApplySelection.ActiveKungfu);
+            w.WriteBoolean("itemList",     m.ApplySelection.ItemList);
+            w.WriteBoolean("selfStorage",  m.ApplySelection.SelfStorage);
+            w.WriteEndObject();
+
             w.WriteEndObject();
         }
         return Encoding.UTF8.GetString(ms.ToArray());
@@ -131,6 +144,12 @@ public static class SlotFile
                 System.Globalization.CultureInfo.InvariantCulture,
                 System.Globalization.DateTimeStyles.RoundtripKind);
 
+        ApplySelection sel;
+        if (m.TryGetProperty("applySelection", out var selEl))
+            sel = ApplySelection.FromJsonElement(selEl);
+        else
+            sel = ApplySelection.V03Default();
+
         return new SlotPayloadMeta(
             SchemaVersion:       GetInt(m, "schemaVersion", 1),
             ModVersion:          GetStr(m, "modVersion"),
@@ -142,7 +161,8 @@ public static class SlotFile
             CapturedAt:          capturedAt,
             GameSaveVersion:     GetStr(m, "gameSaveVersion"),
             GameSaveDetail:      GetStr(m, "gameSaveDetail"),
-            Summary:             summary);
+            Summary:             summary,
+            ApplySelection:      sel);
     }
 
     private static string GetStr(JsonElement el, string key, string def = "") =>

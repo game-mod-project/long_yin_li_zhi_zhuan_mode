@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using FluentAssertions;
+using LongYinRoster.Core;
 using LongYinRoster.Slots;
 using Xunit;
 
@@ -22,7 +23,8 @@ public class SlotRepositoryTests : IDisposable
         Meta = new SlotPayloadMeta(
             1, "0.1.0", idx, $"slot{idx}", "", "live", "",
             DateTime.UtcNow, "1.0.0 f8.2", "",
-            new SlotMetadata("h", "", false, 18, 1, 0, 0, 0, 0, 0, 0, 0)),
+            new SlotMetadata("h", "", false, 18, 1, 0, 0, 0, 0, 0, 0, 0),
+            ApplySelection.V03Default()),
         Player = @"{""heroID"":0}",
     };
 
