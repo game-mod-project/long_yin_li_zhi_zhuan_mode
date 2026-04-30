@@ -67,5 +67,8 @@
     <Compile Include="../LongYinRoster/Core/SimpleFieldMatrix.cs">
       <Link>Core/SimpleFieldMatrix.cs</Link>
     </Compile>
+    <Compile Include="../LongYinRoster/Core/ApplySelection.cs">
+      <Link>Core/ApplySelection.cs</Link>
+    </Compile>
   </ItemGroup>
 </Project>
