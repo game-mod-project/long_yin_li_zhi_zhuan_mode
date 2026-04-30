@@ -457,9 +457,6 @@ public sealed class ModWindow : MonoBehaviour
     {
         if (Input.GetKeyDown(Config.ToggleHotkey.Value)) Toggle();
 
-        // [F12] HeroDataDump trigger — v0.3 plan Task 1 임시 핸들러. plan Task 21 에서 제거.
-        if (Input.GetKeyDown(KeyCode.F12)) Core.HeroDataDump.DumpToLog();
-
         if (_visible && Config.PauseGameWhileOpen.Value && Time.timeScale != 0f)
             Time.timeScale = 0f;
     }
