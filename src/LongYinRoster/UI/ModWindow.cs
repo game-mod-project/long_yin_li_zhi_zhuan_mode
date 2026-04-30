@@ -69,8 +69,8 @@ public sealed class ModWindow : MonoBehaviour
         _detail.OnRenameRequested       = RequestRename;
         _detail.OnCommentRequested      = RequestComment;
         _detail.OnDeleteRequested       = RequestDelete;
-        // Apply (slot → game) 와 Restore (slot 0 → game) 는 v0.1 미지원 — 디테일 패널이
-        // 버튼을 disabled 표시한다.
+        _detail.OnApplyRequested        = RequestApply;
+        // OnRestoreRequested 는 Task 17 에서 와이어링.
 
         Logger.Info($"ModWindow Awake (slots dir: {slotDir})");
     }
@@ -230,6 +230,149 @@ public sealed class ModWindow : MonoBehaviour
                     Logger.Error($"Delete(slot={slot}) failed: {ex}");
                 }
             });
+    }
+
+    // ---------------------------------------------------------------- v0.3 Apply / Restore
+
+    private void RequestApply(int slot)
+    {
+        if (slot < 1 || slot >= Repo.All.Count)
+        {
+            ToastService.Push(KoreanStrings.ToastErrEmptySlot, ToastKind.Error);
+            return;
+        }
+        var entry = Repo.All[slot];
+        if (entry.IsEmpty || entry.Meta == null)
+        {
+            ToastService.Push(KoreanStrings.ToastErrEmptySlot, ToastKind.Error);
+            return;
+        }
+
+        var label = entry.Meta.UserLabel;
+        var body  = string.Format(KoreanStrings.ConfirmApplyMain, $"슬롯 {slot} · {label}")
+                  + "\n" + KoreanStrings.ConfirmApplyPolicy;
+        _confirm.Show(
+            title: KoreanStrings.ConfirmTitleApply,
+            body:  body,
+            confirmLabel: KoreanStrings.Apply,
+            onConfirm: () => DoApply(slot, Config.AutoBackupBeforeApply.Value));
+    }
+
+    private void DoApply(int slot, bool doAutoBackup)
+    {
+        var player = Core.HeroLocator.GetPlayer();
+        if (player == null)
+        {
+            ToastService.Push(KoreanStrings.ToastErrNoPlayer, ToastKind.Error);
+            return;
+        }
+        if (!Config.AllowApplyToGame.Value)
+        {
+            ToastService.Push(KoreanStrings.ToastApplyDisabled, ToastKind.Error);
+            return;
+        }
+
+        // 1. 자동백업 (slot 0)
+        if (doAutoBackup)
+        {
+            try
+            {
+                var nowJson    = Core.SerializerService.Serialize(player);
+                var nowSummary = SlotMetadata.FromPlayerJson(nowJson);
+                var backupLabel = $"{nowSummary.HeroName} {nowSummary.HeroNickName} (Apply 직전 자동백업)";
+                var payload = new SlotPayload
+                {
+                    Meta = new SlotPayloadMeta(
+                        SchemaVersion: SlotFile.CurrentSchemaVersion,
+                        ModVersion: Plugin.VERSION,
+                        SlotIndex: 0,
+                        UserLabel: backupLabel,
+                        UserComment: $"slot {slot} 적용 직전",
+                        CaptureSource: "auto",
+                        CaptureSourceDetail: $"pre-apply-from-slot-{slot}",
+                        CapturedAt: DateTime.Now,
+                        GameSaveVersion: "1.0.0 f8.2",
+                        GameSaveDetail: "",
+                        Summary: nowSummary),
+                    Player = nowJson,
+                };
+                Repo.WriteAutoBackup(payload);
+            }
+            catch (Exception ex)
+            {
+                ToastService.Push(string.Format(KoreanStrings.ToastErrAutoBackup), ToastKind.Error);
+                Logger.Error($"DoApply auto-backup failed: {ex}");
+                return;
+            }
+        }
+
+        // 2. 슬롯 데이터 read + strip
+        SlotPayload loaded;
+        string stripped;
+        try
+        {
+            loaded   = SlotFile.Read(Repo.PathFor(slot));
+            stripped = Core.PortabilityFilter.StripForApply(loaded.Player);
+        }
+        catch (Exception ex)
+        {
+            ToastService.Push(string.Format(KoreanStrings.ToastErrSlotRead, slot, ex.Message), ToastKind.Error);
+            Logger.Error($"DoApply slot read failed (slot={slot}): {ex}");
+            return;
+        }
+
+        // 3. PinpointPatcher 호출
+        Core.ApplyResult res;
+        try
+        {
+            res = Core.PinpointPatcher.Apply(stripped, player);
+        }
+        catch (Exception ex)
+        {
+            Logger.Error($"PinpointPatcher.Apply top-level throw: {ex}");
+            if (doAutoBackup) AttemptAutoRestore(player);
+            ToastService.Push(string.Format(
+                doAutoBackup ? KoreanStrings.ToastErrApplyAutoRestored
+                             : KoreanStrings.ToastErrApplyNoBackup, ex.Message), ToastKind.Error);
+            return;
+        }
+
+        // 4. fatal 결과 처리
+        if (res.HasFatalError)
+        {
+            string firstErr = res.StepErrors.Count > 0 ? res.StepErrors[0].Message : "fatal step";
+            if (doAutoBackup) AttemptAutoRestore(player);
+            ToastService.Push(string.Format(
+                doAutoBackup ? KoreanStrings.ToastErrApplyAutoRestored
+                             : KoreanStrings.ToastErrApplyNoBackup, firstErr), ToastKind.Error);
+            return;
+        }
+
+        // 5. 성공 (warn/skip 포함)
+        Repo.Reload();
+        ToastService.Push(string.Format(KoreanStrings.ToastApplyOk,
+                                        slot, res.AppliedFields.Count, res.SkippedFields.Count),
+                          ToastKind.Success);
+        Logger.Info($"Apply OK slot={slot} applied={res.AppliedFields.Count} " +
+                    $"skipped={res.SkippedFields.Count} warned={res.WarnedFields.Count}");
+    }
+
+    private void AttemptAutoRestore(object player)
+    {
+        try
+        {
+            var slot0 = SlotFile.Read(Repo.PathFor(0));
+            var stripped = Core.PortabilityFilter.StripForApply(slot0.Player);
+            var res = Core.PinpointPatcher.Apply(stripped, player);
+            if (res.HasFatalError)
+                Logger.Error("Auto-restore also failed — game state may be inconsistent");
+            else
+                Logger.Info($"Auto-restore OK applied={res.AppliedFields.Count}");
+        }
+        catch (Exception ex)
+        {
+            Logger.Error($"Auto-restore threw: {ex}");
+        }
     }
 
     /// <summary>
