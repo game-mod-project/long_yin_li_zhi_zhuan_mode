@@ -231,6 +231,159 @@ internal static class ProbeActiveKungfuV2
 
     public static void RunPhaseC(object player)
     {
-        Logger.Warn("ProbeActiveKungfuV2.RunPhaseC: stub — T14 에서 본문 작성 예정 (in-memory)");
+        Logger.Info("PhaseC: in-memory active toggle PoC.");
+
+        // ── 1. player.kungfuSkills 획득 (property → field fallback)
+        var listObj = ReadFieldOrProperty(player, "kungfuSkills");
+        if (listObj == null) { Logger.Warn("PhaseC: kungfuSkills not found on player"); return; }
+
+        // ── 2. Il2CppSystem List reflection — Count + get_Item(int)
+        var listType = listObj.GetType();
+        var countProp = listType.GetProperty("Count", BF);
+        if (countProp == null) { Logger.Warn("PhaseC: kungfuSkills.Count property not found"); return; }
+        int count = Convert.ToInt32(countProp.GetValue(listObj));
+        Logger.Info($"PhaseC: kungfuSkills count = {count}");
+
+        var indexer = listType.GetMethod("get_Item", BF, null, new[] { typeof(int) }, null);
+        if (indexer == null) { Logger.Warn("PhaseC: kungfuSkills get_Item not found"); return; }
+
+        // ── 3. 1차 열거 — 식별
+        object? firstEquipped          = null;
+        int     firstEquippedKungfuId  = -1;
+        int     firstEquippedIdx       = -1;
+
+        object? firstUnequippedDiff    = null;
+        int     firstUnequippedKungfuId = -1;
+        int     firstUnequippedIdx     = -1;
+
+        int eqCount = 0, uneqCount = 0;
+
+        for (int i = 0; i < count; i++)
+        {
+            var entry = indexer.Invoke(listObj, new object[] { i });
+            if (entry == null) continue;
+
+            bool equiped  = ReadBool(entry, "equiped");
+            int  kungfuID = ReadInt(entry, "kungfuID");
+
+            if (equiped) eqCount++; else uneqCount++;
+
+            // 처음 5개씩 샘플 로그
+            if (eqCount <= 5 && equiped)
+                Logger.Info($"PhaseC: [eq]   idx={i} kungfuID={kungfuID}");
+            if (uneqCount <= 5 && !equiped)
+                Logger.Info($"PhaseC: [uneq] idx={i} kungfuID={kungfuID}");
+
+            if (equiped && firstEquipped == null)
+            {
+                firstEquipped         = entry;
+                firstEquippedKungfuId = kungfuID;
+                firstEquippedIdx      = i;
+            }
+            // equiped=false 이고 다른 kungfuID 인 첫 번째 — firstEquippedKungfuId 가 확정된 후 갱신 가능하므로 조건 check
+            if (!equiped && firstUnequippedDiff == null && kungfuID != firstEquippedKungfuId)
+            {
+                firstUnequippedDiff     = entry;
+                firstUnequippedKungfuId = kungfuID;
+                firstUnequippedIdx      = i;
+            }
+        }
+
+        Logger.Info($"PhaseC: 전체 — equiped={eqCount}, unequipped={uneqCount}");
+
+        if (firstEquipped == null)
+        {
+            Logger.Warn("PhaseC: equiped=true 항목 없음 — 후보 부족. skip.");
+            return;
+        }
+        if (firstUnequippedDiff == null)
+        {
+            Logger.Warn($"PhaseC: equiped=false && kungfuID != {firstEquippedKungfuId} 항목 없음 — 후보 부족. skip.");
+            return;
+        }
+
+        Logger.Info($"PhaseC: 시도 — Unequip kungfuID={firstEquippedKungfuId} (idx {firstEquippedIdx}); Equip kungfuID={firstUnequippedKungfuId} (idx {firstUnequippedIdx})");
+
+        // ── 4. EquipSkill / UnequipSkill 메서드 lookup (HeroData 인스턴스 메서드)
+        var heroType      = player.GetType();
+        var unequipMethod = heroType.GetMethod("UnequipSkill", BF);
+        var equipMethod   = heroType.GetMethod("EquipSkill",   BF);
+
+        if (unequipMethod == null)
+        { Logger.Warn("PhaseC: UnequipSkill method not found on HeroData"); return; }
+        if (equipMethod == null)
+        { Logger.Warn("PhaseC: EquipSkill method not found on HeroData"); return; }
+
+        // ── 5. 호출 — Phase B trace 에서 확인된 sig: (KungfuSkillLvData, bool), bool 은 항상 true
+        try
+        {
+            unequipMethod.Invoke(player, new object[] { firstEquipped, true });
+            Logger.Info("PhaseC: UnequipSkill OK");
+        }
+        catch (Exception ex)
+        {
+            Logger.Warn($"PhaseC: UnequipSkill threw: {ex.GetType().Name}: {ex.Message}");
+            return;
+        }
+
+        try
+        {
+            equipMethod.Invoke(player, new object[] { firstUnequippedDiff, true });
+            Logger.Info("PhaseC: EquipSkill OK");
+        }
+        catch (Exception ex)
+        {
+            Logger.Warn($"PhaseC: EquipSkill threw: {ex.GetType().Name}: {ex.Message}");
+            return;
+        }
+
+        // ── 6. 검증 read-back — IL2CPP wrapper identity 유지되므로 동일 object ref 재읽기
+        bool afterUneq = ReadBool(firstEquipped,     "equiped");
+        bool afterEq   = ReadBool(firstUnequippedDiff, "equiped");
+        Logger.Info($"PhaseC: read-back — old kungfuID={firstEquippedKungfuId} equiped={afterUneq} (expect false); new kungfuID={firstUnequippedKungfuId} equiped={afterEq} (expect true)");
+
+        bool success = !afterUneq && afterEq;
+        if (success)
+            Logger.Info("PhaseC: SUCCESS — read-back 확인. 게임 UI active 무공 변경 관찰 필요.");
+        else
+            Logger.Warn("PhaseC: WARN — read-back 불일치. Equip/Unequip 호출은 성공했으나 equiped flag 미반영 (lazy update 가능성).");
+
+        Logger.Info("PhaseC: 사용자 — 게임 UI 의 active 무공 변경 확인 + save → reload → active 유지 확인 (G3 게이트).");
+    }
+
+    // ───────────────────────────────────────────── reflection helpers (Phase C)
+
+    /// <summary>
+    /// Il2CPP 호환 BindingFlags: FlattenHierarchy 포함 (베이스 클래스 멤버 검색).
+    /// </summary>
+    private const BindingFlags BF =
+        BindingFlags.Public | BindingFlags.NonPublic |
+        BindingFlags.Instance | BindingFlags.FlattenHierarchy;
+
+    /// <summary>property → field fallback 으로 인스턴스 멤버 읽기.</summary>
+    private static object? ReadFieldOrProperty(object obj, string name)
+    {
+        var prop = obj.GetType().GetProperty(name, BF);
+        if (prop != null) { try { return prop.GetValue(obj); } catch { } }
+        var fld = obj.GetType().GetField(name, BF);
+        if (fld != null) { try { return fld.GetValue(obj); } catch { } }
+        return null;
+    }
+
+    /// <summary>bool 멤버 읽기. 읽기 실패 시 false 반환.</summary>
+    private static bool ReadBool(object obj, string name)
+    {
+        var v = ReadFieldOrProperty(obj, name);
+        return v is bool b && b;
+    }
+
+    /// <summary>int 멤버 읽기. uint → int 캐스트 지원. 실패 시 -1.</summary>
+    private static int ReadInt(object obj, string name)
+    {
+        var v = ReadFieldOrProperty(obj, name);
+        if (v is int  i) return i;
+        if (v is uint u) return (int)u;
+        if (v == null)   return -1;
+        try { return Convert.ToInt32(v); } catch { return -1; }
     }
 }
