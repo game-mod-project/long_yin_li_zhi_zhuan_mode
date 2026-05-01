@@ -17,6 +17,7 @@ public enum FieldCategory
     Skin,         // skinID
     SelfHouse,    // selfHouseTotalAdd
     TalentPoint,  // heroTagPoint
+    Appearance,   // v0.5 — portraitID + gender (외형 PoC PASS 시 entry 추가)
 }
 
 public sealed record SimpleFieldEntry(

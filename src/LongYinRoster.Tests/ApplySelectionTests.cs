@@ -18,10 +18,11 @@ public class ApplySelectionTests
         Assert.False(sel.ActiveKungfu);
         Assert.False(sel.ItemList);
         Assert.False(sel.SelfStorage);
+        Assert.False(sel.Appearance);   // v0.5 신규 — 기본값 false (v0.3 호환)
     }
 
     [Fact]
-    public void RestoreAll_HasAllNineOn()
+    public void RestoreAll_HasAllTenOn()
     {
         var sel = ApplySelection.RestoreAll();
         Assert.True(sel.Stat);
@@ -33,16 +34,17 @@ public class ApplySelectionTests
         Assert.True(sel.ActiveKungfu);
         Assert.True(sel.ItemList);
         Assert.True(sel.SelfStorage);
+        Assert.True(sel.Appearance);    // v0.5 — RestoreAll 은 전체 on
     }
 
     [Fact]
-    public void JsonRoundTrip_PreservesAllNine()
+    public void JsonRoundTrip_PreservesAllFields_AppearanceFalse()
     {
         var orig = new ApplySelection
         {
             Stat = true, Honor = false, TalentTag = true, Skin = false,
             SelfHouse = true, Identity = false, ActiveKungfu = true,
-            ItemList = false, SelfStorage = true,
+            ItemList = false, SelfStorage = true, Appearance = false,
         };
         string json = ApplySelection.ToJson(orig);
         var parsed = ApplySelection.FromJson(json);
@@ -56,6 +58,16 @@ public class ApplySelectionTests
         Assert.Equal(orig.ActiveKungfu, parsed.ActiveKungfu);
         Assert.Equal(orig.ItemList,     parsed.ItemList);
         Assert.Equal(orig.SelfStorage,  parsed.SelfStorage);
+        Assert.Equal(orig.Appearance,   parsed.Appearance);
+    }
+
+    [Fact]
+    public void JsonRoundTrip_PreservesAppearance_WhenTrue()
+    {
+        var orig = new ApplySelection { Appearance = true };
+        string json = ApplySelection.ToJson(orig);
+        var parsed = ApplySelection.FromJson(json);
+        Assert.True(parsed.Appearance);
     }
 
     [Fact]
@@ -66,5 +78,18 @@ public class ApplySelectionTests
         Assert.True(partial.Stat);
         Assert.True(partial.Honor);
         Assert.False(partial.Identity);
+        Assert.False(partial.Appearance);   // 누락 시 default false 유지
+    }
+
+    [Fact]
+    public void AnyEnabled_ReturnsTrueWhenOnlyAppearanceIsTrue()
+    {
+        var sel = new ApplySelection
+        {
+            Stat = false, Honor = false, TalentTag = false, Skin = false,
+            SelfHouse = false, Identity = false, ActiveKungfu = false,
+            ItemList = false, SelfStorage = false, Appearance = true,
+        };
+        Assert.True(sel.AnyEnabled());
     }
 }

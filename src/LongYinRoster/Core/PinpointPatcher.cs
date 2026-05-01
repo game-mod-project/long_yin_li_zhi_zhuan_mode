@@ -80,6 +80,7 @@ public static class PinpointPatcher
                 FieldCategory.Skin        => selection.Skin,
                 FieldCategory.SelfHouse   => selection.SelfHouse,
                 FieldCategory.TalentPoint => selection.TalentTag,
+                FieldCategory.Appearance  => selection.Appearance,  // v0.5 — 외형 PASS 시 entries 추가됨
                 FieldCategory.None        => false,   // 부상/충성/호감 — 영구 보존, Apply 안 함
                 _ => false,
             };
