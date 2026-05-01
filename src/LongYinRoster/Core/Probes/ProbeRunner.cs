@@ -17,10 +17,10 @@ internal static class ProbeRunner
     /// v0.5 진행 단계:
     ///   - Phase 1 (외형 PoC): Portrait — G1 FAIL (deferred to v0.6)
     ///   - Phase A (active save-diff): ActiveDiff — G2 PASS (kungfuSkills[i].equiped 가 source)
-    ///   - Phase B (active Harmony trace): ActiveTrace ← 현재
-    ///   - Phase C (active in-memory): ActiveInMemory
+    ///   - Phase B (active Harmony trace): ActiveTrace — Phase B PASS (HeroData.EquipSkill/UnequipSkill 발견)
+    ///   - Phase C (active in-memory): ActiveInMemory ← 현재
     /// </remarks>
-    public static Mode Current = Mode.ActiveTrace;
+    public static Mode Current = Mode.ActiveInMemory;
 
     public static void Run()
     {
