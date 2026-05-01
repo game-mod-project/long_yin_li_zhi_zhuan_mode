@@ -286,50 +286,23 @@ public static class PinpointPatcher
     }
 
     /// <summary>
-    /// v0.4 — 활성 무공 (nowActiveSkill) 별도 step. SetNowActiveSkill 은 KungfuSkillLvData
-    /// wrapper 인자 — player 의 kungfuSkills 리스트에서 skillID 매칭으로 찾아 전달.
-    /// PoC Task A3 FAIL — wrapper.lv 의 의미 불일치로 capability false 고정.
+    /// v0.5.1 — 무공 active full step. ActiveKungfuApplier (kungfuSkills[i].equiped + 11-swap
+    /// pattern + UI refresh) 호출. v0.4 의 SetNowActiveSkill 잘못된 path 교체.
     /// </summary>
     private static void SetActiveKungfu(JsonElement slot, object player, ApplySelection selection, ApplyResult res)
     {
         if (!selection.ActiveKungfu) { res.SkippedFields.Add("activeKungfu (selection off)"); return; }
-        if (!Probe().ActiveKungfu)   { res.SkippedFields.Add("activeKungfu (PoC failed — v0.5+ 후보)"); return; }
+        if (!Probe().ActiveKungfu)   { res.SkippedFields.Add("activeKungfu (capability off)"); return; }
 
-        if (!slot.TryGetProperty("nowActiveSkill", out var idEl) || idEl.ValueKind != JsonValueKind.Number)
+        var r = ActiveKungfuApplier.Apply(player, slot, selection);
+        if (r.Skipped)
         {
-            res.SkippedFields.Add("activeKungfu — nowActiveSkill not in slot JSON");
+            res.SkippedFields.Add($"activeKungfu — {r.Reason}");
             return;
         }
-        int targetID = idEl.GetInt32();
-
-        var ksList = ReadFieldOrProperty(player, "kungfuSkills");
-        if (ksList == null) { res.WarnedFields.Add("activeKungfu — kungfuSkills null"); return; }
-
-        int n = IL2CppListOps.Count(ksList);
-        object? wrapper = null;
-        for (int i = 0; i < n; i++)
-        {
-            var entry = IL2CppListOps.Get(ksList, i);
-            if (entry == null) continue;
-            var idVal = ReadFieldOrProperty(entry, "skillID")
-                     ?? ReadFieldOrProperty(entry, "ID");
-            if (idVal == null) continue;
-            if ((int)idVal == targetID) { wrapper = entry; break; }
-        }
-        if (wrapper == null)
-        {
-            res.WarnedFields.Add($"activeKungfu — player 가 skillID={targetID} 미보유 (kungfuSkills v0.5+ 후보)");
-            return;
-        }
-        try
-        {
-            InvokeMethod(player, "SetNowActiveSkill", new[] { wrapper });
-            res.AppliedFields.Add($"activeKungfu (skillID={targetID})");
-        }
-        catch (Exception ex)
-        {
-            res.WarnedFields.Add($"activeKungfu — {ex.GetType().Name}: {ex.Message}");
-        }
+        res.AppliedFields.Add($"activeKungfu (unequip={r.UnequipCount} equip={r.EquipCount} missing={r.MissingCount})");
+        if (r.MissingCount > 0)
+            res.WarnedFields.Add($"activeKungfu — {r.MissingCount} skillID 미보유 (v0.6 list sub-project)");
     }
 
     private static bool TryReadJsonValue(JsonElement slot, string path, Type type, out object? value)
@@ -737,9 +710,10 @@ public static class PinpointPatcher
 
     private static bool ProbeActiveKungfuCapability(object p)
     {
-        // PoC A3 FAIL — semantic mapping wrong (wrapper.lv vs nowActiveSkill ID).
-        // Hardcoded false until v0.5+ resolves the semantic.
-        return false;
+        // v0.5.1 — Spike PASS 후 method path 확정 (kungfuSkills[i].equiped + EquipSkill/UnequipSkill).
+        // 두 method 모두 존재하면 capability ok.
+        return p.GetType().GetMethod("EquipSkill", F) != null
+            && p.GetType().GetMethod("UnequipSkill", F) != null;
     }
 
     private static bool ProbeItemListCapability(object p)
