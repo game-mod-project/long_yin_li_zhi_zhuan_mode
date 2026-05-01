@@ -483,6 +483,12 @@ public sealed class ModWindow : MonoBehaviour
 
         if (_visible && Config.PauseGameWhileOpen.Value && Time.timeScale != 0f)
             Time.timeScale = 0f;
+
+        // v0.5 PoC 임시 trigger — Task 22 / D16 패턴으로 release 전 제거
+        if (Input.GetKeyDown(KeyCode.F12))
+        {
+            Core.Probes.ProbeRunner.Run();
+        }
     }
 
     public void Toggle()
