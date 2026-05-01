@@ -1,103 +1,104 @@
 using System;
+using System.Linq;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using Logger = LongYinRoster.Util.Logger;
 
 namespace LongYinRoster.Core.Probes;
 
 /// <summary>
-/// v0.5 외형 PoC Phase 2. portraitID + gender setter direct 시도 + refresh method 호출.
-/// PASS 기준: 게임 화면 초상화 즉시 변경 + save-reload 후 유지 (사용자 G1 게이트).
+/// v0.5 외형 PoC Phase 2. 1차 시도: portraitID/gender 가 HeroData 에 부재 — pivot:
+/// 자가-발견 (HeroData 의 portrait/face/avatar/head/icon/pic 패턴 field/property + UI refresh method enumerate).
+/// 결과를 BepInEx log 에 dump → 사용자가 G1 으로 실제 외형 필드 식별 → 다음 iteration.
 /// </summary>
 internal static class ProbePortraitRefresh
 {
     private const BindingFlags F = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
+
+    private static readonly Regex AppearancePattern = new(
+        @"portrait|face|avatar|head|icon|pic|outfit|cloth|hair|skin|appearance|partposture|body",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    private static readonly Regex RefreshMethodPattern = new(
+        @"^(refresh|reload|update|invalidate|set)\w*(portrait|face|avatar|head|icon|pic|outfit|cloth|hair|skin|appearance|sprite|view|self)\w*$",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     public static void Run(object player)
     {
         var t = player.GetType();
         Logger.Info($"player type: {t.FullName}");
 
-        // 1. 현재값 read
-        int currentPortrait = ReadInt(player, "portraitID");
-        int currentGender   = ReadInt(player, "gender");
-        Logger.Info($"current portraitID={currentPortrait}, gender={currentGender}");
+        // 1. 외형 패턴 매칭 field/property enumerate
+        Logger.Info("--- HeroData fields/properties (외형 패턴) ---");
+        var matchingProps = t.GetProperties(F)
+            .Where(p => AppearancePattern.IsMatch(p.Name))
+            .ToArray();
+        var matchingFields = t.GetFields(F)
+            .Where(f => AppearancePattern.IsMatch(f.Name))
+            .ToArray();
 
-        // 2. setter direct 시도 — read-back 검증
-        int newPortrait = currentPortrait + 1;
-        TrySetterDirect(player, "set_portraitID", newPortrait);
-        int afterSetter = ReadInt(player, "portraitID");
-        Logger.Info($"after setter direct: portraitID={afterSetter} (expected {newPortrait})");
+        foreach (var p in matchingProps)
+            Logger.Info($"  property: {p.PropertyType.Name} {p.Name}  (canRead={p.CanRead}, canWrite={p.CanWrite})");
+        foreach (var f in matchingFields)
+            Logger.Info($"  field:    {f.FieldType.Name} {f.Name}  (isPublic={f.IsPublic})");
 
-        if (afterSetter != newPortrait)
+        if (matchingProps.Length == 0 && matchingFields.Length == 0)
+            Logger.Warn("HeroData 에 외형 패턴 매칭 field/property 0 — pattern 확장 필요");
+
+        // 2. refresh method 패턴 매칭 enumerate (HeroData)
+        Logger.Info("--- HeroData methods (refresh + 외형 패턴) ---");
+        var matchingMethods = t.GetMethods(F)
+            .Where(m => RefreshMethodPattern.IsMatch(m.Name))
+            .Take(40)
+            .ToArray();
+
+        foreach (var m in matchingMethods)
         {
-            Logger.Warn("setter direct silent no-op — fallback: backing field reflection");
-            TryFieldDirect(player, "portraitID", newPortrait);
-            int afterField = ReadInt(player, "portraitID");
-            Logger.Info($"after field set: portraitID={afterField} (expected {newPortrait})");
+            var sig = string.Join(",", m.GetParameters().Select(p => p.ParameterType.Name));
+            Logger.Info($"  method: {m.ReturnType.Name} {m.Name}({sig})");
+        }
+        if (matchingMethods.Length == 0)
+            Logger.Info("HeroData 에 refresh+외형 패턴 매칭 method 0");
+
+        // 3. 현재 식별된 후보 field 들의 현재 값 (보너스 — int / bool / string 만)
+        Logger.Info("--- candidate field 현재 값 ---");
+        foreach (var p in matchingProps.Where(p => IsScalar(p.PropertyType) && p.CanRead))
+        {
+            try { Logger.Info($"  {p.Name} = {p.GetValue(player)}"); }
+            catch (Exception ex) { Logger.Warn($"  {p.Name} read threw: {ex.GetType().Name}: {ex.Message}"); }
+        }
+        foreach (var f in matchingFields.Where(f => IsScalar(f.FieldType)))
+        {
+            try { Logger.Info($"  {f.Name} = {f.GetValue(player)}"); }
+            catch (Exception ex) { Logger.Warn($"  {f.Name} read threw: {ex.GetType().Name}: {ex.Message}"); }
         }
 
-        // 3. 후보 refresh method 들 순회 호출
-        // T6 (static dump) 가 skip 되었으므로 흔한 후보 names 직접 시도.
-        // RefreshSelfState 는 v0.4 의 PinpointPatcher 가 이미 사용 — sprite cache invalidate 가 동시에 일어날 가능성.
+        // 4. 알려진 후보 refresh method 들도 시도 (zero-arg)
+        Logger.Info("--- 후보 zero-arg refresh method 호출 시도 ---");
         string[] candidateMethods =
         {
-            "RefreshPortrait",
-            "ReloadPortrait",
-            "UpdatePortrait",
-            "RefreshFaceData",
-            "RefreshFace",
-            "RefreshAvatar",
-            "RefreshSprite",
-            "RefreshSelfState",  // v0.4 알려진 — 부수효과로 portrait 도 refresh 될 가능성
+            "RefreshPortrait", "ReloadPortrait", "UpdatePortrait",
+            "RefreshFaceData", "RefreshFace", "RefreshAvatar",
+            "RefreshSprite",   "RefreshSelfState",
+            "RefreshIcon",     "ReloadIcon", "RefreshHead",
+            "RefreshOutfit",   "RefreshHair",
         };
-
         foreach (var name in candidateMethods)
-        {
             TryCall(player, name);
-        }
 
-        Logger.Info("=== Phase 2 done. 화면 + save-reload 후 G1 판정 ===");
+        Logger.Info("=== Phase 2 (discovery) done. dump 결과 → 외형 필드 이름 식별 후 다음 iteration ===");
     }
 
-    private static int ReadInt(object obj, string field)
-    {
-        var prop = obj.GetType().GetProperty(field, F);
-        if (prop != null)
-        {
-            try { return (int)(prop.GetValue(obj) ?? 0); }
-            catch (Exception ex) { Logger.Warn($"read property {field} threw: {ex.GetType().Name}: {ex.Message}"); return -1; }
-        }
-        var fld = obj.GetType().GetField(field, F);
-        if (fld != null)
-        {
-            try { return (int)(fld.GetValue(obj) ?? 0); }
-            catch (Exception ex) { Logger.Warn($"read field {field} threw: {ex.GetType().Name}: {ex.Message}"); return -1; }
-        }
-        Logger.Warn($"field/property '{field}' not found");
-        return -1;
-    }
-
-    private static void TrySetterDirect(object obj, string methodName, int value)
-    {
-        var m = obj.GetType().GetMethod(methodName, F);
-        if (m == null) { Logger.Warn($"method '{methodName}' not found"); return; }
-        try { m.Invoke(obj, new object[] { value }); Logger.Info($"called {methodName}({value})"); }
-        catch (Exception ex) { Logger.Warn($"{methodName} threw: {ex.GetType().Name}: {ex.Message}"); }
-    }
-
-    private static void TryFieldDirect(object obj, string field, int value)
-    {
-        var fld = obj.GetType().GetField(field, F);
-        if (fld == null) { Logger.Warn($"field '{field}' not found"); return; }
-        try { fld.SetValue(obj, value); Logger.Info($"field-set {field}={value}"); }
-        catch (Exception ex) { Logger.Warn($"field-set {field} threw: {ex.GetType().Name}: {ex.Message}"); }
-    }
+    private static bool IsScalar(Type t) =>
+        t == typeof(int)  || t == typeof(uint)   || t == typeof(short) || t == typeof(ushort) ||
+        t == typeof(long) || t == typeof(ulong)  || t == typeof(byte)  || t == typeof(sbyte)  ||
+        t == typeof(bool) || t == typeof(string) || t == typeof(float) || t == typeof(double);
 
     private static void TryCall(object obj, string methodName)
     {
         var m = obj.GetType().GetMethod(methodName, F, null, Type.EmptyTypes, null);
-        if (m == null) { Logger.Info($"method '{methodName}': not found (skip)"); return; }
-        try { m.Invoke(obj, null); Logger.Info($"called {methodName}() — ok"); }
-        catch (Exception ex) { Logger.Warn($"{methodName} threw: {ex.GetType().Name}: {ex.Message}"); }
+        if (m == null) { Logger.Info($"  method '{methodName}': not found (skip)"); return; }
+        try { m.Invoke(obj, null); Logger.Info($"  called {methodName}() — ok"); }
+        catch (Exception ex) { Logger.Warn($"  {methodName} threw: {ex.GetType().Name}: {ex.Message}"); }
     }
 }
