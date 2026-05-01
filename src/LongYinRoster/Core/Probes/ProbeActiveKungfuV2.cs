@@ -274,14 +274,17 @@ internal static class ProbeActiveKungfuV2
             if (uneqCount <= 5 && !equiped)
                 Logger.Info($"PhaseC: [uneq] idx={i} kungfuID={kungfuID}");
 
+            // 첫 equiped wrapper 발견 시 — KungfuSkillLvData 의 모든 field/property dump (production 코드 대비 ID 필드 식별용)
             if (equiped && firstEquipped == null)
             {
                 firstEquipped         = entry;
                 firstEquippedKungfuId = kungfuID;
                 firstEquippedIdx      = i;
+                DumpWrapperShape(entry);
             }
-            // equiped=false 이고 다른 kungfuID 인 첫 번째 — firstEquippedKungfuId 가 확정된 후 갱신 가능하므로 조건 check
-            if (!equiped && firstUnequippedDiff == null && kungfuID != firstEquippedKungfuId)
+            // equiped=false 첫 번째 — idx 매칭 (wrapper instance 가 firstEquipped 와 다르면 OK).
+            // ID 매칭 안 하는 이유: KungfuSkillLvData 의 ID 필드 이름 미상 — kungfuID 가 -1 fallback.
+            if (!equiped && firstUnequippedDiff == null)
             {
                 firstUnequippedDiff     = entry;
                 firstUnequippedKungfuId = kungfuID;
@@ -298,7 +301,12 @@ internal static class ProbeActiveKungfuV2
         }
         if (firstUnequippedDiff == null)
         {
-            Logger.Warn($"PhaseC: equiped=false && kungfuID != {firstEquippedKungfuId} 항목 없음 — 후보 부족. skip.");
+            Logger.Warn("PhaseC: equiped=false 항목 없음 — 후보 부족. skip.");
+            return;
+        }
+        if (ReferenceEquals(firstEquipped, firstUnequippedDiff))
+        {
+            Logger.Warn("PhaseC: firstEquipped == firstUnequippedDiff — 동일 wrapper, swap 무의미. skip.");
             return;
         }
 
@@ -385,5 +393,37 @@ internal static class ProbeActiveKungfuV2
         if (v is uint u) return (int)u;
         if (v == null)   return -1;
         try { return Convert.ToInt32(v); } catch { return -1; }
+    }
+
+    /// <summary>
+    /// KungfuSkillLvData 의 fields / properties 전부 dump — kungfuID 가 fallback -1 인 원인 진단.
+    /// 첫 equiped wrapper 1회만 호출됨.
+    /// </summary>
+    private static void DumpWrapperShape(object wrapper)
+    {
+        var t = wrapper.GetType();
+        Logger.Info($"PhaseC: --- wrapper shape: {t.FullName} ---");
+        foreach (var p in t.GetProperties(BF))
+        {
+            try
+            {
+                var v = p.CanRead ? p.GetValue(wrapper) : null;
+                var disp = v == null ? "null" : (v is string s ? "\"" + s + "\"" : v.ToString());
+                if (disp != null && disp.Length > 80) disp = disp.Substring(0, 80) + "…";
+                Logger.Info($"  property: {p.PropertyType.Name} {p.Name} = {disp}");
+            }
+            catch (Exception ex) { Logger.Warn($"  property {p.Name} read threw: {ex.GetType().Name}: {ex.Message}"); }
+        }
+        foreach (var f in t.GetFields(BF))
+        {
+            try
+            {
+                var v = f.GetValue(wrapper);
+                var disp = v == null ? "null" : (v is string s ? "\"" + s + "\"" : v.ToString());
+                if (disp != null && disp.Length > 80) disp = disp.Substring(0, 80) + "…";
+                Logger.Info($"  field:    {f.FieldType.Name} {f.Name} = {disp}");
+            }
+            catch (Exception ex) { Logger.Warn($"  field {f.Name} read threw: {ex.GetType().Name}: {ex.Message}"); }
+        }
     }
 }
