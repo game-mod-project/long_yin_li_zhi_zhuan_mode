@@ -13,7 +13,14 @@ internal static class ProbeRunner
     public enum Mode { Portrait, ActiveDiff, ActiveTrace, ActiveInMemory }
 
     /// <summary>현재 활성 Probe 모드. 개발 중 코드로 변경.</summary>
-    public static Mode Current = Mode.Portrait;
+    /// <remarks>
+    /// v0.5 진행 단계:
+    ///   - Phase 1 (외형 PoC): Portrait — G1 FAIL (deferred to v0.6)
+    ///   - Phase A (active save-diff): ActiveDiff ← 현재
+    ///   - Phase B (active Harmony trace): ActiveTrace
+    ///   - Phase C (active in-memory): ActiveInMemory
+    /// </remarks>
+    public static Mode Current = Mode.ActiveDiff;
 
     public static void Run()
     {
