@@ -1,30 +1,36 @@
 # LongYin Roster Mod — 작업 핸드오프 문서
 
-**일시 중지**: 2026-04-30
-**진행 상태**: **v0.4.0 출시 완료** (selection-aware Apply / Restore + 정체성 활성화 + 9-카테고리 체크박스 UI).
+**일시 중지**: 2026-05-01
+**진행 상태**: **v0.4.0 main baseline 유지** + **v0.5 PoC 양쪽 FAIL — release 안 함** (PoC artifact / 발견 사항 dumps/ 보존, v0.6 통합 작업 후보).
 **저장소**: https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode (`main` 브랜치)
 **프로젝트 루트**: `E:/Games/龙胤立志传.v1.0.0f8.2/LongYinLiZhiZhuan/Save/_PlayerExport/`
 **Releases**:
 - [v0.1.0](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.1.0) — Live capture + slot management
 - [v0.2.0](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.2.0) — Import from save + input gating
 - [v0.3.0](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.3.0) — Apply (stat-backup) + Restore + save/reload 안전성
-- [v0.4.0] — 9-카테고리 체크박스 UI + 정체성 활성화 + 부상/충성/호감 영구 보존 회귀
+- [v0.4.0](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.4.0) — 9-카테고리 체크박스 UI + 정체성 활성화 + 부상/충성/호감 영구 보존 회귀
+- (v0.5.0 — release 안 함 — 양쪽 PoC FAIL, dumps/2026-05-01-* 참고)
 
 ---
 
 ## 1. 한 줄 요약
 
 BepInEx 6 IL2CPP 환경에서 플레이어 캐릭터 스냅샷을 20슬롯에 저장 / 관리하는 모드.
-**v0.4.0 출시 완료**: v0.3 의 PinpointPatcher Apply / Restore 에 더해
-**9-카테고리 체크박스 UI** (슬롯별 selection 즉시 저장) + **정체성 활성화** (heroName / nickname / age 등
-9 필드 setter direct — PoC A2 PASS) + **부상/충성/호감 영구 보존 회귀** (v0.3 의 덮어쓰기 폐기).
+**현재 main baseline = v0.4.0** (selection-aware Apply / Restore + 9-카테고리 체크박스 UI + 정체성 활성화).
 
-**Scope (v0.4)**: v0.3 stat-backup 전체 + 정체성 9 필드. 카테고리 단위 선택 Apply.
-부상 (외상/내상/중독) / 충성 / 호감 은 보존 필드로 전환 — 현재 게임 상태 유지.
-save → reload 후 정보창 정상 작동 (smoke D15 PASS, 천부 17/17 포함).
+**v0.5 PoC dual-track (외형 + 무공 active) — 양쪽 FAIL → release 안 함**:
+- 외형 (G1 FAIL): `portraitID` field 부재. 진짜 외형 = `faceData / partPosture` sub-data wrapper graph (v0.4 ItemData 와 동일 패턴) → v0.6 통합 작업으로 deferred.
+- active (G3 보수적 FAIL): Method path 발견 + read-back PASS, 그러나 게임 UI 미반영 + save→reload persistence 미검증 → v0.4 외형 패턴과 동일 (cache invalidate 별도 필요) → v0.6 통합 작업으로 deferred.
 
-**v0.5+ 후보**: 무공 active (PoC A3 FAIL — semantic mismatch) / 인벤토리 / 창고 (PoC A4 FAIL —
-sub-data wrapper graph 미해결) / 무공 list / 외형. spec §12 deferred list 참고.
+**v0.5 PoC 의 결정적 발견** (v0.6 production 자산):
+- `kungfuSkills[i].equiped` 가 active 의 source-of-truth (NOT `nowActiveSkill` — v0.4 A3 FAIL 의 진짜 원인)
+- `KungfuSkillLvData.skillID` 가 진짜 ID 필드 (NOT `kungfuID`)
+- `HeroData.EquipSkill / UnequipSkill (KungfuSkillLvData wrapper, bool=true)` — active set/unset path
+- 외형은 `HeroData.faceData (HeroFaceData)` + `partPosture (PartPostureData)` sub-data graph
+- `HeroIconDirty / heroIconDirtyCount` (HeroData), `skillIconDirty / maxManaChanged` (KungfuSkillLvData) — UI refresh trigger 후보
+- 자세한 evidence: `docs/superpowers/dumps/2026-05-01-*` 5 개 markdown
+
+**v0.5 main 영향**: 양쪽 FAIL → release tag / dist zip / VERSION bump 안 함. **Foundation 변경은 보존** (`Capabilities.Appearance` flag, `FieldCategory.Appearance` enum, `ApplySelection.Appearance` flag, `KoreanStrings.Cat_Appearance`) — v0.6 production 의 prerequisite.
 
 ---
 
@@ -306,37 +312,63 @@ _PlayerExport/
 v0.4.0 출시 완료. 9-카테고리 체크박스 UI + 정체성 활성화 + 부상/충성/호감 영구 보존 회귀 검증 완료.
 다음 세션은 다음 중 하나:
 
-### 6.A v0.5 — 미해결 PoC 항목 재도전
+### 6.A v0.5 PoC report — 양쪽 FAIL (2026-05-01)
 
-각 항목은 v0.4 PoC 에서 실패 원인이 확인된 상태. 추가 dump / 우회 전략 필요:
+v0.5 PoC dual-track 결과 양쪽 FAIL — release 안 함. PoC artifact 와 결정적 발견 보존:
 
-#### 6.A.1 무공 list (kungfuSkills)
-- 현재: `KungfuSkillLvData` wrapper ctor 의 IL2CPP 한계
-- 접근: game 자체 `AddKungfuSkill` 시그니처 deeper dump. IL2CppListOps.Add ctor 후보 enumerate
+#### 6.A.1 외형 PoC — G1 FAIL
+- 가설: `portraitID` (int) + `gender` (int) setter direct + sprite cache invalidate
+- 결과: HeroData 에 `portraitID / gender` field 자체가 부재. `gender` 는 `isFemale` (bool, v0.4 Identity 가 처리). 진짜 외형 = `faceData (HeroFaceData)` + `partPosture (PartPostureData)` sub-data wrapper graph
+- v0.4 PoC A4 (ItemData) 와 동일 미해결 패턴
+- 후보 zero-arg refresh method 13 개 모두 not found
+- evidence: `docs/superpowers/dumps/2026-05-01-portrait-poc-result.md`
 
-#### 6.A.2 무공 active semantic 재조사
-- 현재: PoC A3 FAIL — wrapper.lv vs nowActiveSkill ID mismatch (semantic mismatch)
-- 접근: nowActiveSkill 의 실제 ID 매핑 방식 재조사. HeroDataDump round 2 필요
+#### 6.A.2 active PoC — G3 보수적 FAIL
+- Phase A (save-diff) ✅: `kungfuSkills[i].equiped` 가 source-of-truth (NOT `nowActiveSkill` — v0.4 A3 FAIL 의 진짜 원인)
+- Phase B (Harmony trace) ✅: `HeroData.EquipSkill / UnequipSkill (KungfuSkillLvData wrapper, bool=true)` method path 발견. 11-슬롯 array swap 패턴 (게임 자체 호출 시 11회 Unequip + 11회 Equip)
+- Phase C (in-memory) 🟡: read-back 데이터 layer 변경 PASS, 그러나 게임 UI 미반영 + save→reload persistence 미검증 — v0.4 외형 PoC 와 동일 패턴 (cache invalidate 별도 필요)
+- evidence: `docs/superpowers/dumps/2026-05-01-active-kungfu-{diff,trace,poc-result}.md`
 
-#### 6.A.3 인벤토리 / 창고 (itemListData / selfStorage)
-- 현재: PoC A4 FAIL — sub-data wrapper graph 미해결
-- 접근: game 자체 `GetItem` / `AddItem` method 후보 enumerate. ItemData wrapper ctor 경로 재시도
+#### 6.A.3 v0.5 결정적 발견 — v0.6 production 자산
+- KungfuSkillLvData wrapper shape: `equiped (bool)`, `skillID (int)` ← **진짜 ID 필드**, `lv`, `fightExp`, `bookExp`, `belongHeroID`, `speEquipData / speUseData / extraAddData (HeroSpeAddData)`, `cdTimeLeft / activeTimeLeft / power / battleDamageCount`, `skillIconDirty / maxManaChanged` flags
+- HeroData 외형 영역: `faceData / partPosture / skinID / skinLv / defaultSkinID / setSkinID / playerSetSkin / skinColorDark / HeroIconDirty / heroIconDirtyCount`
+- 외형 method 후보: `SetSkin(int, int)`, `SetSkeletonGraphicFaceSlot(SkeletonGraphic, int, int)`, `SetSkeletonGraphicSkinColor(SkeletonGraphic)`
+- 통합 report: `docs/superpowers/dumps/2026-05-01-v0.5-poc-report.md`
 
-#### 6.A.4 외형 (faceData / portraitID)
-- 현재: sprite reference lazy-load
-- 접근: game-self `RefreshPortrait()` 또는 sprite cache invalidate method 탐색
+### 6.B v0.6 — 통합 작업 후보 (sub-data wrapper graph + UI cache invalidation)
 
-### 6.B maintenance 모드
+v0.5 양쪽 FAIL + v0.4 PoC A4 (ItemData) 의 패턴이 모두 동일: **IL2CPP sub-data wrapper graph + game UI refresh path 미해결**. v0.6 에서 통합 해결 권장:
 
-v0.4.0 GitHub release 후 모드 maintenance 모드. 게임 패치 (v1.0.0 f8.3+) 시 재검증 + breakage fix.
+#### 6.B.1 sub-data wrapper graph 통합
+- **외형**: `HeroFaceData` + `PartPostureData` wrapper 처리
+- **인벤토리**: `ItemData[]` (itemListData.allItem, 171 entries) wrapper graph
+- **창고**: `ItemData[]` (selfStorage.allItem, 217 entries) 동상
+- 공통 challenge: IL2CPP wrapper 의 ctor / factory / Add method 발견
 
-### 6.C 첫 작업
+#### 6.B.2 active full integration (v0.5 발견 활용)
+- v0.5 의 method path (`EquipSkill / UnequipSkill`) + skillID 매칭 production code
+- UI refresh path 발견 — `KungfuSkillLvData.skillIconDirty / maxManaChanged` flag toggle, 또는 game-self `RefreshFightSkillUI / RefreshKungfuPanel` 류 method
+- save→reload persistence 검증
 
-**v0.4.0 release packaging (D18) 가 먼저**:
-- VERSION 파일 → `0.4.0`
-- `dist/LongYinRoster_v0.4.0.zip` 생성
-- `git tag v0.4.0` + push
-- `gh release create v0.4.0 ...` + 게임-load verify (사용자 게이트)
+#### 6.B.3 무공 list (kungfuSkills)
+- v0.5 발견된 wrapper shape (skillID, lv 등) 활용
+- ctor / factory / Add method 발견
+- v0.4 PoC A1 의 KungfuSkillLvData wrapper IL2CPP 한계
+
+#### 6.B.4 UI cache invalidation 일반화
+- 외형 / active 둘 다 동일 challenge — game UI 의 sprite/widget cache invalidate trigger 발견
+- 후보: `HeroIconDirty` flag, `RefreshSelfState` (이미 v0.3 사용), Harmony trace round 2 (Equip → 후속 cascading method)
+
+### 6.C maintenance 모드
+
+v0.4.0 main baseline 유지. 게임 패치 (v1.0.0 f8.3+) 시 재검증 + breakage fix. v0.6 통합 작업은 별도 spec → plan → implementation 사이클로.
+
+### 6.D 다음 세션 첫 작업
+
+선택지:
+1. **v0.6 spec 작성** — sub-data wrapper graph + UI cache invalidation 통합 (큰 scope, 새 brainstorm 권장)
+2. **maintenance 모드** — 게임 패치 대응 대기
+3. **v0.5 foundation 일부 revert 결정** — Capabilities.Appearance / FieldCategory.Appearance 를 v0.6 에서 활용 vs 일시 제거 (현재 false default 로 무해, 보존 권장)
 
 ---
 
@@ -344,20 +376,25 @@ v0.4.0 GitHub release 후 모드 maintenance 모드. 게임 패치 (v1.0.0 f8.3+
 
 **다음 세션 첫 메시지에 붙여넣을 요약**:
 
-> LongYin Roster Mod **v0.4.0 출시 완료** (9-카테고리 체크박스 UI + 정체성 활성화 + 부상/충성/호감 영구 보존 회귀).
-> 프로젝트 루트:
-> `E:/Games/龙胤立志传.v1.0.0f8.2/LongYinLiZhiZhuan/Save/_PlayerExport/`. 핸드오프 문서:
-> `docs/HANDOFF.md`, spec: `docs/superpowers/specs/2026-04-29-longyin-roster-mod-v0.3-design.md`.
+> LongYin Roster Mod — **main baseline = v0.4.0**. **v0.5 PoC 양쪽 FAIL — release 안 함** (2026-05-01).
+> 프로젝트 루트: `E:/Games/龙胤立志传.v1.0.0f8.2/LongYinLiZhiZhuan/Save/_PlayerExport/`.
+> 핸드오프: `docs/HANDOFF.md`. v0.5 spec: `docs/superpowers/specs/2026-05-01-longyin-roster-mod-v0.5-design.md`.
+> v0.5 PoC artifact: `docs/superpowers/dumps/2026-05-01-*` (5 markdowns).
 >
-> v0.4 scope: v0.3 stat-backup + **정체성 9 필드 (setter direct)** + **카테고리 단위 선택 Apply**
-> (`_meta.applySelection` 슬롯별 저장). 부상/충성/호감 보존 필드 전환. smoke D15 PASS, 40/40 tests PASS.
+> **v0.5 결과**: 외형 G1 FAIL (`portraitID` 부재, sub-data graph), active G3 보수적 FAIL (method path 발견 + read-back PASS but UI 미반영 + save→reload 미검증). 양쪽 모두 v0.4 외형/ItemData 와 동일 패턴 — **IL2CPP sub-data wrapper graph + UI cache invalidate** 미해결.
+>
+> **v0.5 결정적 발견** (v0.6 자산):
+> - `kungfuSkills[i].equiped` 가 active source (NOT `nowActiveSkill`)
+> - `KungfuSkillLvData.skillID` 가 진짜 ID 필드 (NOT `kungfuID`)
+> - `HeroData.EquipSkill / UnequipSkill (wrapper, bool=true)` method path
+> - 외형 = `faceData (HeroFaceData)` + `partPosture (PartPostureData)` sub-data wrapper graph
+> - UI refresh trigger 후보: `HeroIconDirty / heroIconDirtyCount / skillIconDirty / maxManaChanged`
+>
+> **v0.5 main 상태**: foundation (Capabilities.Appearance / FieldCategory.Appearance / ApplySelection.Appearance / KoreanStrings.Cat_Appearance) 유지. Probe 코드 cleanup 완료. 45/45 tests PASS.
 >
 > **다음 단계 후보**:
-> - **D18** (release packaging): VERSION → 0.4.0 + dist zip + `git tag v0.4.0` + GitHub release.
->   사용자 게이트 = `gh release create` + 게임-load verify.
-> - **v0.5** (deferred 재도전): 무공 list / 외형 / 인벤토리 sub-data wrapper graph /
->   무공 active semantic 재조사. spec §12 v0.4 진행 상태 + HANDOFF §6.A 참고.
-> - **maintenance 모드**: v0.4.0 GitHub release 후 게임 패치 대응.
+> - **v0.6 spec** — sub-data wrapper graph + UI cache invalidation 통합 작업 (외형 + active full + 인벤토리 + 무공 list). 새 brainstorm 권장.
+> - **maintenance 모드** — 게임 패치 (v1.0.0 f8.3+) 대응 대기.
 
 ---
 
