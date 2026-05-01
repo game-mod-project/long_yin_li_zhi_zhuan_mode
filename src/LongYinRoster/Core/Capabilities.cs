@@ -13,14 +13,16 @@ public sealed class Capabilities
     public bool ActiveKungfu { get; init; }
     public bool ItemList     { get; init; }
     public bool SelfStorage  { get; init; }
+    public bool Appearance   { get; init; }   // v0.5 — portraitID + gender + sprite refresh
 
     public static Capabilities AllOff() => new();
     public static Capabilities AllOn() => new()
     {
         Identity = true, ActiveKungfu = true, ItemList = true, SelfStorage = true,
+        Appearance = true,
     };
 
     public override string ToString() =>
         $"Identity={Identity} ActiveKungfu={ActiveKungfu} " +
-        $"ItemList={ItemList} SelfStorage={SelfStorage}";
+        $"ItemList={ItemList} SelfStorage={SelfStorage} Appearance={Appearance}";
 }
