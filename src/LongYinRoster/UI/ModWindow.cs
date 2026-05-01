@@ -481,6 +481,10 @@ public sealed class ModWindow : MonoBehaviour
     {
         if (Input.GetKeyDown(Config.ToggleHotkey.Value)) Toggle();
 
+        // v0.5.1 Spike — F12 trigger, F10 mode cycle (release 전 cleanup)
+        if (Input.GetKeyDown(KeyCode.F12)) Core.Probes.ProbeRunner.Trigger();
+        if (Input.GetKeyDown(KeyCode.F10)) Core.Probes.ProbeRunner.CycleMode();
+
         if (_visible && Config.PauseGameWhileOpen.Value && Time.timeScale != 0f)
             Time.timeScale = 0f;
     }
