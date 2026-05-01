@@ -4,9 +4,9 @@ using System.Text.Json;
 namespace LongYinRoster.Core;
 
 /// <summary>
-/// 9-카테고리 selection. 슬롯 JSON 의 _meta.applySelection 으로 영속.
-/// V03Default = v0.3 호환 (스탯/명예/천부/스킨 on, 신규 5 off).
-/// RestoreAll = 9 카테고리 모두 on (slot 0 자동백업 복원 시).
+/// 10-카테고리 selection. 슬롯 JSON 의 _meta.applySelection 으로 영속.
+/// V03Default = v0.3 호환 (스탯/명예/천부/스킨 on, 신규 6 off — Appearance 포함).
+/// RestoreAll = 10 카테고리 모두 on (slot 0 자동백업 복원 시).
 /// </summary>
 public sealed class ApplySelection
 {
