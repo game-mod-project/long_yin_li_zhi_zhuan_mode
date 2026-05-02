@@ -33,6 +33,13 @@ public static class PinpointPatcher
         // step 의 helper 가 HeroLocator.GetPlayer() 다시 호출하면 일관 보장.
         HeroLocator.InvalidateCache();
 
+        // v0.5.3 fix — Probe cache 도 SaveSlot 전환 후 stale 가능. 특히 Probe() 가
+        // 게임 진입 전 (player==null) 한 번이라도 호출되면 _capCache = AllOff 영구 캐시되어
+        // 모든 capability 가 false 로 잠김. Apply 진입 시 강제 invalidate 로 다음 Probe()
+        // 가 fresh fetch 보장. (ModWindow 의 토글 UI 가 Probe.X false 시 비활성화되므로
+        // 사용자 체감으로는 "토글했는데 적용 안 됨" 형태로 나타남.)
+        InvalidateProbeCache();
+
         var res = new ApplyResult();
         using var doc = JsonDocument.Parse(slotPlayerJson);
         var slot = doc.RootElement;
@@ -411,95 +418,44 @@ public static class PinpointPatcher
     /// v0.4 — itemListData.allItem rebuild. LoseAllItem clear → GetItem(itemData) 반복.
     /// PoC Task A4 FAIL — ItemDataFactory.IsAvailable=false 로 capability false 고정.
     /// </summary>
+    /// <summary>
+    /// v0.5.3 — 인벤토리 list Replace. ItemListApplier (LoseAllItem clear + parameterless ctor +
+    /// 모든 property reflection set + GetItem add + 2-pass retry) 호출. v0.4 stub 의
+    /// ItemDataFactory 의존 제거.
+    /// </summary>
     private static void RebuildItemList(JsonElement slot, object player, ApplySelection selection, ApplyResult res)
     {
+        // v0.5.3 진단 로그 — 사용자 보고 "인벤토리 반영안됨" 추적용. selection / probe
+        // 값을 명시 출력해 어느 게이트에서 막혔는지 식별.
+        var probeItem = Probe().ItemList;
+        Logger.Info($"RebuildItemList gate: selection.ItemList={selection.ItemList} Probe.ItemList={probeItem}");
         if (!selection.ItemList) { res.SkippedFields.Add("itemList (selection off)"); return; }
-        if (!Probe().ItemList)   { res.SkippedFields.Add("itemList (PoC failed — v0.5+ 후보)"); return; }
+        if (!probeItem)          { res.SkippedFields.Add("itemList (capability off)"); return; }
 
-        // Clear via game-self LoseAllItem
-        try { InvokeMethod(player, "LoseAllItem", System.Array.Empty<object>()); }
-        catch (Exception ex) { res.WarnedFields.Add($"itemList clear — {ex.GetType().Name}: {ex.Message}"); }
-
-        // Add each from slot
-        if (!slot.TryGetProperty("itemListData", out var ild) ||
-            !ild.TryGetProperty("allItem", out var arr) ||
-            arr.ValueKind != JsonValueKind.Array)
+        var r = ItemListApplier.Apply(player, slot, selection);
+        if (r.Skipped)
         {
-            res.SkippedFields.Add("itemList — slot JSON 에 itemListData.allItem 없음");
+            // v0.5.3 진단 — skip reason 을 SkippedFields list 에만 묻으면 사용자 BepInEx
+            // log 에서 거의 안 보임. Info 레벨로 즉시 출력.
+            Logger.Info($"ItemList Apply skipped: {r.Reason}");
+            res.SkippedFields.Add($"itemList — {r.Reason}");
             return;
         }
-        int added = 0;
-        for (int i = 0; i < arr.GetArrayLength(); i++)
-        {
-            var entry = arr[i];
-            int id    = entry.TryGetProperty("itemID",    out var idEl) ? idEl.GetInt32() : -1;
-            int count = entry.TryGetProperty("itemCount", out var cEl)  ? cEl.GetInt32()  : 1;
-            if (id < 0) continue;
-            try
-            {
-                var itemData = ItemDataFactory.Create(id, count);
-                InvokeMethod(player, "GetItem", new object?[] { itemData });
-                added++;
-            }
-            catch (Exception ex)
-            {
-                res.WarnedFields.Add($"itemList[{i}] id={id} — {ex.GetType().Name}: {ex.Message}");
-            }
-        }
-        res.AppliedFields.Add($"itemList ({added}/{arr.GetArrayLength()})");
+        res.AppliedFields.Add($"itemList (removed={r.RemovedCount} added={r.AddedCount} failed={r.FailedCount})");
+        if (r.FailedCount > 0)
+            res.WarnedFields.Add($"itemList — {r.FailedCount} entries failed");
     }
 
     /// <summary>
-    /// v0.4 — selfStorage.allItem rebuild. selfStorage 에는 LoseAllItem 동등 method 없음 —
-    /// IL2CppListOps.Clear 로 raw clear, 그다음 reflection-based Add 로 채움.
-    /// PoC Task A4 FAIL — Probe().SelfStorage=false 로 short-circuit (분기 미실행).
+    /// v0.5.3 — selfStorage 는 별도 sub-project (v0.6.x). capability false 로 short-circuit.
+    /// 인벤토리 (RebuildItemList) 와 패턴 동일 — ItemListApplier 패턴 mirror 후 enable 가능.
     /// </summary>
     private static void RebuildSelfStorage(JsonElement slot, object player, ApplySelection selection, ApplyResult res)
     {
         if (!selection.SelfStorage) { res.SkippedFields.Add("selfStorage (selection off)"); return; }
-        if (!Probe().SelfStorage)   { res.SkippedFields.Add("selfStorage (PoC failed — v0.5+ 후보)"); return; }
-
-        // Clear via raw IL2CppListOps (selfStorage 에는 LoseAllItem 동등 method 없음)
-        var storage = ReadFieldOrProperty(player, "selfStorage");
-        var allItem = storage != null ? ReadFieldOrProperty(storage, "allItem") : null;
-        if (allItem != null)
-        {
-            try { IL2CppListOps.Clear(allItem); }
-            catch (Exception ex) { res.WarnedFields.Add($"selfStorage clear — {ex.GetType().Name}: {ex.Message}"); }
-        }
-
-        // Add each from slot
-        if (!slot.TryGetProperty("selfStorage", out var ss) ||
-            !ss.TryGetProperty("allItem", out var arr) ||
-            arr.ValueKind != JsonValueKind.Array)
-        {
-            res.SkippedFields.Add("selfStorage — slot JSON 에 selfStorage.allItem 없음");
-            return;
-        }
-        int added = 0;
-        for (int i = 0; i < arr.GetArrayLength(); i++)
-        {
-            var entry = arr[i];
-            int id    = entry.TryGetProperty("itemID",    out var idEl) ? idEl.GetInt32() : -1;
-            int count = entry.TryGetProperty("itemCount", out var cEl)  ? cEl.GetInt32()  : 1;
-            if (id < 0) continue;
-            try
-            {
-                var itemData = ItemDataFactory.Create(id, count);
-                if (allItem != null)
-                {
-                    var addMethod = allItem.GetType().GetMethod("Add",
-                        System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
-                    addMethod?.Invoke(allItem, new[] { itemData });
-                }
-                added++;
-            }
-            catch (Exception ex)
-            {
-                res.WarnedFields.Add($"selfStorage[{i}] id={id} — {ex.GetType().Name}: {ex.Message}");
-            }
-        }
-        res.AppliedFields.Add($"selfStorage ({added}/{arr.GetArrayLength()})");
+        if (!Probe().SelfStorage)   { res.SkippedFields.Add("selfStorage (capability off — v0.6.x sub-project)"); return; }
+        // 활성화 시 ItemListApplier 패턴 mirror 으로 구현 (v0.6.x)
+        res.SkippedFields.Add("selfStorage — v0.6.x sub-project");
     }
 
     private static void RebuildHeroTagData(JsonElement slot, object player, ApplySelection selection, ApplyResult res)
@@ -719,7 +675,10 @@ public static class PinpointPatcher
     {
         if (_capCache != null) return _capCache;
         var p = HeroLocator.GetPlayer();
-        if (p == null) return _capCache = Capabilities.AllOff();
+        // v0.5.3 fix — player==null 일 때 cache 하지 않음. 메인 메뉴 / 게임 진입 전
+        // 시점에 Probe() 가 호출되면 AllOff 가 영구 캐싱되어 게임 진입 후에도 모든
+        // capability 가 false 로 잠긴다. cache 미저장으로 다음 호출 시 retry 가능.
+        if (p == null) return Capabilities.AllOff();
 
         bool identity     = ProbeIdentityCapability(p);
         bool activeKungfu = ProbeActiveKungfuCapability(p);
@@ -759,11 +718,15 @@ public static class PinpointPatcher
 
     private static bool ProbeItemListCapability(object p)
     {
-        // PoC A4 FAIL — sub-data wrapper graph (equipmentData/medFoodData/etc) unsolved.
-        // ItemDataFactory.IsAvailable returns false in v0.4 stub. Both gates must pass.
-        return ItemDataFactory.IsAvailable
-            && p.GetType().GetMethod("LoseAllItem", F) != null
-            && p.GetType().GetMethod("GetItem", F) != null;
+        // v0.5.3 — ItemDataFactory 폐기. method 존재 검사만 (lazy ctor 검사는 ItemListApplier.Apply 시).
+        // GetItem 은 여러 overload (3개) — GetMethod() 로는 ambiguous, GetMethods() 로 name 검사.
+        var t = p.GetType();
+        if (t.GetMethod("LoseAllItem", F, null, Type.EmptyTypes, null) == null) return false;
+        foreach (var m in t.GetMethods(F))
+        {
+            if (m.Name == "GetItem") return true;
+        }
+        return false;
     }
 
     private static bool ProbeKungfuListCapability(object p)

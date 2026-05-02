@@ -26,16 +26,15 @@ public static class HeroLocator
     private static readonly TimeSpan NegativeCacheTtl = TimeSpan.FromSeconds(1);
 
     /// <summary>
-    /// 양성 캐시 → 매번 실제 시도. CaptureCurrent 등 사용자 액션 경로용.
-    /// 매번 단계별 진단 로그를 찍는다.
+    /// 매번 fresh fetch — SaveSlot 전환 시 cache stale 회피.
+    /// 사용자 보고: SaveSlot 변경 후 cache 가 이전 SaveSlot 의 HeroData 반환 (heroID=0 검사만, reference 비교 안 함).
+    /// IL2CPP reference 비교 어려우므로 cache 자체 사용 안 함. capture / Apply 빈도 낮아 overhead 무시.
     /// </summary>
     public static object? GetPlayer()
     {
-        if (_cached != null && IsValidPlayer(_cached)) return _cached;
-
         var viaManager = TryViaGameDataController();
         if (viaManager != null) { _cached = viaManager; return viaManager; }
-
+        _cached = null;
         return null;
     }
 
