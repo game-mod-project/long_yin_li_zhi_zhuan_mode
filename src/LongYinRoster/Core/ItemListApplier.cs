@@ -349,7 +349,17 @@ public static class ItemListApplier
                     if (elemType == typeof(bool))   { addM.Invoke(target, new object[] { jv.GetBoolean() });  continue; }
                     if (elemType == typeof(float))  { addM.Invoke(target, new object[] { jv.GetSingle() });   continue; }
                     if (elemType == typeof(double)) { addM.Invoke(target, new object[] { jv.GetDouble() });   continue; }
-                    // 중첩 List<List<T>> 같은 복합 type 은 v0.5.4 scope 외 (treasure playerGuessTreasureLv 등)
+
+                    // v0.6.3 — nested List<List<T>> (treasure.playerGuessTreasureLv 등).
+                    // 외부 list 의 element type 자체가 List 면 inner list 인스턴스 신규 생성 후 recurse.
+                    if (elemType.IsGenericType && elemType.Name == "List`1" && jv.ValueKind == JsonValueKind.Array)
+                    {
+                        object? innerList = null;
+                        try { innerList = Activator.CreateInstance(elemType); } catch { }
+                        if (innerList == null) continue;
+                        ApplyJsonArray(jv, innerList, elemType);
+                        addM.Invoke(target, new object[] { innerList });
+                    }
                 }
                 catch { }
             }

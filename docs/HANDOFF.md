@@ -1,7 +1,7 @@
 # LongYin Roster Mod — 작업 핸드오프 문서
 
 **일시 중지**: 2026-05-02
-**진행 상태**: **v0.6.2 release** — 무공 돌파속성 (extraAddData / speEquipData / speUseData / etc.) 풀 복원 + Stat snapshot/restore (Stat unchecked 시 부수효과 보호). 13-카테고리 시리즈 polish.
+**진행 상태**: **v0.6.3 release** — 2D nested list (treasure.playerGuessTreasureLv 등 List<List<int>>) 풀 복원. Activator.CreateInstance 로 inner list 인스턴스 생성 후 recurse.
 **저장소**: https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode (`main` 브랜치)
 **프로젝트 루트**: `E:/Games/龙胤立志传.v1.0.0f8.2/LongYinLiZhiZhuan/Save/_PlayerExport/`
 **Releases**:
@@ -18,11 +18,11 @@
 - [v0.6.0](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.6.0) — 장비 슬롯 (무기 / 갑옷 / 투구 / 신발 / 장신구×2 / 말 / 마구) Replace 활성화 (EquipItem + EquipHorse game-self method + identity-based matching)
 - [v0.6.1](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.6.1) — 외형 (faceData / skinColorDark / voicePitch) 활성화 + 모든 카테고리 동시 Apply 시 stat override 회귀 fix (SetSimpleFields → RefreshSelfState 이후 이동)
 - [v0.6.2](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.6.2) — 무공 돌파속성 (extraAddData / speEquipData / speUseData / equipUseSpeAddValue / damageUseSpeAddValue / belongHeroID 등) 풀 복원 + Stat snapshot/restore (Stat unchecked 시 부수효과 보호)
+- [v0.6.3](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.6.3) — 2D nested list (treasure.playerGuessTreasureLv 등 List<List<int>>) 풀 복원. ApplyJsonArray 가 nested element type 의 inner list 인스턴스 신규 생성 후 recurse.
 
-## v0.6.2 Known Limitations
+## v0.6.3 Known Limitations
 - **무공 list만 단독 Apply 시 active 장착 정보 손실**: KungfuList rebuild 가 list 를 clear+재추가하므로 직전 active 장착이 unequip 됨. 의도된 동작 — 무공 active 도 같이 체크 권장.
-- **2D nested list (treasure.playerGuessTreasureLv 등) 미적용**: List<List<int>> 구조 — 핵심 보물 데이터 (treasureLv / identified) 는 정상 복원, 식별 추측 기록만 영향.
-- **partPosture sub-data**: 슬롯 JSON 캡처 안 됨 — 별도 외형 sub-feature 필요시 v0.6.x 후속.
+- **partPosture sub-data**: 슬롯 JSON 캡처 안 됨 — 별도 외형 sub-feature 필요시 후속.
 - **Stat 미체크 시 일부 max/derived 값 부정확**: baseAttri / maxAttri 는 reflection 으로 복원되나 game 의 update loop 가 equipment / kungfu 변경에 따라 max stats 재계산 가능.
 
 ---
@@ -30,7 +30,7 @@
 ## 1. 한 줄 요약
 
 BepInEx 6 IL2CPP 환경에서 플레이어 캐릭터 스냅샷을 20슬롯에 저장 / 관리하는 모드.
-**현재 main baseline = v0.6.2** (selection-aware Apply / Restore + 13-카테고리 체크박스 UI + 무공 돌파속성 풀 복원 + Stat snapshot/restore).
+**현재 main baseline = v0.6.3** (selection-aware Apply / Restore + 13-카테고리 체크박스 UI + 무공 돌파속성 풀 복원 + Stat snapshot/restore + 2D nested list 풀 복원).
 
 **v0.5 PoC dual-track (외형 + 무공 active) — 양쪽 FAIL → release 안 함**:
 - 외형 (G1 FAIL): `portraitID` field 부재. 진짜 외형 = `faceData / partPosture` sub-data wrapper graph (v0.4 ItemData 와 동일 패턴) → v0.6 통합 작업으로 deferred.
