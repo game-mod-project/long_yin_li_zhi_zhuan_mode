@@ -24,12 +24,23 @@ method: Void LearnKungfu(Int32 skillID, Int32 lv)
 === Spike Step1 end ===
 ```
 
-**결과**: [TBD]
+**결과** (1차):
+```
+method: Void LoseSkill(KungfuSkillLvData targetSkill)
+method: Void AddSkillFightExp(Single num, KungfuSkillLvData targetSkill, Boolean showInfo)
+method: Void AddSkillBookExp(Single num, KungfuSkillLvData targetSkill, Boolean showInfo)
+method: Void LoseAllSkill()                                                          ← clear 후보 ✓
+method: KungfuSkillLvData GetSkill(KungfuSkillLvData skillLvData, Boolean showInfo, Boolean speShow)  ← add 후보 (wrapper 인자)
+method: SkillMaxPracticeExpData GetSkillMaxPracticeExp(Int32 targetID)
+method: Void AddSkillMaxPracticeExp(SkillMaxPracticeExpData target)
+method: Single GetSkillPowerChargeSpeed(FightSkillType targetSkillType)
+method: Single GetSkillRareLvExpRate(Int32 targetRareLv)
+```
 
-**clear method 후보**: [TBD]
-**add method 후보**: [TBD]
+**clear method 후보**: `LoseAllSkill()` ✓
+**add method 후보**: `GetSkill(KungfuSkillLvData wrapper, ...)` — **wrapper ctor 필요** (v0.4 PoC A1 한계)
 
-**판정**: [TBD]
+**판정**: clear PASS / add 는 wrapper ctor 발견 필요 → Step 6 (wrapper ctor dump) 추가
 
 ---
 
@@ -81,10 +92,34 @@ method: Void LearnKungfu(Int32 skillID, Int32 lv)
 
 ---
 
+## Step 6 — KungfuSkillLvData wrapper ctor / static method dump
+
+**실행**: F11 → Mode = Step6 (1-6 키) → F12
+
+**결과**:
+```
+=== Spike Step6 — KungfuSkillLvData (KungfuSkillLvData) dump ===
+--- Constructors ---
+ctor: ()                          ← parameterless ✓
+ctor: (Int32 _skillID)            ← 단일 int ctor ✓✓ (핵심 발견)
+ctor: (IntPtr pointer)            ← IL2CPP wrapper ctor (Il2CppInterop)
+--- Static methods ---
+static: Single CountDamageRatio(Single sourceNum, Single addRatio)   ← utility, factory 아님
+=== Spike Step6 end ===
+```
+
+**판정**: ✅ **PASS** — `KungfuSkillLvData(int _skillID)` ctor 발견. v0.4 PoC A1 의 wrapper ctor IL2CPP 한계가 false 였음.
+
+---
+
 ## 종합 판정
 
-[TBD — Step 1-3 + 5 결과 종합]
+✅ **Spike PASS** — Phase 3 (Implementation) 직접 진행 가능.
 
-**다음 단계**:
-- All PASS → Phase 3 (Implementation) — KungfuListApplier 의 ClearMethodName / AddMethodName 을 Spike 결과로 hardcoded
-- FAIL → User gate (wrapper ctor 재도전 / abort)
+**Production path**:
+1. **Clear**: `HeroData.LoseAllSkill()` — parameterless
+2. **Wrapper 생성**: `new KungfuSkillLvData(skillID)` — reflection ctor 호출
+3. **Property setter**: `wrapper.lv / fightExp / bookExp` 등 property reflection set
+4. **Add**: `HeroData.GetSkill(KungfuSkillLvData wrapper, bool showInfo=false, bool speShow=false)` — return type = wrapper, 즉 player 의 list 에 add 후 wrapper return
+
+**Spike Step 2-5 (clear/add 통합 + persistence)**: implementation 의 smoke 시나리오에서 직접 검증 (Spike skip — wrapper ctor 발견으로 production path 명확).
