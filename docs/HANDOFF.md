@@ -1,7 +1,7 @@
 # LongYin Roster Mod — 작업 핸드오프 문서
 
 **일시 중지**: 2026-05-02
-**진행 상태**: **v0.6.4 release** — partPosture (체형 등 외형 sub-data) 복원. SerializerService 가 List<float> 값을 `_partPostureFloats` 로 JSON inject + AppearanceApplier 가 deep-copy.
+**진행 상태**: **v0.7.0 release** — F11 진입 메뉴 (캐릭터 관리 / 컨테이너 관리) + 컨테이너 기능 (인벤토리 / 창고 ↔ 외부 디스크 컨테이너 이동·복사·삭제 + 카테고리 필터). 통합 UI overhaul (커스텀 헤더 + 일관된 X 닫기 버튼 + transparency 통일).
 **저장소**: https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode (`main` 브랜치)
 **프로젝트 루트**: `E:/Games/龙胤立志传.v1.0.0f8.2/LongYinLiZhiZhuan/Save/_PlayerExport/`
 **Releases**:
@@ -20,17 +20,29 @@
 - [v0.6.2](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.6.2) — 무공 돌파속성 (extraAddData / speEquipData / speUseData / equipUseSpeAddValue / damageUseSpeAddValue / belongHeroID 등) 풀 복원 + Stat snapshot/restore (Stat unchecked 시 부수효과 보호)
 - [v0.6.3](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.6.3) — 2D nested list (treasure.playerGuessTreasureLv 등 List<List<int>>) 풀 복원. ApplyJsonArray 가 nested element type 의 inner list 인스턴스 신규 생성 후 recurse.
 - [v0.6.4](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.6.4) — partPosture (체형 등 외형 sub-data) 복원. SerializerService 가 player.partPosture.partPosture (List<float>) 의 값을 `_partPostureFloats` 배열로 JSON inject + AppearanceApplier 가 reflection clear+add. JsonConvert 가 IL2CPP wrapper 제외하는 issue 우회.
+- [v0.7.0](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.7.0) — F11 진입 메뉴 (캐릭터 관리 / 컨테이너 관리) + 컨테이너 기능 (인벤토리/창고 ↔ 외부 디스크 컨테이너 이동·복사·삭제). 통합 UI overhaul (커스텀 thicker 헤더 + 흰색 bold 제목 + 일관된 X 닫기 버튼 + 일관된 transparency).
 
-## v0.6.4 Known Limitations
-- **무공 list만 단독 Apply 시 active 장착 정보 손실**: KungfuList rebuild 가 list 를 clear+재추가하므로 직전 active 장착이 unequip 됨. 의도된 동작 — 무공 active 도 같이 체크 권장.
-- **Stat 미체크 시 일부 max/derived 값 부정확**: baseAttri / maxAttri 는 reflection 으로 복원되나 game 의 update loop 가 equipment / kungfu 변경에 따라 max stats 재계산 가능.
+## v0.7.0 Known Limitations
+- **무공 list만 단독 Apply 시 active 장착 정보 손실** (의도된 동작 — 무공 active 도 같이 체크 권장).
+- **Stat 미체크 시 일부 max/derived 값 부정확** (game update loop 한계 — best-effort).
+- **컨테이너 → 게임 인벤토리 가득 참 시 부분 처리**: 처리 가능 갯수만 추가, 실패 항목은 컨테이너에 남김 + 토스트 알림.
+- **Item 상세 정보 / 아이콘 그리드 / 정렬 / 검색 / 설정 panel** 은 v0.7.x+ 후속 (NPC 지원 / Slot diff / Apply preview 와 함께 후속 sub-project).
 
 ---
 
 ## 1. 한 줄 요약
 
 BepInEx 6 IL2CPP 환경에서 플레이어 캐릭터 스냅샷을 20슬롯에 저장 / 관리하는 모드.
-**현재 main baseline = v0.6.4** (selection-aware Apply / Restore + 13-카테고리 체크박스 UI + 외형 풀 복원 (faceData + skinColorDark + voicePitch + partPosture)).
+**현재 main baseline = v0.7.0** (F11 진입 메뉴 + 캐릭터 관리 (13-카테고리 체크박스) + 컨테이너 관리 (인벤토리/창고 ↔ 외부 디스크)).
+
+**다음 세션 후속 sub-project** (모두 v0.7.0 의 ModeSelector 진입점 활용):
+- v0.7.1: NPC 지원 — 캐릭터 선택 + apply target 확장 (heroID=0 외 다른 캐릭터)
+- v0.7.2: Slot diff preview — Apply 전 어떤 필드가 바뀔지 미리보기 (스탯/장비/무공 차이 시각화)
+- v0.7.3: Apply 부분 미리보기 — 선택한 카테고리 적용 시 전후 비교
+- v0.7.4: 컨테이너 UX 개선 — Item 상세 정보 panel / 아이콘 그리드 / 검색·정렬
+- v0.7.5+: 설정 panel — hotkey 변경 / 컨테이너 정원 / 창 크기 조정
+
+각 sub-project 는 별도 brainstorming → spec → plan → impl cycle. 진입점은 ModeSelector 메뉴에 항목 추가.
 
 **v0.5 PoC dual-track (외형 + 무공 active) — 양쪽 FAIL → release 안 함**:
 - 외형 (G1 FAIL): `portraitID` field 부재. 진짜 외형 = `faceData / partPosture` sub-data wrapper graph (v0.4 ItemData 와 동일 패턴) → v0.6 통합 작업으로 deferred.

@@ -41,14 +41,22 @@ public sealed class ModWindow : MonoBehaviour
     {
         get
         {
-            if (_instance == null || !_instance._visible) return false;
+            if (_instance == null) return false;
+
+            var mp      = Input.mousePosition;
+            var screenY = Screen.height - mp.y;
+            var pos     = new Vector2(mp.x, screenY);
+
+            // v0.7.0 — ModeSelector 메뉴 / ContainerPanel 영역도 차단
+            if (_instance._modeSelector.MenuVisible && _instance._modeSelector.WindowRect.Contains(pos)) return true;
+            if (_instance._containerPanel.Visible    && _instance._containerPanel.WindowRect.Contains(pos)) return true;
+
+            if (!_instance._visible) return false;
             if (_instance._confirm.IsVisible
                 || _instance._input.IsVisible
                 || _instance._picker.IsVisible) return true;
 
-            var mp      = Input.mousePosition;
-            var screenY = Screen.height - mp.y;
-            return _instance._rect.Contains(new Vector2(mp.x, screenY));
+            return _instance._rect.Contains(pos);
         }
     }
 
@@ -604,6 +612,10 @@ public sealed class ModWindow : MonoBehaviour
         }
     }
 
+    private ModeSelector.Mode _lastSeenMode = ModeSelector.Mode.None;
+    private bool _lastVisible = false;
+    private bool _lastContainerVisible = false;
+
     private void Update()
     {
         // v0.7.0 — F11 단독: 모드 선택 메뉴 / F11+1: 캐릭터 / F11+2: 컨테이너
@@ -611,28 +623,43 @@ public sealed class ModWindow : MonoBehaviour
         if (HotkeyMap.CharacterShortcut())
         {
             _modeSelector.SetMode(ModeSelector.Mode.Character);
-            if (!_visible) Toggle();
-            _containerPanel.Visible = false;
+            // SetMode 가 transition 발생시킴 — 아래 transition handler 가 처리
         }
         if (HotkeyMap.ContainerShortcut())
         {
             _modeSelector.SetMode(ModeSelector.Mode.Container);
-            _containerPanel.Visible = true;
-            if (_visible) Toggle();
-            RefreshAllContainerRows();
         }
-        // ModeSelector 가 메뉴에서 모드 선택한 경우
-        if (_modeSelector.CurrentMode == ModeSelector.Mode.Character && !_visible)
+
+        // ModeSelector 의 mode 변경을 transition 으로 처리 — 매 프레임 polling 안 함.
+        if (_modeSelector.CurrentMode != _lastSeenMode)
         {
-            Toggle();
-            _containerPanel.Visible = false;
+            _lastSeenMode = _modeSelector.CurrentMode;
+            if (_modeSelector.CurrentMode == ModeSelector.Mode.Character)
+            {
+                if (!_visible) Toggle();
+                _containerPanel.Visible = false;
+            }
+            else if (_modeSelector.CurrentMode == ModeSelector.Mode.Container)
+            {
+                _containerPanel.Visible = true;
+                if (_visible) Toggle();
+                RefreshAllContainerRows();
+            }
         }
-        else if (_modeSelector.CurrentMode == ModeSelector.Mode.Container && !_containerPanel.Visible)
+
+        // X 닫기 검출 — visible 이 true → false 로 변경 시 mode 리셋해서 재오픈 허용.
+        if (_lastVisible && !_visible)
         {
-            _containerPanel.Visible = true;
-            if (_visible) Toggle();
-            RefreshAllContainerRows();
+            _modeSelector.SetMode(ModeSelector.Mode.None);
+            _lastSeenMode = ModeSelector.Mode.None;
         }
+        if (_lastContainerVisible && !_containerPanel.Visible)
+        {
+            _modeSelector.SetMode(ModeSelector.Mode.None);
+            _lastSeenMode = ModeSelector.Mode.None;
+        }
+        _lastVisible = _visible;
+        _lastContainerVisible = _containerPanel.Visible;
 
         // v0.5.3 Spike — F12 trigger, mod 창 visible 동안 1-3 으로 Mode 직접 설정 (release 전 cleanup)
         if (Input.GetKeyDown(KeyCode.F12)) Core.Probes.ProbeRunner.Trigger();
@@ -681,8 +708,7 @@ public sealed class ModWindow : MonoBehaviour
         // 다이얼로그 표시 중에는 메인 창 입력을 차단해 modal 효과를 만든다.
         bool modal = _confirm.IsVisible || _input.IsVisible || _picker.IsVisible;
         GUI.enabled = !modal;
-        _rect = GUILayout.Window(WindowId, _rect, (GUI.WindowFunction)DrawWindow,
-                                 KoreanStrings.AppTitle);
+        _rect = GUILayout.Window(WindowId, _rect, (GUI.WindowFunction)DrawWindow, "");
         GUI.enabled = true;
 
         _confirm.Draw();
@@ -699,11 +725,19 @@ public sealed class ModWindow : MonoBehaviour
     private void DrawWindow(int id)
     {
         DialogStyle.FillBackground(_rect.width, _rect.height);
+        DialogStyle.DrawHeader(_rect.width, KoreanStrings.AppTitle);
+
+        // v0.7.0 — 닫기 X 버튼 (창 우상단) — 헤더 높이 28 안에 배치
+        if (GUI.Button(new Rect(_rect.width - 28, 4, 22, 20), "X"))
+            Toggle();
+
+        GUILayout.Space(DialogStyle.HeaderHeight);
         GUILayout.BeginHorizontal();
         _list.Draw(Repo, 240f);
         GUILayout.Space(8);
         _detail.Draw(Repo.All[_list.Selected], inGame: Core.HeroLocator.IsInGame(), cap: Capabilities);
         GUILayout.EndHorizontal();
-        GUI.DragWindow(new Rect(0, 0, 10000, 24));
+        // DragWindow 영역 — 헤더 전체 (X 버튼 제외)
+        GUI.DragWindow(new Rect(0, 0, _rect.width - 32, DialogStyle.HeaderHeight));
     }
 }

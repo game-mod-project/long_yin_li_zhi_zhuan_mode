@@ -24,6 +24,7 @@ public sealed class ContainerPanel
     }
 
     public bool Visible { get; set; } = false;
+    public Rect WindowRect => _rect;
     private Rect _rect = new Rect(150, 100, 800, 600);
     private const int WindowID = 0x4C593732;  // "LY72"
 
@@ -97,11 +98,20 @@ public sealed class ContainerPanel
     public void OnGUI()
     {
         if (!Visible) return;
-        _rect = GUI.Window(WindowID, _rect, (GUI.WindowFunction)Draw, "컨테이너 관리");
+        _rect = GUI.Window(WindowID, _rect, (GUI.WindowFunction)Draw, "");
     }
 
     private void Draw(int id)
     {
+        DialogStyle.FillBackground(_rect.width, _rect.height);
+        DialogStyle.DrawHeader(_rect.width, "컨테이너 관리");
+
+        // 닫기 버튼 (창 우상단) — 헤더 높이 28 안에 배치
+        if (GUI.Button(new Rect(_rect.width - 28, 4, 22, 20), "X"))
+            Visible = false;
+
+        // content 시작 — 헤더 28 + 여백 4
+        GUILayout.Space(DialogStyle.HeaderHeight);
         DrawCategoryTabs();
         GUILayout.Space(4);
         GUILayout.BeginHorizontal();
@@ -110,7 +120,8 @@ public sealed class ContainerPanel
         DrawRightColumn();
         GUILayout.EndHorizontal();
         DrawToast();
-        GUI.DragWindow(new Rect(0, 0, _rect.width, 20));
+        // DragWindow 영역 — 헤더 전체 (X 버튼 제외)
+        GUI.DragWindow(new Rect(0, 0, _rect.width - 32, DialogStyle.HeaderHeight));
     }
 
     private void DrawCategoryTabs()

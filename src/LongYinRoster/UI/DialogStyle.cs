@@ -12,6 +12,8 @@ namespace LongYinRoster.UI;
 public static class DialogStyle
 {
     private static readonly Color OverlayTint = new(0f, 0f, 0f, 0.85f);
+    private static readonly Color HeaderTint  = new(0.15f, 0.15f, 0.20f, 1.0f);
+    public  const float HeaderHeight = 28f;
 
     /// <summary>DrawWindow callback 시작에 호출. 좌표는 window-local (0,0 = top-left).</summary>
     public static void FillBackground(float width, float height)
@@ -20,5 +22,23 @@ public static class DialogStyle
         GUI.color = OverlayTint;
         GUI.DrawTexture(new Rect(0f, 0f, width, height), Texture2D.whiteTexture);
         GUI.color = prev;
+    }
+
+    /// <summary>창 상단에 두꺼운 header bar + 흰색 bold 제목 오버레이.
+    /// FillBackground 다음에 호출. content 는 y=HeaderHeight (28) 부터 시작.</summary>
+    public static void DrawHeader(float width, string title)
+    {
+        var prevColor = GUI.color;
+        GUI.color = HeaderTint;
+        GUI.DrawTexture(new Rect(0f, 0f, width, HeaderHeight), Texture2D.whiteTexture);
+        GUI.color = Color.white;
+        var prevAlign = GUI.skin.label.alignment;
+        var prevSize  = GUI.skin.label.fontSize;
+        GUI.skin.label.alignment = TextAnchor.MiddleCenter;
+        GUI.skin.label.fontSize  = 15;
+        GUI.Label(new Rect(0f, 0f, width, HeaderHeight), title);
+        GUI.skin.label.alignment = prevAlign;
+        GUI.skin.label.fontSize  = prevSize;
+        GUI.color = prevColor;
     }
 }
