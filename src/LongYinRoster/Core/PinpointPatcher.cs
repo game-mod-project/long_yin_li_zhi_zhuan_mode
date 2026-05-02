@@ -429,56 +429,15 @@ public static class PinpointPatcher
     }
 
     /// <summary>
-    /// v0.4 — selfStorage.allItem rebuild. selfStorage 에는 LoseAllItem 동등 method 없음 —
-    /// IL2CppListOps.Clear 로 raw clear, 그다음 reflection-based Add 로 채움.
-    /// PoC Task A4 FAIL — Probe().SelfStorage=false 로 short-circuit (분기 미실행).
+    /// v0.5.3 — selfStorage 는 별도 sub-project (v0.6.x). capability false 로 short-circuit.
+    /// 인벤토리 (RebuildItemList) 와 패턴 동일 — ItemListApplier 패턴 mirror 후 enable 가능.
     /// </summary>
     private static void RebuildSelfStorage(JsonElement slot, object player, ApplySelection selection, ApplyResult res)
     {
         if (!selection.SelfStorage) { res.SkippedFields.Add("selfStorage (selection off)"); return; }
-        if (!Probe().SelfStorage)   { res.SkippedFields.Add("selfStorage (PoC failed — v0.5+ 후보)"); return; }
-
-        // Clear via raw IL2CppListOps (selfStorage 에는 LoseAllItem 동등 method 없음)
-        var storage = ReadFieldOrProperty(player, "selfStorage");
-        var allItem = storage != null ? ReadFieldOrProperty(storage, "allItem") : null;
-        if (allItem != null)
-        {
-            try { IL2CppListOps.Clear(allItem); }
-            catch (Exception ex) { res.WarnedFields.Add($"selfStorage clear — {ex.GetType().Name}: {ex.Message}"); }
-        }
-
-        // Add each from slot
-        if (!slot.TryGetProperty("selfStorage", out var ss) ||
-            !ss.TryGetProperty("allItem", out var arr) ||
-            arr.ValueKind != JsonValueKind.Array)
-        {
-            res.SkippedFields.Add("selfStorage — slot JSON 에 selfStorage.allItem 없음");
-            return;
-        }
-        int added = 0;
-        for (int i = 0; i < arr.GetArrayLength(); i++)
-        {
-            var entry = arr[i];
-            int id    = entry.TryGetProperty("itemID",    out var idEl) ? idEl.GetInt32() : -1;
-            int count = entry.TryGetProperty("itemCount", out var cEl)  ? cEl.GetInt32()  : 1;
-            if (id < 0) continue;
-            try
-            {
-                var itemData = ItemDataFactory.Create(id, count);
-                if (allItem != null)
-                {
-                    var addMethod = allItem.GetType().GetMethod("Add",
-                        System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
-                    addMethod?.Invoke(allItem, new[] { itemData });
-                }
-                added++;
-            }
-            catch (Exception ex)
-            {
-                res.WarnedFields.Add($"selfStorage[{i}] id={id} — {ex.GetType().Name}: {ex.Message}");
-            }
-        }
-        res.AppliedFields.Add($"selfStorage ({added}/{arr.GetArrayLength()})");
+        if (!Probe().SelfStorage)   { res.SkippedFields.Add("selfStorage (capability off — v0.6.x sub-project)"); return; }
+        // 활성화 시 ItemListApplier 패턴 mirror 으로 구현 (v0.6.x)
+        res.SkippedFields.Add("selfStorage — v0.6.x sub-project");
     }
 
     private static void RebuildHeroTagData(JsonElement slot, object player, ApplySelection selection, ApplyResult res)
