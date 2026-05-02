@@ -56,8 +56,6 @@ public sealed class ContainerPanel
     private bool   _renameMode = false;
     private string _newNameBuffer = "";
     private bool   _newMode = false;
-    private string _toastMsg = "";
-    private float  _toastUntil = 0f;
 
     // 호스트 callback 들 (Plugin.cs 가 wire)
     public Action<int>? OnContainerSelected;
@@ -81,9 +79,8 @@ public sealed class ContainerPanel
     public void SetContainerRows(List<ItemRow> rows) { _containerRows = rows; _containerChecks.Clear(); }
 
     /// <summary>
-    /// 컨테이너 panel 안 toast — global ToastService.Push 로 위임. 자체 DrawToast 의 FlexibleSpace
-    /// IL2CPP strip 회피 (v0.7.0.1 fix). _toastMsg / _toastUntil 자체는 legacy 필드로 잠시 유지
-    /// (다른 호출자 호환성), 그러나 DrawToast 는 더 이상 그리지 않음.
+    /// 컨테이너 panel 안 toast — global ToastService.Push 로 위임 (v0.7.0.1 fix:
+    /// 자체 DrawToast 의 GUILayout.FlexibleSpace IL2CPP strip 회피).
     /// </summary>
     public void Toast(string msg, float duration = 3.0f)
     {
