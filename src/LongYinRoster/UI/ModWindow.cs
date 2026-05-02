@@ -491,6 +491,8 @@ public sealed class ModWindow : MonoBehaviour
                 Core.Probes.ProbeRunner.SetMode(Core.Probes.ProbeItemList.Mode.Step2);
             else if (Input.GetKeyDown(KeyCode.Alpha3) || Input.GetKeyDown(KeyCode.Keypad3))
                 Core.Probes.ProbeRunner.SetMode(Core.Probes.ProbeItemList.Mode.Step3);
+            else if (Input.GetKeyDown(KeyCode.Alpha4) || Input.GetKeyDown(KeyCode.Keypad4))
+                Core.Probes.ProbeRunner.SetMode(Core.Probes.ProbeItemList.Mode.Step4);
         }
 
         if (_visible && Config.PauseGameWhileOpen.Value && Time.timeScale != 0f)

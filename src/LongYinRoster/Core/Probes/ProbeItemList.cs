@@ -14,7 +14,7 @@ namespace LongYinRoster.Core.Probes;
 /// </summary>
 public static class ProbeItemList
 {
-    public enum Mode { Step1, Step2, Step3 }
+    public enum Mode { Step1, Step2, Step3, Step4 }
 
     private const BindingFlags F = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
 
@@ -28,7 +28,63 @@ public static class ProbeItemList
             case Mode.Step1: RunStep1(player); break;
             case Mode.Step2: RunStep2(player); break;
             case Mode.Step3: RunStep3(player); break;
+            case Mode.Step4: RunStep4(player); break;
         }
+    }
+
+    /// <summary>
+    /// v0.5.3 Step 4 — ItemData wrapper shape dump (모든 property + field).
+    /// itemCount 의 진짜 field/property name 발견 위해.
+    /// </summary>
+    private static void RunStep4(object player)
+    {
+        var ild = ReadField(player, "itemListData");
+        if (ild == null) { Logger.Warn("Spike Step4: itemListData null"); return; }
+        var allItem = ReadField(ild, "allItem");
+        if (allItem == null) { Logger.Warn("Spike Step4: allItem null"); return; }
+
+        // 실제 item 가 있는 wrapper (itemID > 0) 의 첫 entry 찾기
+        int count = IL2CppListOps.Count(allItem);
+        object? sample = null;
+        for (int i = 0; i < count; i++)
+        {
+            var w = IL2CppListOps.Get(allItem, i);
+            if (w == null) continue;
+            int id = (int)(ReadField(w, "itemID") ?? 0);
+            if (id > 0) { sample = w; Logger.Info($"Spike Step4: sample at [{i}] itemID={id}"); break; }
+        }
+        if (sample == null) { Logger.Warn("Spike Step4: 실제 item sample 못 찾음"); return; }
+
+        var t = sample.GetType();
+        Logger.Info($"=== Spike Step4 — ItemData wrapper shape ({t.FullName}) ===");
+
+        Logger.Info("--- Properties ---");
+        foreach (var p in t.GetProperties(F))
+        {
+            if (p.GetIndexParameters().Length > 0) continue;
+            try
+            {
+                var v = p.GetValue(sample);
+                var vstr = v?.ToString() ?? "null";
+                if (vstr.Length > 80) vstr = vstr.Substring(0, 80) + "...";
+                Logger.Info($"property: {p.PropertyType.Name} {p.Name} = {vstr}");
+            }
+            catch (Exception ex) { Logger.Info($"property: {p.PropertyType.Name} {p.Name} = (read err: {ex.GetType().Name})"); }
+        }
+
+        Logger.Info("--- Fields ---");
+        foreach (var fld in t.GetFields(F))
+        {
+            try
+            {
+                var v = fld.GetValue(sample);
+                var vstr = v?.ToString() ?? "null";
+                if (vstr.Length > 80) vstr = vstr.Substring(0, 80) + "...";
+                Logger.Info($"field: {fld.FieldType.Name} {fld.Name} = {vstr}");
+            }
+            catch (Exception ex) { Logger.Info($"field: {fld.FieldType.Name} {fld.Name} = (read err: {ex.GetType().Name})"); }
+        }
+        Logger.Info("=== Spike Step4 end ===");
     }
 
     private static void RunStep1(object player)
