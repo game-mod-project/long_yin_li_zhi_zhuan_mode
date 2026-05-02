@@ -1,7 +1,7 @@
 # LongYin Roster Mod — 작업 핸드오프 문서
 
-**일시 중지**: 2026-05-02
-**진행 상태**: **v0.7.0 release** — F11 진입 메뉴 (캐릭터 관리 / 컨테이너 관리) + 컨테이너 기능 (인벤토리 / 창고 ↔ 외부 디스크 컨테이너 이동·복사·삭제 + 카테고리 필터). 통합 UI overhaul (커스텀 헤더 + 일관된 X 닫기 버튼 + transparency 통일).
+**일시 중지**: 2026-05-03
+**진행 상태**: **v0.7.0.1 hotfix release** — v0.7.0 의 3 critical bug 수정: 천부 Apply 후 휴식 시 천부 wipe 회귀 (#1, ManageTagTime + ClearAllTempTag Harmony patch + ApplyInProgress flag), ContainerPanel 높이 부족 (#2, 600→760 + ScrollView), ContainerPanel 진입 시 IL2CPP IMGUI cascade error 폭주 (#3, DrawToast no-op + Toast → ToastService.Push 위임 + try/catch 가드).
 **저장소**: https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode (`main` 브랜치)
 **프로젝트 루트**: `E:/Games/龙胤立志传.v1.0.0f8.2/LongYinLiZhiZhuan/Save/_PlayerExport/`
 **Releases**:
@@ -21,26 +21,28 @@
 - [v0.6.3](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.6.3) — 2D nested list (treasure.playerGuessTreasureLv 등 List<List<int>>) 풀 복원. ApplyJsonArray 가 nested element type 의 inner list 인스턴스 신규 생성 후 recurse.
 - [v0.6.4](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.6.4) — partPosture (체형 등 외형 sub-data) 복원. SerializerService 가 player.partPosture.partPosture (List<float>) 의 값을 `_partPostureFloats` 배열로 JSON inject + AppearanceApplier 가 reflection clear+add. JsonConvert 가 IL2CPP wrapper 제외하는 issue 우회.
 - [v0.7.0](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.7.0) — F11 진입 메뉴 (캐릭터 관리 / 컨테이너 관리) + 컨테이너 기능 (인벤토리/창고 ↔ 외부 디스크 컨테이너 이동·복사·삭제). 통합 UI overhaul (커스텀 thicker 헤더 + 흰색 bold 제목 + 일관된 X 닫기 버튼 + 일관된 transparency).
+- [v0.7.0.1](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.7.0.1) — Hotfix: 천부 휴식 회귀 (ManageTagTime + ClearAllTempTag Harmony Prefix/Postfix + ApplyInProgress flag) / ContainerPanel 높이 600→760 + ScrollView / DrawToast IL2CPP strip 우회 (FlexibleSpace 제거 + ToastService.Push 위임 + try/catch).
 
-## v0.7.0 Known Limitations
+## v0.7.0.1 Known Limitations
 - **무공 list만 단독 Apply 시 active 장착 정보 손실** (의도된 동작 — 무공 active 도 같이 체크 권장).
 - **Stat 미체크 시 일부 max/derived 값 부정확** (game update loop 한계 — best-effort).
 - **컨테이너 → 게임 인벤토리 가득 참 시 부분 처리**: 처리 가능 갯수만 추가, 실패 항목은 컨테이너에 남김 + 토스트 알림.
-- **Item 상세 정보 / 아이콘 그리드 / 정렬 / 검색 / 설정 panel** 은 v0.7.x+ 후속 (NPC 지원 / Slot diff / Apply preview 와 함께 후속 sub-project).
+- **컨테이너 ↔ 인벤토리/창고 destination 구분 / 용량 표시 / 용량 초과 가드 / Item 상세 / 아이콘 그리드 / 정렬·검색** 은 v0.7.1 sub-project (Container UX 개선) 에서 처리 — `docs/superpowers/dumps/2026-05-03-v0.7.1-container-ux-backlog.md`.
+- **천부 휴식 회귀 fix 의 잠재 wipe path**: 현재 검증된 시나리오는 휴식 1회 cycle. 추가 wipe path (set_heroTagData 직접 reassign 등) 발견 시 RestKeepHeroTagPatch 에 동일 패턴 추가.
 
 ---
 
 ## 1. 한 줄 요약
 
 BepInEx 6 IL2CPP 환경에서 플레이어 캐릭터 스냅샷을 20슬롯에 저장 / 관리하는 모드.
-**현재 main baseline = v0.7.0** (F11 진입 메뉴 + 캐릭터 관리 (13-카테고리 체크박스) + 컨테이너 관리 (인벤토리/창고 ↔ 외부 디스크)).
+**현재 main baseline = v0.7.0.1** (v0.7.0 + 3 critical hotfix: 천부 휴식 회귀, ContainerPanel 높이, ContainerOps cascade error).
 
-**다음 세션 후속 sub-project** (모두 v0.7.0 의 ModeSelector 진입점 활용):
-- v0.7.1: NPC 지원 — 캐릭터 선택 + apply target 확장 (heroID=0 외 다른 캐릭터)
-- v0.7.2: Slot diff preview — Apply 전 어떤 필드가 바뀔지 미리보기 (스탯/장비/무공 차이 시각화)
+**다음 세션 후속 sub-project** (사용자 2026-05-03 우선순위 — v0.7.0.1 smoke 도중 confirm + 4 신규 UX 보고 통합):
+- **v0.7.1: 컨테이너 UX 개선** — Item 상세 정보 panel / 아이콘 그리드 / 검색·정렬 + smoke 보고 4건 (이동/복사 destination 명시, 인벤토리/창고 용량 표시, 용량 초과 가드 toast). Backlog: `docs/superpowers/dumps/2026-05-03-v0.7.1-container-ux-backlog.md`.
+- v0.7.2: 설정 panel — hotkey 변경 / 컨테이너 정원 / 창 크기 조정
 - v0.7.3: Apply 부분 미리보기 — 선택한 카테고리 적용 시 전후 비교
-- v0.7.4: 컨테이너 UX 개선 — Item 상세 정보 panel / 아이콘 그리드 / 검색·정렬
-- v0.7.5+: 설정 panel — hotkey 변경 / 컨테이너 정원 / 창 크기 조정
+- v0.7.4: Slot diff preview — Apply 전 어떤 필드가 바뀔지 미리보기 (스탯/장비/무공 차이 시각화)
+- v0.7.5: NPC 지원 — 캐릭터 선택 + apply target 확장 (heroID=0 외 다른 캐릭터)
 
 각 sub-project 는 별도 brainstorming → spec → plan → impl cycle. 진입점은 ModeSelector 메뉴에 항목 추가.
 
