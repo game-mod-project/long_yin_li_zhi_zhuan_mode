@@ -123,25 +123,38 @@ public static class KungfuListApplier
         }
 
         // Add phase — wrapper 생성 + property set + GetSkill 호출
-        foreach (var entry in list)
+        // Issue: 첫 add 시 game-internal cache 의 silent fail 로 일부 wrapper 등록 안 됨 (사용자 검증 발견).
+        // Fix: read-back 검증 + 누락 시 재시도 (GetSkill 은 idempotent — 이미 있으면 무시).
+        for (int pass = 0; pass < 2; pass++)
         {
-            try
+            int beforePass = IL2CppListOps.Count(ksList);
+            foreach (var entry in list)
             {
-                var wrapper = wrapperCtor.Invoke(new object[] { entry.SkillID });
-                TrySetMember(wrapper, "lv", entry.Lv);
-                TrySetMember(wrapper, "fightExp", entry.FightExp);
-                TrySetMember(wrapper, "bookExp", entry.BookExp);
+                try
+                {
+                    var wrapper = wrapperCtor.Invoke(new object[] { entry.SkillID });
+                    TrySetMember(wrapper, "lv", entry.Lv);
+                    TrySetMember(wrapper, "fightExp", entry.FightExp);
+                    TrySetMember(wrapper, "bookExp", entry.BookExp);
 
-                // GetSkill(wrapper, false, false) — showInfo=false, speShow=false
-                InvokeMethod(player, AddMethodName, new object[] { wrapper, false, false });
-                res.AddedCount++;
+                    // GetSkill(wrapper, false, false) — showInfo=false, speShow=false
+                    InvokeMethod(player, AddMethodName, new object[] { wrapper, false, false });
+                }
+                catch (Exception ex)
+                {
+                    if (pass == 0)
+                        Logger.Warn($"KungfuList add pass={pass} skillID={entry.SkillID}: {ex.GetType().Name}: {ex.Message}");
+                }
             }
-            catch (Exception ex)
-            {
-                res.FailedCount++;
-                Logger.Warn($"KungfuList add skillID={entry.SkillID}: {ex.GetType().Name}: {ex.Message}");
-            }
+            int afterPass = IL2CppListOps.Count(ksList);
+            Logger.Info($"KungfuList add pass={pass}: count {beforePass} → {afterPass} (target={list.Count})");
+            if (afterPass >= list.Count) break;  // 모두 등록됨 — 두 번째 pass skip
         }
+
+        // Final count 으로 added/failed 결정
+        int finalCount = IL2CppListOps.Count(ksList);
+        res.AddedCount = finalCount;
+        res.FailedCount = System.Math.Max(0, list.Count - finalCount);
 
         Logger.Info($"KungfuList Apply done — removed={res.RemovedCount} added={res.AddedCount} failed={res.FailedCount}");
         return res;
