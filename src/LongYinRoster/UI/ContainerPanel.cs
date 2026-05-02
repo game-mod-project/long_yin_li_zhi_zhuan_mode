@@ -80,10 +80,14 @@ public sealed class ContainerPanel
     public void SetStorageRows(List<ItemRow> rows)   { _storageRows = rows; _storageChecks.Clear(); }
     public void SetContainerRows(List<ItemRow> rows) { _containerRows = rows; _containerChecks.Clear(); }
 
+    /// <summary>
+    /// 컨테이너 panel 안 toast — global ToastService.Push 로 위임. 자체 DrawToast 의 FlexibleSpace
+    /// IL2CPP strip 회피 (v0.7.0.1 fix). _toastMsg / _toastUntil 자체는 legacy 필드로 잠시 유지
+    /// (다른 호출자 호환성), 그러나 DrawToast 는 더 이상 그리지 않음.
+    /// </summary>
     public void Toast(string msg, float duration = 3.0f)
     {
-        _toastMsg = msg;
-        _toastUntil = Time.realtimeSinceStartup + duration;
+        ToastService.Push(msg, ToastKind.Info);
     }
 
     public int SelectedContainerIndex => _selectedContainerIdx;
@@ -99,30 +103,45 @@ public sealed class ContainerPanel
     public void OnGUI()
     {
         if (!Visible) return;
-        _rect = GUI.Window(WindowID, _rect, (GUI.WindowFunction)Draw, "");
+        try
+        {
+            _rect = GUI.Window(WindowID, _rect, (GUI.WindowFunction)Draw, "");
+        }
+        catch (System.Exception ex)
+        {
+            // v0.7.0.1 fix — IMGUI frame 폐기 회피. 미래 strip 회귀 발견 시 진단 가능.
+            Util.Logger.Warn($"ContainerPanel.OnGUI threw: {ex.GetType().Name}: {ex.Message}");
+        }
     }
 
     private void Draw(int id)
     {
-        DialogStyle.FillBackground(_rect.width, _rect.height);
-        DialogStyle.DrawHeader(_rect.width, "컨테이너 관리");
+        try
+        {
+            DialogStyle.FillBackground(_rect.width, _rect.height);
+            DialogStyle.DrawHeader(_rect.width, "컨테이너 관리");
 
-        // 닫기 버튼 (창 우상단) — 헤더 높이 28 안에 배치
-        if (GUI.Button(new Rect(_rect.width - 28, 4, 22, 20), "X"))
-            Visible = false;
+            // 닫기 버튼 (창 우상단) — 헤더 높이 28 안에 배치
+            if (GUI.Button(new Rect(_rect.width - 28, 4, 22, 20), "X"))
+                Visible = false;
 
-        // content 시작 — 헤더 28 + 여백 4
-        GUILayout.Space(DialogStyle.HeaderHeight);
-        DrawCategoryTabs();
-        GUILayout.Space(4);
-        GUILayout.BeginHorizontal();
-        DrawLeftColumn();
-        GUILayout.Space(4);
-        DrawRightColumn();
-        GUILayout.EndHorizontal();
-        DrawToast();
-        // DragWindow 영역 — 헤더 전체 (X 버튼 제외)
-        GUI.DragWindow(new Rect(0, 0, _rect.width - 32, DialogStyle.HeaderHeight));
+            // content 시작 — 헤더 28 + 여백 4
+            GUILayout.Space(DialogStyle.HeaderHeight);
+            DrawCategoryTabs();
+            GUILayout.Space(4);
+            GUILayout.BeginHorizontal();
+            DrawLeftColumn();
+            GUILayout.Space(4);
+            DrawRightColumn();
+            GUILayout.EndHorizontal();
+            DrawToast();
+            // DragWindow 영역 — 헤더 전체 (X 버튼 제외)
+            GUI.DragWindow(new Rect(0, 0, _rect.width - 32, DialogStyle.HeaderHeight));
+        }
+        catch (System.Exception ex)
+        {
+            Util.Logger.Warn($"ContainerPanel.Draw threw: {ex.GetType().Name}: {ex.Message}");
+        }
     }
 
     private void DrawCategoryTabs()
@@ -281,15 +300,8 @@ public sealed class ContainerPanel
 
     private void DrawToast()
     {
-        if (string.IsNullOrEmpty(_toastMsg)) return;
-        if (Time.realtimeSinceStartup > _toastUntil) { _toastMsg = ""; return; }
-        var prevColor = GUI.color;
-        GUI.color = Color.yellow;
-        GUILayout.BeginHorizontal();
-        GUILayout.FlexibleSpace();
-        GUILayout.Label(_toastMsg);
-        GUILayout.FlexibleSpace();
-        GUILayout.EndHorizontal();
-        GUI.color = prevColor;
+        // v0.7.0.1 fix — IL2CPP IMGUI 가 GUILayout.FlexibleSpace() 를 strip → 매 frame 호출 시
+        // unhandled exception → IMGUI frame 폐기 (사용자 보고 "UI 전부 날라감 → 다시 표시").
+        // global ToastService 로 통합. 본 method 는 backwards-compat 으로 남겨둠 (no-op).
     }
 }
