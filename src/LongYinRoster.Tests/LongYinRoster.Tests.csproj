@@ -110,5 +110,8 @@
     <Compile Include="../LongYinRoster/Containers/ContainerOps.cs">
       <Link>Containers/ContainerOps.cs</Link>
     </Compile>
+    <Compile Include="../LongYinRoster/Containers/ContainerOpsHelper.cs">
+      <Link>Containers/ContainerOpsHelper.cs</Link>
+    </Compile>
   </ItemGroup>
 </Project>
