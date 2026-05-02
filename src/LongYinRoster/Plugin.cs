@@ -14,7 +14,7 @@ public sealed class Plugin : BasePlugin
 {
     public const string GUID    = "com.deepe.longyinroster";
     public const string NAME    = "LongYin Roster Mod";
-    public const string VERSION = "0.6.4";
+    public const string VERSION = "0.7.0";
 
     public override void Load()
     {

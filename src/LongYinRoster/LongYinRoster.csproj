@@ -51,6 +51,10 @@
       <HintPath>$(BepInExInterop)/UnityEngine.IMGUIModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <Reference Include="UnityEngine.TextRenderingModule">
+      <HintPath>$(BepInExInterop)/UnityEngine.TextRenderingModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="UnityEngine.InputLegacyModule">
       <HintPath>$(BepInExInterop)/UnityEngine.InputLegacyModule.dll</HintPath>
       <Private>false</Private>

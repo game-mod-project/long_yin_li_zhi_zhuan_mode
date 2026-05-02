@@ -95,5 +95,20 @@
     <Compile Include="../LongYinRoster/Core/AppearanceApplier.cs">
       <Link>Core/AppearanceApplier.cs</Link>
     </Compile>
+    <Compile Include="../LongYinRoster/Containers/ContainerMetadata.cs">
+      <Link>Containers/ContainerMetadata.cs</Link>
+    </Compile>
+    <Compile Include="../LongYinRoster/Containers/ContainerFile.cs">
+      <Link>Containers/ContainerFile.cs</Link>
+    </Compile>
+    <Compile Include="../LongYinRoster/Containers/ContainerRepository.cs">
+      <Link>Containers/ContainerRepository.cs</Link>
+    </Compile>
+    <Compile Include="../LongYinRoster/Containers/ItemCategoryFilter.cs">
+      <Link>Containers/ItemCategoryFilter.cs</Link>
+    </Compile>
+    <Compile Include="../LongYinRoster/Containers/ContainerOps.cs">
+      <Link>Containers/ContainerOps.cs</Link>
+    </Compile>
   </ItemGroup>
 </Project>
