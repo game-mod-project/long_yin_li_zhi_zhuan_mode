@@ -1,7 +1,7 @@
 # LongYin Roster Mod — 작업 핸드오프 문서
 
-**일시 중지**: 2026-05-01
-**진행 상태**: **v0.4.0 main baseline 유지** + **v0.5 PoC 양쪽 FAIL — release 안 함** (PoC artifact / 발견 사항 dumps/ 보존, v0.6 통합 작업 후보).
+**일시 중지**: 2026-05-02
+**진행 상태**: **v0.5.1 release** — 무공 active 활성화 (UI cache invalidate + persistence 검증 완료). v0.5 PoC 의 미해결 issue 모두 해소.
 **저장소**: https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode (`main` 브랜치)
 **프로젝트 루트**: `E:/Games/龙胤立志传.v1.0.0f8.2/LongYinLiZhiZhuan/Save/_PlayerExport/`
 **Releases**:
@@ -10,13 +10,14 @@
 - [v0.3.0](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.3.0) — Apply (stat-backup) + Restore + save/reload 안전성
 - [v0.4.0](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.4.0) — 9-카테고리 체크박스 UI + 정체성 활성화 + 부상/충성/호감 영구 보존 회귀
 - (v0.5.0 — release 안 함 — 양쪽 PoC FAIL, dumps/2026-05-01-* 참고)
+- [v0.5.1](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.5.1) — 무공 active 활성화 (kungfuSkills.equiped + game 패턴 11-swap + UI cache invalidate + save persistence)
 
 ---
 
 ## 1. 한 줄 요약
 
 BepInEx 6 IL2CPP 환경에서 플레이어 캐릭터 스냅샷을 20슬롯에 저장 / 관리하는 모드.
-**현재 main baseline = v0.4.0** (selection-aware Apply / Restore + 9-카테고리 체크박스 UI + 정체성 활성화).
+**현재 main baseline = v0.5.1** (selection-aware Apply / Restore + 9-카테고리 체크박스 UI + 정체성 활성화).
 
 **v0.5 PoC dual-track (외형 + 무공 active) — 양쪽 FAIL → release 안 함**:
 - 외형 (G1 FAIL): `portraitID` field 부재. 진짜 외형 = `faceData / partPosture` sub-data wrapper graph (v0.4 ItemData 와 동일 패턴) → v0.6 통합 작업으로 deferred.

@@ -286,50 +286,23 @@ public static class PinpointPatcher
     }
 
     /// <summary>
-    /// v0.4 — 활성 무공 (nowActiveSkill) 별도 step. SetNowActiveSkill 은 KungfuSkillLvData
-    /// wrapper 인자 — player 의 kungfuSkills 리스트에서 skillID 매칭으로 찾아 전달.
-    /// PoC Task A3 FAIL — wrapper.lv 의 의미 불일치로 capability false 고정.
+    /// v0.5.1 — 무공 active full step. ActiveKungfuApplier (kungfuSkills[i].equiped + 11-swap
+    /// pattern + UI refresh) 호출. v0.4 의 SetNowActiveSkill 잘못된 path 교체.
     /// </summary>
     private static void SetActiveKungfu(JsonElement slot, object player, ApplySelection selection, ApplyResult res)
     {
         if (!selection.ActiveKungfu) { res.SkippedFields.Add("activeKungfu (selection off)"); return; }
-        if (!Probe().ActiveKungfu)   { res.SkippedFields.Add("activeKungfu (PoC failed — v0.5+ 후보)"); return; }
+        if (!Probe().ActiveKungfu)   { res.SkippedFields.Add("activeKungfu (capability off)"); return; }
 
-        if (!slot.TryGetProperty("nowActiveSkill", out var idEl) || idEl.ValueKind != JsonValueKind.Number)
+        var r = ActiveKungfuApplier.Apply(player, slot, selection);
+        if (r.Skipped)
         {
-            res.SkippedFields.Add("activeKungfu — nowActiveSkill not in slot JSON");
+            res.SkippedFields.Add($"activeKungfu — {r.Reason}");
             return;
         }
-        int targetID = idEl.GetInt32();
-
-        var ksList = ReadFieldOrProperty(player, "kungfuSkills");
-        if (ksList == null) { res.WarnedFields.Add("activeKungfu — kungfuSkills null"); return; }
-
-        int n = IL2CppListOps.Count(ksList);
-        object? wrapper = null;
-        for (int i = 0; i < n; i++)
-        {
-            var entry = IL2CppListOps.Get(ksList, i);
-            if (entry == null) continue;
-            var idVal = ReadFieldOrProperty(entry, "skillID")
-                     ?? ReadFieldOrProperty(entry, "ID");
-            if (idVal == null) continue;
-            if ((int)idVal == targetID) { wrapper = entry; break; }
-        }
-        if (wrapper == null)
-        {
-            res.WarnedFields.Add($"activeKungfu — player 가 skillID={targetID} 미보유 (kungfuSkills v0.5+ 후보)");
-            return;
-        }
-        try
-        {
-            InvokeMethod(player, "SetNowActiveSkill", new[] { wrapper });
-            res.AppliedFields.Add($"activeKungfu (skillID={targetID})");
-        }
-        catch (Exception ex)
-        {
-            res.WarnedFields.Add($"activeKungfu — {ex.GetType().Name}: {ex.Message}");
-        }
+        res.AppliedFields.Add($"activeKungfu (unequip={r.UnequipCount} equip={r.EquipCount} missing={r.MissingCount})");
+        if (r.MissingCount > 0)
+            res.WarnedFields.Add($"activeKungfu — {r.MissingCount} skillID 미보유 (v0.6 list sub-project)");
     }
 
     private static bool TryReadJsonValue(JsonElement slot, string path, Type type, out object? value)
@@ -569,6 +542,30 @@ public static class PinpointPatcher
             return;
         }
 
+        // v0.5.1 fix — 영구 천부 중복 추가 방지. ClearAllTempTag 가 영구 tag 는 clear 안 하므로
+        // slot JSON 의 영구 tag 가 player 에 이미 있으면 AddTag 호출 시 중복 추가됨. clear 후
+        // 시점의 player.heroTagData 의 tagID 를 수집해 already-exists 검사.
+        var existingHeroTagData = ReadFieldOrProperty(player, "heroTagData");
+        var existingTagIDs = new System.Collections.Generic.HashSet<int>();
+        if (existingHeroTagData != null)
+        {
+            try
+            {
+                int existCount = IL2CppListOps.Count(existingHeroTagData);
+                for (int j = 0; j < existCount; j++)
+                {
+                    var e = IL2CppListOps.Get(existingHeroTagData, j);
+                    if (e == null) continue;
+                    var tid = ReadFieldOrProperty(e, "tagID");
+                    if (tid is int tidInt) existingTagIDs.Add(tidInt);
+                }
+            }
+            catch (Exception ex)
+            {
+                res.WarnedFields.Add($"heroTagData existing scan — {ex.GetType().Name}: {ex.Message}");
+            }
+        }
+
         for (int i = 0; i < htd.GetArrayLength(); i++)
         {
             var entry = htd[i];
@@ -581,6 +578,13 @@ public static class PinpointPatcher
             if (id < 0)
             {
                 res.WarnedFields.Add($"heroTagData[{i}] — tagID field missing, skipping");
+                continue;
+            }
+
+            // v0.5.1 fix — already-exists 검사 (영구 천부 중복 방지)
+            if (existingTagIDs.Contains(id))
+            {
+                res.SkippedFields.Add($"heroTag[{id}] (이미 존재 — 중복 방지)");
                 continue;
             }
 
@@ -737,9 +741,10 @@ public static class PinpointPatcher
 
     private static bool ProbeActiveKungfuCapability(object p)
     {
-        // PoC A3 FAIL — semantic mapping wrong (wrapper.lv vs nowActiveSkill ID).
-        // Hardcoded false until v0.5+ resolves the semantic.
-        return false;
+        // v0.5.1 — Spike PASS 후 method path 확정 (kungfuSkills[i].equiped + EquipSkill/UnequipSkill).
+        // 두 method 모두 존재하면 capability ok.
+        return p.GetType().GetMethod("EquipSkill", F) != null
+            && p.GetType().GetMethod("UnequipSkill", F) != null;
     }
 
     private static bool ProbeItemListCapability(object p)
