@@ -481,6 +481,18 @@ public sealed class ModWindow : MonoBehaviour
     {
         if (Input.GetKeyDown(Config.ToggleHotkey.Value)) Toggle();
 
+        // v0.5.3 Spike — F12 trigger, mod 창 visible 동안 1-3 으로 Mode 직접 설정 (release 전 cleanup)
+        if (Input.GetKeyDown(KeyCode.F12)) Core.Probes.ProbeRunner.Trigger();
+        if (_visible)
+        {
+            if (Input.GetKeyDown(KeyCode.Alpha1) || Input.GetKeyDown(KeyCode.Keypad1))
+                Core.Probes.ProbeRunner.SetMode(Core.Probes.ProbeItemList.Mode.Step1);
+            else if (Input.GetKeyDown(KeyCode.Alpha2) || Input.GetKeyDown(KeyCode.Keypad2))
+                Core.Probes.ProbeRunner.SetMode(Core.Probes.ProbeItemList.Mode.Step2);
+            else if (Input.GetKeyDown(KeyCode.Alpha3) || Input.GetKeyDown(KeyCode.Keypad3))
+                Core.Probes.ProbeRunner.SetMode(Core.Probes.ProbeItemList.Mode.Step3);
+        }
+
         if (_visible && Config.PauseGameWhileOpen.Value && Time.timeScale != 0f)
             Time.timeScale = 0f;
     }
