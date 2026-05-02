@@ -113,6 +113,7 @@ public static class SlotFile
             w.WriteBoolean("selfStorage",  m.ApplySelection.SelfStorage);
             w.WriteBoolean("appearance",   m.ApplySelection.Appearance);  // v0.5
             w.WriteBoolean("kungfuList",   m.ApplySelection.KungfuList);  // v0.5.2
+            w.WriteBoolean("nowEquipment", m.ApplySelection.NowEquipment);// v0.6.0
             w.WriteEndObject();
 
             w.WriteEndObject();
