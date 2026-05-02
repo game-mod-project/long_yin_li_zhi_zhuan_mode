@@ -55,6 +55,24 @@ public static class KungfuListApplier
         return list;
     }
 
+    /// <summary>
+    /// v0.6.2 — JsonElement 직접 반환 (sub-data deep-copy 위해 raw entry 보존).
+    /// </summary>
+    private static IReadOnlyList<JsonElement> ExtractKungfuJsonEntries(JsonElement slot)
+    {
+        var list = new List<JsonElement>();
+        if (!slot.TryGetProperty("kungfuSkills", out var arr) || arr.ValueKind != JsonValueKind.Array)
+            return list;
+        for (int i = 0; i < arr.GetArrayLength(); i++)
+        {
+            var entry = arr[i];
+            if (entry.ValueKind != JsonValueKind.Object) continue;
+            if (!entry.TryGetProperty("skillID", out var idEl) || idEl.ValueKind != JsonValueKind.Number) continue;
+            list.Add(entry);
+        }
+        return list;
+    }
+
     public static Result Apply(object? player, JsonElement slot, ApplySelection sel)
     {
         var res = new Result();
@@ -122,6 +140,9 @@ public static class KungfuListApplier
             return res;
         }
 
+        // v0.6.2 — JsonElement 기반 entries 추출 (sub-data 풀 복원 위해)
+        var jsonEntries = ExtractKungfuJsonEntries(slot);
+
         // Add phase — wrapper 생성 + property set + GetSkill 호출
         // Issue: 첫 add 시 game-internal cache 의 silent fail 로 일부 wrapper 등록 안 됨 (사용자 검증 발견).
         // Fix: read-back 검증 + 누락 시 재시도 (GetSkill 은 idempotent — 이미 있으면 무시).
@@ -150,6 +171,40 @@ public static class KungfuListApplier
             Logger.Info($"KungfuList add pass={pass}: count {beforePass} → {afterPass} (target={list.Count})");
             if (afterPass >= list.Count) break;  // 모두 등록됨 — 두 번째 pass skip
         }
+
+        // v0.6.2 — sub-data deep-copy post-pass.
+        // 사용자 보고: 각 무공의 돌파속성 (extraAddData.heroSpeAddData) + speEquipData /
+        // speUseData / equipUseSpeAddValue / damageUseSpeAddValue / selfUseSpeAddValue /
+        // enemyUseSpeAddValue / equiped / belongHeroID 가 capture 시점 데이터 미적용.
+        // GetSkill 이 wrapper 를 list 에 추가 (혹은 별도 인스턴스 생성) 후 list 의 실제
+        // entry 를 찾아 ItemListApplier.ApplyJsonToObject 로 deep-copy.
+        int finalListCount = IL2CppListOps.Count(ksList);
+        var idToJson = new Dictionary<int, JsonElement>();
+        foreach (var je in jsonEntries)
+        {
+            if (je.TryGetProperty("skillID", out var idEl) && idEl.ValueKind == JsonValueKind.Number)
+                idToJson[idEl.GetInt32()] = je;
+        }
+        int subDataApplied = 0;
+        for (int i = 0; i < finalListCount; i++)
+        {
+            var listEntry = IL2CppListOps.Get(ksList, i);
+            if (listEntry == null) continue;
+            int skillID = -1;
+            try { skillID = Convert.ToInt32(ReadFieldOrProperty(listEntry, "skillID") ?? -1); } catch { }
+            if (skillID < 0) continue;
+            if (!idToJson.TryGetValue(skillID, out var je)) continue;
+            try
+            {
+                ItemListApplier.ApplyJsonToObject(je, listEntry, depth: 0);
+                subDataApplied++;
+            }
+            catch (Exception ex)
+            {
+                Logger.Info($"KungfuList sub-data skillID={skillID} copy: {ex.GetType().Name}: {ex.Message}");
+            }
+        }
+        Logger.Info($"KungfuList sub-data deep-copy: {subDataApplied} entries (돌파속성 / speEquipData / extraAddData / etc.)");
 
         // Final count 으로 added/failed 결정
         int finalCount = IL2CppListOps.Count(ksList);
