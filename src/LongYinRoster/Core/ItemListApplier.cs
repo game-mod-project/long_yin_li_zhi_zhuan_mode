@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Text.Json;
 using Logger = LongYinRoster.Util.Logger;
@@ -83,24 +84,34 @@ public static class ItemListApplier
             return res;
         }
 
+        // v0.5.3 진단 로그 — silent skip 추적용
+        Logger.Info($"ItemList Apply: extracted {list.Count} entries from slot JSON");
+        Logger.Info($"ItemList Apply: player type = {player.GetType().FullName}");
+
         var ild = ReadFieldOrProperty(player, "itemListData");
         if (ild == null)
         {
+            Logger.Info("ItemList Apply: player.itemListData null — reflection read 실패 또는 field 부재");
             res.Skipped = true;
             res.Reason = "itemListData null";
             return res;
         }
+        Logger.Info($"ItemList Apply: itemListData runtime type = {ild.GetType().FullName}");
+
         var allItem = ReadFieldOrProperty(ild, "allItem");
         if (allItem == null)
         {
+            Logger.Info("ItemList Apply: itemListData.allItem null");
             res.Skipped = true;
             res.Reason = "itemListData.allItem null";
             return res;
         }
+        Logger.Info($"ItemList Apply: allItem runtime type = {allItem.GetType().FullName}");
 
         // Wrapper type 발견
         Type? wrapperType = null;
         int initialCount = IL2CppListOps.Count(allItem);
+        Logger.Info($"ItemList Apply: allItem initialCount = {initialCount}");
         for (int i = 0; i < initialCount; i++)
         {
             var sample = IL2CppListOps.Get(allItem, i);
@@ -108,17 +119,53 @@ public static class ItemListApplier
         }
         if (wrapperType == null)
         {
+            Logger.Info("ItemList Apply: wrapperType null — allItem 의 모든 entry 가 null 또는 list 비어있음");
             res.Skipped = true;
             res.Reason = "wrapperType null (allItem empty before clear)";
             return res;
         }
+        Logger.Info($"ItemList Apply: wrapperType = {wrapperType.FullName}");
 
-        // Wrapper ctor 발견 — parameterless 우선 (모든 property reflection set)
-        var ctorParameterless = wrapperType.GetConstructor(F, null, Type.EmptyTypes, null);
-        if (ctorParameterless == null)
+        // v0.5.3 — IL2CppInterop wrapper 의 ctor 후보 진단 + 다중 fallback.
+        // ItemData 의 reflection 가능한 ctor 를 모두 dump 후 우선순위:
+        //   1) parameterless
+        //   2) (ItemType) — enum 1개 인자
+        //   3) (IntPtr) — IL2CppInterop base wrapping
+        Logger.Info($"ItemData ctors on {wrapperType.FullName}:");
+        ConstructorInfo? ctorParameterless = null;
+        ConstructorInfo? ctorItemType      = null;
+        ConstructorInfo? ctorIntPtr        = null;
+        Type? itemTypeEnum                 = null;
+        foreach (var ctor in wrapperType.GetConstructors(F))
+        {
+            var ps = ctor.GetParameters();
+            var sigStr = string.Join(", ", ps.Select(p => $"{p.ParameterType.FullName} {p.Name}"));
+            Logger.Info($"  ctor({sigStr})");
+            if (ps.Length == 0) ctorParameterless = ctor;
+            else if (ps.Length == 1)
+            {
+                if (ps[0].ParameterType.IsEnum && ps[0].ParameterType.Name == "ItemType")
+                {
+                    ctorItemType = ctor;
+                    itemTypeEnum = ps[0].ParameterType;
+                }
+                else if (ps[0].ParameterType == typeof(IntPtr))
+                    ctorIntPtr = ctor;
+            }
+        }
+
+        // 우선순위 결정
+        ConstructorInfo? chosenCtor = ctorParameterless ?? ctorItemType ?? ctorIntPtr;
+        string ctorChoice =
+            chosenCtor == ctorParameterless ? "parameterless" :
+            chosenCtor == ctorItemType      ? "ItemType-arg"  :
+            chosenCtor == ctorIntPtr        ? "IntPtr-zero"   : "(none)";
+        Logger.Info($"ItemList Apply: chosen ctor = {ctorChoice}");
+
+        if (chosenCtor == null)
         {
             res.Skipped = true;
-            res.Reason = $"wrapper parameterless ctor not found on {wrapperType.FullName}";
+            res.Reason = $"no usable ctor on {wrapperType.FullName} (parameterless / ItemType / IntPtr 모두 부재)";
             return res;
         }
 
@@ -147,7 +194,14 @@ public static class ItemListApplier
             {
                 try
                 {
-                    var wrapper = ctorParameterless.Invoke(null);
+                    object wrapper;
+                    if (chosenCtor == ctorParameterless)
+                        wrapper = chosenCtor.Invoke(null);
+                    else if (chosenCtor == ctorItemType)
+                        wrapper = chosenCtor.Invoke(new object[] { Enum.ToObject(itemTypeEnum!, entry.Type) });
+                    else  // IntPtr
+                        wrapper = chosenCtor.Invoke(new object[] { IntPtr.Zero });
+
                     TrySetMember(wrapper, "itemID", entry.ItemID);
                     TrySetEnumMember(wrapper, "type", entry.Type);
                     TrySetMember(wrapper, "subType", entry.SubType);

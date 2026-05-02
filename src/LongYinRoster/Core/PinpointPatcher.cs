@@ -33,6 +33,13 @@ public static class PinpointPatcher
         // step 의 helper 가 HeroLocator.GetPlayer() 다시 호출하면 일관 보장.
         HeroLocator.InvalidateCache();
 
+        // v0.5.3 fix — Probe cache 도 SaveSlot 전환 후 stale 가능. 특히 Probe() 가
+        // 게임 진입 전 (player==null) 한 번이라도 호출되면 _capCache = AllOff 영구 캐시되어
+        // 모든 capability 가 false 로 잠김. Apply 진입 시 강제 invalidate 로 다음 Probe()
+        // 가 fresh fetch 보장. (ModWindow 의 토글 UI 가 Probe.X false 시 비활성화되므로
+        // 사용자 체감으로는 "토글했는데 적용 안 됨" 형태로 나타남.)
+        InvalidateProbeCache();
+
         var res = new ApplyResult();
         using var doc = JsonDocument.Parse(slotPlayerJson);
         var slot = doc.RootElement;
@@ -418,11 +425,22 @@ public static class PinpointPatcher
     /// </summary>
     private static void RebuildItemList(JsonElement slot, object player, ApplySelection selection, ApplyResult res)
     {
+        // v0.5.3 진단 로그 — 사용자 보고 "인벤토리 반영안됨" 추적용. selection / probe
+        // 값을 명시 출력해 어느 게이트에서 막혔는지 식별.
+        var probeItem = Probe().ItemList;
+        Logger.Info($"RebuildItemList gate: selection.ItemList={selection.ItemList} Probe.ItemList={probeItem}");
         if (!selection.ItemList) { res.SkippedFields.Add("itemList (selection off)"); return; }
-        if (!Probe().ItemList)   { res.SkippedFields.Add("itemList (capability off)"); return; }
+        if (!probeItem)          { res.SkippedFields.Add("itemList (capability off)"); return; }
 
         var r = ItemListApplier.Apply(player, slot, selection);
-        if (r.Skipped) { res.SkippedFields.Add($"itemList — {r.Reason}"); return; }
+        if (r.Skipped)
+        {
+            // v0.5.3 진단 — skip reason 을 SkippedFields list 에만 묻으면 사용자 BepInEx
+            // log 에서 거의 안 보임. Info 레벨로 즉시 출력.
+            Logger.Info($"ItemList Apply skipped: {r.Reason}");
+            res.SkippedFields.Add($"itemList — {r.Reason}");
+            return;
+        }
         res.AppliedFields.Add($"itemList (removed={r.RemovedCount} added={r.AddedCount} failed={r.FailedCount})");
         if (r.FailedCount > 0)
             res.WarnedFields.Add($"itemList — {r.FailedCount} entries failed");
@@ -657,7 +675,10 @@ public static class PinpointPatcher
     {
         if (_capCache != null) return _capCache;
         var p = HeroLocator.GetPlayer();
-        if (p == null) return _capCache = Capabilities.AllOff();
+        // v0.5.3 fix — player==null 일 때 cache 하지 않음. 메인 메뉴 / 게임 진입 전
+        // 시점에 Probe() 가 호출되면 AllOff 가 영구 캐싱되어 게임 진입 후에도 모든
+        // capability 가 false 로 잠긴다. cache 미저장으로 다음 호출 시 retry 가능.
+        if (p == null) return Capabilities.AllOff();
 
         bool identity     = ProbeIdentityCapability(p);
         bool activeKungfu = ProbeActiveKungfuCapability(p);
