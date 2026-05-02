@@ -16,7 +16,7 @@ public static class ProbeRunner
     public static void CycleMode()
     {
         var cur = Mode;
-        Mode = (ProbeKungfuList.Mode)(((int)cur + 1) % 5);
+        Mode = (ProbeKungfuList.Mode)(((int)cur + 1) % 6);
         Logger.Info($"ProbeRunner.Mode = {Mode}");
     }
 }

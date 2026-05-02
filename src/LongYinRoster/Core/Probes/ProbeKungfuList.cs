@@ -18,7 +18,7 @@ namespace LongYinRoster.Core.Probes;
 /// </summary>
 public static class ProbeKungfuList
 {
-    public enum Mode { Step1, Step2, Step3, Step4, Step5 }
+    public enum Mode { Step1, Step2, Step3, Step4, Step5, Step6 }
 
     private const BindingFlags F = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
 
@@ -40,6 +40,7 @@ public static class ProbeKungfuList
             case Mode.Step3: RunStep3(player, ksList); break;
             case Mode.Step4: RunStep4(player, ksList); break;
             case Mode.Step5: RunStep5(ksList, n); break;
+            case Mode.Step6: RunStep6(ksList); break;
         }
     }
 
@@ -63,7 +64,7 @@ public static class ProbeKungfuList
 
     private static void RunStep2(object player, object ksList)
     {
-        string[] candidates = { "LoseAllKungfu", "ClearAllKungfu", "RemoveAllKungfu", "ClearKungfu", "LoseKungfu" };
+        string[] candidates = { "LoseAllSkill", "LoseAllKungfu", "ClearAllKungfu", "RemoveAllKungfu", "ClearKungfu", "LoseKungfu" };
         foreach (var name in candidates)
         {
             var m = player.GetType().GetMethod(name, F, null, Type.EmptyTypes, null);
@@ -116,6 +117,44 @@ public static class ProbeKungfuList
     private static void RunStep4(object player, object ksList)
     {
         Logger.Info("Spike Step4: 통합 시나리오는 Step 1-3 분석 후 implementation 단계에서 검증");
+    }
+
+    /// <summary>
+    /// v0.5.2 Step 6 — KungfuSkillLvData wrapper type 자체의 ctor / static factory dump.
+    /// Step 1 의 method dump 결과 add method 가 wrapper 인자 (GetSkill(KungfuSkillLvData, ...)).
+    /// wrapper ctor 발견 위해 type 의 ctor + static method 모두 dump.
+    /// </summary>
+    private static void RunStep6(object ksList)
+    {
+        // 첫 wrapper 의 type 사용 (ksList 가 비어있지 않다고 가정)
+        if (IL2CppListOps.Count(ksList) == 0)
+        {
+            Logger.Warn("Spike Step6: ksList 비어있음 — wrapper type 알 수 없음. game 안에서 ksList 채워진 상태에서 시도");
+            return;
+        }
+        var sample = IL2CppListOps.Get(ksList, 0);
+        if (sample == null) { Logger.Warn("Spike Step6: sample wrapper null"); return; }
+        var wrapperType = sample.GetType();
+        Logger.Info($"=== Spike Step6 — KungfuSkillLvData ({wrapperType.FullName}) dump ===");
+
+        // Constructors
+        Logger.Info("--- Constructors ---");
+        foreach (var ctor in wrapperType.GetConstructors(F | BindingFlags.Static))
+        {
+            var ps = ctor.GetParameters();
+            var sig = string.Join(", ", System.Linq.Enumerable.Select(ps, p => $"{p.ParameterType.Name} {p.Name}"));
+            Logger.Info($"ctor: ({sig})");
+        }
+
+        // Static methods (factory 후보)
+        Logger.Info("--- Static methods ---");
+        foreach (var m in wrapperType.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static))
+        {
+            var ps = m.GetParameters();
+            var sig = string.Join(", ", System.Linq.Enumerable.Select(ps, p => $"{p.ParameterType.Name} {p.Name}"));
+            Logger.Info($"static: {m.ReturnType.Name} {m.Name}({sig})");
+        }
+        Logger.Info("=== Spike Step6 end ===");
     }
 
     private static void RunStep5(object ksList, int n)
