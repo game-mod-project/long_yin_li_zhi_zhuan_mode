@@ -411,42 +411,21 @@ public static class PinpointPatcher
     /// v0.4 — itemListData.allItem rebuild. LoseAllItem clear → GetItem(itemData) 반복.
     /// PoC Task A4 FAIL — ItemDataFactory.IsAvailable=false 로 capability false 고정.
     /// </summary>
+    /// <summary>
+    /// v0.5.3 — 인벤토리 list Replace. ItemListApplier (LoseAllItem clear + parameterless ctor +
+    /// 모든 property reflection set + GetItem add + 2-pass retry) 호출. v0.4 stub 의
+    /// ItemDataFactory 의존 제거.
+    /// </summary>
     private static void RebuildItemList(JsonElement slot, object player, ApplySelection selection, ApplyResult res)
     {
         if (!selection.ItemList) { res.SkippedFields.Add("itemList (selection off)"); return; }
-        if (!Probe().ItemList)   { res.SkippedFields.Add("itemList (PoC failed — v0.5+ 후보)"); return; }
+        if (!Probe().ItemList)   { res.SkippedFields.Add("itemList (capability off)"); return; }
 
-        // Clear via game-self LoseAllItem
-        try { InvokeMethod(player, "LoseAllItem", System.Array.Empty<object>()); }
-        catch (Exception ex) { res.WarnedFields.Add($"itemList clear — {ex.GetType().Name}: {ex.Message}"); }
-
-        // Add each from slot
-        if (!slot.TryGetProperty("itemListData", out var ild) ||
-            !ild.TryGetProperty("allItem", out var arr) ||
-            arr.ValueKind != JsonValueKind.Array)
-        {
-            res.SkippedFields.Add("itemList — slot JSON 에 itemListData.allItem 없음");
-            return;
-        }
-        int added = 0;
-        for (int i = 0; i < arr.GetArrayLength(); i++)
-        {
-            var entry = arr[i];
-            int id    = entry.TryGetProperty("itemID",    out var idEl) ? idEl.GetInt32() : -1;
-            int count = entry.TryGetProperty("itemCount", out var cEl)  ? cEl.GetInt32()  : 1;
-            if (id < 0) continue;
-            try
-            {
-                var itemData = ItemDataFactory.Create(id, count);
-                InvokeMethod(player, "GetItem", new object?[] { itemData });
-                added++;
-            }
-            catch (Exception ex)
-            {
-                res.WarnedFields.Add($"itemList[{i}] id={id} — {ex.GetType().Name}: {ex.Message}");
-            }
-        }
-        res.AppliedFields.Add($"itemList ({added}/{arr.GetArrayLength()})");
+        var r = ItemListApplier.Apply(player, slot, selection);
+        if (r.Skipped) { res.SkippedFields.Add($"itemList — {r.Reason}"); return; }
+        res.AppliedFields.Add($"itemList (removed={r.RemovedCount} added={r.AddedCount} failed={r.FailedCount})");
+        if (r.FailedCount > 0)
+            res.WarnedFields.Add($"itemList — {r.FailedCount} entries failed");
     }
 
     /// <summary>
@@ -759,10 +738,9 @@ public static class PinpointPatcher
 
     private static bool ProbeItemListCapability(object p)
     {
-        // PoC A4 FAIL — sub-data wrapper graph (equipmentData/medFoodData/etc) unsolved.
-        // ItemDataFactory.IsAvailable returns false in v0.4 stub. Both gates must pass.
-        return ItemDataFactory.IsAvailable
-            && p.GetType().GetMethod("LoseAllItem", F) != null
+        // v0.5.3 — ItemDataFactory 폐기. method 존재 검사만.
+        // ItemData ctor 검사는 ItemListApplier.Apply 시 lazy.
+        return p.GetType().GetMethod("LoseAllItem", F, null, Type.EmptyTypes, null) != null
             && p.GetType().GetMethod("GetItem", F) != null;
     }
 
