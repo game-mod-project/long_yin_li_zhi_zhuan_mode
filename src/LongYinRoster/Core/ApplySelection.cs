@@ -20,6 +20,7 @@ public sealed class ApplySelection
     public bool ItemList    { get; set; } = false;
     public bool SelfStorage { get; set; } = false;
     public bool Appearance  { get; set; } = false;
+    public bool KungfuList  { get; set; } = false;   // v0.5.2
 
     public static ApplySelection V03Default() => new();
 
@@ -28,11 +29,13 @@ public sealed class ApplySelection
         Stat = true, Honor = true, TalentTag = true, Skin = true,
         SelfHouse = true, Identity = true, ActiveKungfu = true,
         ItemList = true, SelfStorage = true, Appearance = true,
+        KungfuList = true,
     };
 
     public bool AnyEnabled() =>
         Stat || Honor || TalentTag || Skin || SelfHouse ||
-        Identity || ActiveKungfu || ItemList || SelfStorage || Appearance;
+        Identity || ActiveKungfu || ItemList || SelfStorage || Appearance ||
+        KungfuList;
 
     public static string ToJson(ApplySelection s)
     {
@@ -50,6 +53,7 @@ public sealed class ApplySelection
             w.WriteBoolean("itemList",     s.ItemList);
             w.WriteBoolean("selfStorage",  s.SelfStorage);
             w.WriteBoolean("appearance",   s.Appearance);
+            w.WriteBoolean("kungfuList",   s.KungfuList);
             w.WriteEndObject();
         }
         return Encoding.UTF8.GetString(ms.ToArray());
@@ -76,6 +80,7 @@ public sealed class ApplySelection
         s.ItemList     = Read("itemList",     s.ItemList);
         s.SelfStorage  = Read("selfStorage",  s.SelfStorage);
         s.Appearance   = Read("appearance",   s.Appearance);
+        s.KungfuList   = Read("kungfuList",   s.KungfuList);
         return s;
     }
 
@@ -97,6 +102,7 @@ public sealed class ApplySelection
         s.ItemList     = Read("itemList",     s.ItemList);
         s.SelfStorage  = Read("selfStorage",  s.SelfStorage);
         s.Appearance   = Read("appearance",   s.Appearance);
+        s.KungfuList   = Read("kungfuList",   s.KungfuList);
         return s;
     }
 }

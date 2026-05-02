@@ -87,6 +87,8 @@ public static class KoreanStrings
     public const string Cat_SelfStorage     = "창고";
     // v0.5 — 외형 카테고리
     public const string Cat_Appearance      = "외형";
+    // v0.5.2 — 무공 list 카테고리
+    public const string Cat_KungfuList      = "무공 목록";
     public const string Cat_DisabledSuffix  = " (v0.5+ 후보)";
     public const string ApplySectionHeader  = "─── Apply 항목 ───";
 }
