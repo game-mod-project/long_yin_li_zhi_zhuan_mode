@@ -542,6 +542,30 @@ public static class PinpointPatcher
             return;
         }
 
+        // v0.5.1 fix — 영구 천부 중복 추가 방지. ClearAllTempTag 가 영구 tag 는 clear 안 하므로
+        // slot JSON 의 영구 tag 가 player 에 이미 있으면 AddTag 호출 시 중복 추가됨. clear 후
+        // 시점의 player.heroTagData 의 tagID 를 수집해 already-exists 검사.
+        var existingHeroTagData = ReadFieldOrProperty(player, "heroTagData");
+        var existingTagIDs = new System.Collections.Generic.HashSet<int>();
+        if (existingHeroTagData != null)
+        {
+            try
+            {
+                int existCount = IL2CppListOps.Count(existingHeroTagData);
+                for (int j = 0; j < existCount; j++)
+                {
+                    var e = IL2CppListOps.Get(existingHeroTagData, j);
+                    if (e == null) continue;
+                    var tid = ReadFieldOrProperty(e, "tagID");
+                    if (tid is int tidInt) existingTagIDs.Add(tidInt);
+                }
+            }
+            catch (Exception ex)
+            {
+                res.WarnedFields.Add($"heroTagData existing scan — {ex.GetType().Name}: {ex.Message}");
+            }
+        }
+
         for (int i = 0; i < htd.GetArrayLength(); i++)
         {
             var entry = htd[i];
@@ -554,6 +578,13 @@ public static class PinpointPatcher
             if (id < 0)
             {
                 res.WarnedFields.Add($"heroTagData[{i}] — tagID field missing, skipping");
+                continue;
+            }
+
+            // v0.5.1 fix — already-exists 검사 (영구 천부 중복 방지)
+            if (existingTagIDs.Contains(id))
+            {
+                res.SkippedFields.Add($"heroTag[{id}] (이미 존재 — 중복 방지)");
                 continue;
             }
 
