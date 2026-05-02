@@ -738,10 +738,15 @@ public static class PinpointPatcher
 
     private static bool ProbeItemListCapability(object p)
     {
-        // v0.5.3 — ItemDataFactory 폐기. method 존재 검사만.
-        // ItemData ctor 검사는 ItemListApplier.Apply 시 lazy.
-        return p.GetType().GetMethod("LoseAllItem", F, null, Type.EmptyTypes, null) != null
-            && p.GetType().GetMethod("GetItem", F) != null;
+        // v0.5.3 — ItemDataFactory 폐기. method 존재 검사만 (lazy ctor 검사는 ItemListApplier.Apply 시).
+        // GetItem 은 여러 overload (3개) — GetMethod() 로는 ambiguous, GetMethods() 로 name 검사.
+        var t = p.GetType();
+        if (t.GetMethod("LoseAllItem", F, null, Type.EmptyTypes, null) == null) return false;
+        foreach (var m in t.GetMethods(F))
+        {
+            if (m.Name == "GetItem") return true;
+        }
+        return false;
     }
 
     private static bool ProbeKungfuListCapability(object p)
