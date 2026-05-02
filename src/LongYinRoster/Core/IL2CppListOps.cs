@@ -45,4 +45,28 @@ public static class IL2CppListOps
                 $"IL2CppListOps.Clear: type {t.FullName} has no Clear() method");
         clear.Invoke(il2List, null);
     }
+
+    public static void Add(object il2List, object item)
+    {
+        if (il2List == null) throw new ArgumentNullException(nameof(il2List));
+        var t = il2List.GetType();
+        // Try Add(object) — IL2CPP lists expose typed Add(T) so we search by name only.
+        var add = t.GetMethod("Add", F, null, new[] { typeof(object) }, null);
+        if (add == null)
+        {
+            // Typed T parameter: find any single-param method named Add.
+            foreach (var m in t.GetMethods(F))
+            {
+                if (m.Name == "Add")
+                {
+                    var ps = m.GetParameters();
+                    if (ps.Length == 1) { add = m; break; }
+                }
+            }
+        }
+        if (add == null)
+            throw new InvalidOperationException(
+                $"IL2CppListOps.Add: type {t.FullName} has no Add(T) method");
+        add.Invoke(il2List, new[] { item });
+    }
 }

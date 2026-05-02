@@ -25,6 +25,7 @@ public sealed class Plugin : BasePlugin
         // Harmony patches: 모드 창 영역 안 mouse input 차단.
         var harmony = new Harmony(GUID);
         harmony.PatchAll(typeof(InputBlockerPatch));
+        Core.RestKeepHeroTagPatch.Register(harmony);
         Logger.Info($"Harmony: {harmony.GetPatchedMethods().Count()} method(s) patched");
 
         Logger.Info($"Loaded {NAME} v{VERSION}");
