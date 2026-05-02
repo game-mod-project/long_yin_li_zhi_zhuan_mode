@@ -1,7 +1,12 @@
 using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Reflection;
+using LongYinRoster.Containers;
 using LongYinRoster.Slots;
 using LongYinRoster.Util;
 using UnityEngine;
+using BepInEx;
 using Logger = LongYinRoster.Util.Logger;
 
 namespace LongYinRoster.UI;
@@ -55,6 +60,12 @@ public sealed class ModWindow : MonoBehaviour
     private readonly InputDialog      _input    = new();
     private readonly FilePickerDialog _picker   = new();
 
+    // v0.7.0 — 모드 선택 + 컨테이너 panel
+    private readonly ModeSelector     _modeSelector  = new();
+    private readonly ContainerPanel   _containerPanel = new();
+    private ContainerRepository?      _containerRepo;
+    private ContainerOpsHelper?       _containerOps;
+
     private void Awake()
     {
         _instance = this;
@@ -87,7 +98,123 @@ public sealed class ModWindow : MonoBehaviour
             }
         };
 
-        Logger.Info($"ModWindow Awake (slots dir: {slotDir})");
+        // v0.7.0 — 컨테이너 repository + ops helper + UI panel wiring
+        var containerDir = Path.Combine(Paths.PluginPath, "LongYinRoster", "Containers");
+        _containerRepo = new ContainerRepository(containerDir);
+        _containerOps  = new ContainerOpsHelper(_containerRepo);
+        _containerPanel.SetRepository(_containerRepo);
+        _containerPanel.OnContainerSelected = idx => {
+            _containerOps.CurrentContainerIndex = idx;
+            RefreshContainerRows();
+        };
+        _containerPanel.OnInventoryToContainerMove = checks => DoGameToContainer(getList: GetPlayerInventoryList, checks, removeFromGame: true);
+        _containerPanel.OnInventoryToContainerCopy = checks => DoGameToContainer(getList: GetPlayerInventoryList, checks, removeFromGame: false);
+        _containerPanel.OnStorageToContainerMove   = checks => DoGameToContainer(getList: GetPlayerStorageList,   checks, removeFromGame: true);
+        _containerPanel.OnStorageToContainerCopy   = checks => DoGameToContainer(getList: GetPlayerStorageList,   checks, removeFromGame: false);
+        _containerPanel.OnContainerToInventoryMove = checks => DoContainerToGame(checks, removeFromContainer: true);
+        _containerPanel.OnContainerToInventoryCopy = checks => DoContainerToGame(checks, removeFromContainer: false);
+        _containerPanel.OnContainerDelete           = checks => {
+            var r = _containerOps.DeleteFromContainer(checks);
+            _containerPanel.Toast($"삭제: {r.Succeeded}개" + (string.IsNullOrEmpty(r.Reason) ? "" : $" — {r.Reason}"));
+            RefreshContainerRows();
+        };
+
+        Logger.Info($"ModWindow Awake (slots dir: {slotDir}, containers dir: {containerDir})");
+    }
+
+    // ---------------------------------------------------------------- v0.7.0 컨테이너 helper
+
+    private const BindingFlags F = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
+
+    private object? GetPlayerInventoryList()
+    {
+        var p = Core.HeroLocator.GetPlayer();
+        if (p == null) return null;
+        var ild = ReadFieldOrProperty(p, "itemListData");
+        return ild != null ? ReadFieldOrProperty(ild, "allItem") : null;
+    }
+
+    private object? GetPlayerStorageList()
+    {
+        var p = Core.HeroLocator.GetPlayer();
+        if (p == null) return null;
+        var ss = ReadFieldOrProperty(p, "selfStorage");
+        return ss != null ? ReadFieldOrProperty(ss, "allItem") : null;
+    }
+
+    private static object? ReadFieldOrProperty(object obj, string name)
+    {
+        var t = obj.GetType();
+        var prop = t.GetProperty(name, F);
+        if (prop != null) return prop.GetValue(obj);
+        var fld = t.GetField(name, F);
+        if (fld != null) return fld.GetValue(obj);
+        return null;
+    }
+
+    private void RefreshAllContainerRows()
+    {
+        var inv = GetPlayerInventoryList();
+        var sto = GetPlayerStorageList();
+        _containerPanel.SetInventoryRows(inv != null ? ContainerRowBuilder.FromGameAllItem(inv) : new List<ContainerPanel.ItemRow>());
+        _containerPanel.SetStorageRows  (sto != null ? ContainerRowBuilder.FromGameAllItem(sto) : new List<ContainerPanel.ItemRow>());
+        RefreshContainerRows();
+    }
+
+    private void RefreshContainerRows()
+    {
+        if (_containerOps == null || _containerRepo == null) return;
+        if (_containerOps.CurrentContainerIndex > 0)
+            _containerPanel.SetContainerRows(ContainerRowBuilder.FromJsonArray(_containerRepo.LoadItemsJson(_containerOps.CurrentContainerIndex)));
+        else
+            _containerPanel.SetContainerRows(new List<ContainerPanel.ItemRow>());
+    }
+
+    private void DoGameToContainer(Func<object?> getList, HashSet<int> checks, bool removeFromGame)
+    {
+        if (_containerOps == null) return;
+        var lst = getList();
+        if (lst == null) { _containerPanel.Toast("게임 진입 후 사용 가능"); return; }
+
+        // 이동 시 착용 장비 자동 unequip
+        if (removeFromGame)
+        {
+            var p = Core.HeroLocator.GetPlayer();
+            if (p != null)
+            {
+                MethodInfo? unequipM = null;
+                foreach (var m in p.GetType().GetMethods(F))
+                    if (m.Name == "UnequipItem" && m.GetParameters().Length == 3) { unequipM = m; break; }
+                int unequipped = 0;
+                foreach (int idx in checks)
+                {
+                    var item = Core.IL2CppListOps.Get(lst, idx);
+                    if (item == null) continue;
+                    var ed = ReadFieldOrProperty(item, "equipmentData");
+                    if (ed == null) continue;
+                    var eq = ReadFieldOrProperty(ed, "equiped");
+                    if (eq is bool b && b)
+                    {
+                        try { unequipM?.Invoke(p, new object[] { item, false, false }); unequipped++; } catch { }
+                    }
+                }
+                if (unequipped > 0) _containerPanel.Toast($"착용 중 {unequipped}개 자동 해제 후 이동");
+            }
+        }
+
+        var r = _containerOps.GameToContainer(lst, checks, removeFromGame);
+        _containerPanel.Toast($"{(removeFromGame ? "이동" : "복사")}: {r.Succeeded}개" + (r.Failed > 0 ? $" / {r.Failed}개 실패" : "") + (string.IsNullOrEmpty(r.Reason) ? "" : $" — {r.Reason}"));
+        RefreshAllContainerRows();
+    }
+
+    private void DoContainerToGame(HashSet<int> checks, bool removeFromContainer)
+    {
+        if (_containerOps == null) return;
+        var p = Core.HeroLocator.GetPlayer();
+        if (p == null) { _containerPanel.Toast("게임 진입 후 사용 가능"); return; }
+        var r = _containerOps.ContainerToGame(p, checks, removeFromContainer);
+        _containerPanel.Toast($"{(removeFromContainer ? "이동" : "복사")}: {r.Succeeded}개" + (r.Failed > 0 ? $" / {r.Failed}개 가득 참" : "") + (string.IsNullOrEmpty(r.Reason) ? "" : $" — {r.Reason}"));
+        RefreshAllContainerRows();
     }
 
     /// <summary>
@@ -479,7 +606,33 @@ public sealed class ModWindow : MonoBehaviour
 
     private void Update()
     {
-        if (Input.GetKeyDown(Config.ToggleHotkey.Value)) Toggle();
+        // v0.7.0 — F11 단독: 모드 선택 메뉴 / F11+1: 캐릭터 / F11+2: 컨테이너
+        if (HotkeyMap.MainKeyPressedAlone()) _modeSelector.Toggle();
+        if (HotkeyMap.CharacterShortcut())
+        {
+            _modeSelector.SetMode(ModeSelector.Mode.Character);
+            if (!_visible) Toggle();
+            _containerPanel.Visible = false;
+        }
+        if (HotkeyMap.ContainerShortcut())
+        {
+            _modeSelector.SetMode(ModeSelector.Mode.Container);
+            _containerPanel.Visible = true;
+            if (_visible) Toggle();
+            RefreshAllContainerRows();
+        }
+        // ModeSelector 가 메뉴에서 모드 선택한 경우
+        if (_modeSelector.CurrentMode == ModeSelector.Mode.Character && !_visible)
+        {
+            Toggle();
+            _containerPanel.Visible = false;
+        }
+        else if (_modeSelector.CurrentMode == ModeSelector.Mode.Container && !_containerPanel.Visible)
+        {
+            _containerPanel.Visible = true;
+            if (_visible) Toggle();
+            RefreshAllContainerRows();
+        }
 
         // v0.5.3 Spike — F12 trigger, mod 창 visible 동안 1-3 으로 Mode 직접 설정 (release 전 cleanup)
         if (Input.GetKeyDown(KeyCode.F12)) Core.Probes.ProbeRunner.Trigger();
@@ -511,6 +664,11 @@ public sealed class ModWindow : MonoBehaviour
     private void OnGUI()
     {
         ToastService.Draw();
+
+        // v0.7.0 — ModeSelector + ContainerPanel (캐릭터 panel 과 독립)
+        _modeSelector.OnGUI();
+        _containerPanel.OnGUI();
+
         if (!_visible) return;
 
         // v0.4 — lazy Probe at first OnGUI (player must be loaded)
