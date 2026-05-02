@@ -208,7 +208,8 @@ public static class ItemListApplier
     /// - Dictionary<int,float> (heroSpeAddData 등): clear + add via reflection
     /// - 해당 멤버 부재: silent skip (해당 type 에 없는 field — 정상)
     /// </summary>
-    private static void ApplyJsonToObject(JsonElement json, object obj, int depth)
+    /// <summary>v0.5.5 — SelfStorageApplier 가 동일 deep-copy 재사용. internal 노출.</summary>
+    internal static void ApplyJsonToObject(JsonElement json, object obj, int depth)
     {
         if (json.ValueKind != JsonValueKind.Object) return;
         if (depth > 6) return;  // recursion guard

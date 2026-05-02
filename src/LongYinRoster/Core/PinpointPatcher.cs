@@ -447,15 +447,20 @@ public static class PinpointPatcher
     }
 
     /// <summary>
-    /// v0.5.3 — selfStorage 는 별도 sub-project (v0.6.x). capability false 로 short-circuit.
-    /// 인벤토리 (RebuildItemList) 와 패턴 동일 — ItemListApplier 패턴 mirror 후 enable 가능.
+    /// v0.5.5 — 창고 (selfStorage) Replace. SelfStorageApplier (직접 list clear + ItemType ctor +
+    /// ItemListApplier.ApplyJsonToObject deep-copy 재사용 + 2-pass retry) 호출.
+    /// 인벤토리와 달리 grid UI 미연결 — 직접 list manipulation 사용.
     /// </summary>
     private static void RebuildSelfStorage(JsonElement slot, object player, ApplySelection selection, ApplyResult res)
     {
         if (!selection.SelfStorage) { res.SkippedFields.Add("selfStorage (selection off)"); return; }
-        if (!Probe().SelfStorage)   { res.SkippedFields.Add("selfStorage (capability off — v0.6.x sub-project)"); return; }
-        // 활성화 시 ItemListApplier 패턴 mirror 으로 구현 (v0.6.x)
-        res.SkippedFields.Add("selfStorage — v0.6.x sub-project");
+        if (!Probe().SelfStorage)   { res.SkippedFields.Add("selfStorage (capability off)"); return; }
+
+        var r = SelfStorageApplier.Apply(player, slot, selection);
+        if (r.Skipped) { res.SkippedFields.Add($"selfStorage — {r.Reason}"); return; }
+        res.AppliedFields.Add($"selfStorage (removed={r.RemovedCount} added={r.AddedCount} failed={r.FailedCount})");
+        if (r.FailedCount > 0)
+            res.WarnedFields.Add($"selfStorage — {r.FailedCount} entries failed");
     }
 
     private static void RebuildHeroTagData(JsonElement slot, object player, ApplySelection selection, ApplyResult res)
@@ -683,7 +688,7 @@ public static class PinpointPatcher
         bool identity     = ProbeIdentityCapability(p);
         bool activeKungfu = ProbeActiveKungfuCapability(p);
         bool itemList     = ProbeItemListCapability(p);
-        bool selfStorage  = itemList;   // 둘 다 ItemDataFactory 공유
+        bool selfStorage  = ProbeSelfStorageCapability(p);   // v0.5.5 — 직접 검사
         bool kungfuList   = ProbeKungfuListCapability(p);   // v0.5.2
 
         _capCache = new Capabilities
@@ -734,5 +739,15 @@ public static class PinpointPatcher
         // v0.5.2 — Spike PASS path: LoseAllSkill (clear) + GetSkill (add)
         return p.GetType().GetMethod("LoseAllSkill", F, null, Type.EmptyTypes, null) != null
             && p.GetType().GetMethod("GetSkill", F) != null;
+    }
+
+    private static bool ProbeSelfStorageCapability(object p)
+    {
+        // v0.5.5 — selfStorage 객체 + .allItem list 존재 확인.
+        // game-self method 없이 직접 list manipulation 사용.
+        var t = p.GetType();
+        var ssProp  = t.GetProperty("selfStorage", F);
+        var ssField = t.GetField("selfStorage", F);
+        return ssProp != null || ssField != null;
     }
 }

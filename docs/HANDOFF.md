@@ -1,7 +1,7 @@
 # LongYin Roster Mod — 작업 핸드오프 문서
 
 **일시 중지**: 2026-05-02
-**진행 상태**: **v0.5.4 release** — 인벤토리 subData 디테일 복원 (filter fix + generic JSON→IL2CPP wrapper deep-copy). v0.5.3 의 itemID 필터 root cause 해소. 책 / 무기 enhanceLv / 말 stats / 약 등 모든 item 풀 복원.
+**진행 상태**: **v0.5.5 release** — 창고 (selfStorage) Replace 활성화 (직접 list manipulation + ItemListApplier deep-copy 재사용). v0.5.x 의 list 카테고리 시리즈 (active / list / inventory / inventory-subData / 창고) 완전체.
 **저장소**: https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode (`main` 브랜치)
 **프로젝트 루트**: `E:/Games/龙胤立志传.v1.0.0f8.2/LongYinLiZhiZhuan/Save/_PlayerExport/`
 **Releases**:
@@ -14,18 +14,18 @@
 - [v0.5.2](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.5.2) — 무공 list 활성화 (LoseAllSkill clear + ctor(int) wrapper + GetSkill add 2-pass + SlotFile JSON 직렬화 fix)
 - [v0.5.3](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.5.3) — 인벤토리 (ItemList) Replace 활성화 (LoseAllItem + ItemData(ItemType) ctor + GetItem add + Probe cache invalidate)
 - [v0.5.4](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.5.4) — 인벤토리 subData 풀 복원 (filter fix + generic JSON→IL2CPP wrapper deep-copy with Dictionary handling)
+- [v0.5.5](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.5.5) — 창고 (selfStorage) Replace 활성화 (직접 list manipulation + ItemListApplier deep-copy 재사용)
 
-## v0.5.4 Known Limitations (v0.5.5 후보)
-- **장비 슬롯 (weapon/clothes/headGear/cloak/bracers/armguard/leggings/belt/shoes/accessory) 미적용**: itemListData.allItem 이 아니라 HeroData 의 별도 IL2CPP wrapper field. equipmentData.equiped 플래그는 deep-copy 되지만, HeroData.weapon 같은 별도 reference 는 v0.5.5 sub-project.
-- **2D nested list (treasure.playerGuessTreasureLv 등) 미적용**: List<List<int>> 구조. v0.5.4 deep-copy helper 가 nested list 내부 list 의 인스턴스 생성 미지원. treasure 식별 추측 데이터만 영향, 핵심 데이터 (treasureLv / identified) 는 정상 복원.
-- selfStorage: capability false stub (v0.6.x 후보 — ItemList 패턴 mirror 가능).
+## v0.5.5 Known Limitations
+- **장비 슬롯 (weapon/clothes/headGear/cloak/bracers/armguard/leggings/belt/shoes/accessory) 미적용**: itemListData.allItem 이 아니라 HeroData 의 별도 IL2CPP wrapper field. equipmentData.equiped 플래그는 deep-copy 되지만, HeroData.weapon 같은 별도 reference 는 별도 sub-project (v0.6.x 후보).
+- **2D nested list (treasure.playerGuessTreasureLv 등) 미적용**: List<List<int>> 구조 — 핵심 보물 데이터 (treasureLv / identified) 는 정상 복원, 식별 추측 기록만 영향.
 
 ---
 
 ## 1. 한 줄 요약
 
 BepInEx 6 IL2CPP 환경에서 플레이어 캐릭터 스냅샷을 20슬롯에 저장 / 관리하는 모드.
-**현재 main baseline = v0.5.4** (selection-aware Apply / Restore + 11-카테고리 체크박스 UI + stat / 정체성 / 무공 active / 무공 list / 인벤토리 풀 복원 (subData 디테일 포함)).
+**현재 main baseline = v0.5.5** (selection-aware Apply / Restore + 11-카테고리 체크박스 UI + stat / 정체성 / 무공 active / 무공 list / 인벤토리 풀 복원 (subData 디테일) / 창고 풀 복원).
 
 **v0.5 PoC dual-track (외형 + 무공 active) — 양쪽 FAIL → release 안 함**:
 - 외형 (G1 FAIL): `portraitID` field 부재. 진짜 외형 = `faceData / partPosture` sub-data wrapper graph (v0.4 ItemData 와 동일 패턴) → v0.6 통합 작업으로 deferred.
