@@ -109,6 +109,43 @@ public static class AppearanceApplier
             }
         }
 
+        // v0.6.4 — partPosture 적용. SerializerService 가 _partPostureFloats array 로 inject.
+        // PartPostureData.partPosture (List<float>) 에 clear + add via reflection.
+        if (slot.TryGetProperty("_partPostureFloats", out var pp) && pp.ValueKind == JsonValueKind.Array)
+        {
+            try
+            {
+                var pData = ReadFieldOrProperty(player, "partPosture");
+                if (pData != null)
+                {
+                    var innerList = ReadFieldOrProperty(pData, "partPosture");
+                    if (innerList != null)
+                    {
+                        IL2CppListOps.Clear(innerList);
+                        var listType = innerList.GetType();
+                        var addM = listType.GetMethod("Add", F);
+                        if (addM != null)
+                        {
+                            int added = 0;
+                            for (int i = 0; i < pp.GetArrayLength(); i++)
+                            {
+                                if (pp[i].ValueKind != JsonValueKind.Number) continue;
+                                addM.Invoke(innerList, new object[] { pp[i].GetSingle() });
+                                added++;
+                            }
+                            Logger.Info($"Appearance Apply: partPosture restored {added} float values");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Warn($"Appearance Apply partPosture: {ex.GetType().Name}: {ex.Message}");
+            }
+        }
+        else
+            Logger.Info("Appearance Apply: slot._partPostureFloats 미존재 (slot 구버전 — re-capture 필요)");
+
         // UI cache invalidate — 메인 화면 캐릭터 icon 갱신 위해 dirty flags + counter increment
         TrySetBool(player, "HeroIconDirty", true);
         TrySetBool(player, "heroDetailDirty", true);
@@ -117,6 +154,9 @@ public static class AppearanceApplier
 
         // 진단 — HeroData 의 Icon / Refresh 관련 method 후보 dump (1회)
         DiscoverIconRefreshMethods(player.GetType());
+
+        // v0.6.4 진단 — partPosture / posture / part / hair / body 관련 field 후보 dump (1회)
+        DiscoverPostureFields(player.GetType());
 
         // game-self refresh method 시도 (no-arg)
         TryInvokeNoArg(player, "RefreshHeroIcon");
@@ -153,6 +193,69 @@ public static class AppearanceApplier
             else if (f.FieldType == typeof(double)) f.SetValue(obj, (double)value);
             else f.SetValue(obj, Convert.ChangeType(value, f.FieldType));
         }
+    }
+
+    private static bool _postureFieldsDumped;
+    private static void DiscoverPostureFields(Type heroDataType)
+    {
+        if (_postureFieldsDumped) return;
+        _postureFieldsDumped = true;
+        try
+        {
+            var related = new System.Collections.Generic.List<string>();
+            string[] keywords = { "Posture", "Part", "Hair", "Body", "Skel" };
+            foreach (var p in heroDataType.GetProperties(F))
+            {
+                var n = p.Name;
+                foreach (var k in keywords)
+                {
+                    if (n.IndexOf(k, StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        related.Add($"prop {p.PropertyType.Name} {n}");
+                        break;
+                    }
+                }
+            }
+            foreach (var f in heroDataType.GetFields(F))
+            {
+                var n = f.Name;
+                foreach (var k in keywords)
+                {
+                    if (n.IndexOf(k, StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        related.Add($"field {f.FieldType.Name} {n}");
+                        break;
+                    }
+                }
+            }
+            Logger.Info("Appearance: HeroData posture-related fields = " + string.Join("; ", related));
+
+            // PartPostureData 자체의 fields/properties dump (Capture 확장 위해)
+            var ppProp = heroDataType.GetProperty("partPosture", F);
+            if (ppProp != null)
+            {
+                var ppType = ppProp.PropertyType;
+                Logger.Info($"PartPostureData type fullname = {ppType.FullName}");
+
+                // PartPostureData.partPosture 내부 List<T> 의 element type T 식별
+                var innerListProp = ppType.GetProperty("partPosture", F);
+                if (innerListProp != null && innerListProp.PropertyType.IsGenericType)
+                {
+                    var innerListType = innerListProp.PropertyType;
+                    var elemType = innerListType.GetGenericArguments()[0];
+                    Logger.Info($"PartPostureData.partPosture[i] element type = {elemType.FullName}");
+                    var elemFields = new System.Collections.Generic.List<string>();
+                    foreach (var p in elemType.GetProperties(F))
+                        elemFields.Add($"prop {p.PropertyType.Name} {p.Name}");
+                    foreach (var f in elemType.GetFields(F))
+                        elemFields.Add($"field {f.FieldType.Name} {f.Name}");
+                    Logger.Info($"  element fields ({elemFields.Count}):");
+                    foreach (var s in elemFields)
+                        Logger.Info($"    {s}");
+                }
+            }
+        }
+        catch { }
     }
 
     private static bool _refreshMethodsDumped;
