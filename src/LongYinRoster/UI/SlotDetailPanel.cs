@@ -108,6 +108,11 @@ public sealed class SlotDetailPanel
         changed |= ToggleCell(KoreanStrings.Cat_SelfStorage,  sel.SelfStorage,  enabled: cap.SelfStorage,  v => sel.SelfStorage = v);
         GUILayout.EndHorizontal();
 
+        // Row 4: 무공 목록 (v0.5.2 신규)
+        GUILayout.BeginHorizontal();
+        changed |= ToggleCell(KoreanStrings.Cat_KungfuList,   sel.KungfuList,   enabled: cap.KungfuList,   v => sel.KungfuList = v);
+        GUILayout.EndHorizontal();
+
         if (changed)
             OnApplySelectionChanged?.Invoke(slotIndex, sel);
     }
