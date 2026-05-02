@@ -93,4 +93,11 @@ public static class KoreanStrings
     public const string Cat_NowEquipment    = "착용 장비";
     public const string Cat_DisabledSuffix  = " (v0.5+ 후보)";
     public const string ApplySectionHeader  = "─── Apply 항목 ───";
+
+    // v0.7.0.1 — 컨테이너 안내 메시지
+    public const string ToastContainerNotSelected     = "컨테이너를 먼저 [신규] 버튼으로 생성하세요";
+    public const string ToastContainerEmptyChecks     = "선택된 항목이 없습니다";
+    public const string ToastContainerOpsThrew        = "컨테이너 작업 실패: {0} (BepInEx 로그 확인)";
+    public const string ToastContainerNeedGameEnter   = "게임 진입 후 사용 가능합니다";
+    public const string ToastContainerCreated         = "신규 컨테이너 #{0} 생성 완료";
 }
