@@ -19,6 +19,7 @@ public class ApplySelectionTests
         Assert.False(sel.ItemList);
         Assert.False(sel.SelfStorage);
         Assert.False(sel.Appearance);   // v0.5 신규 — 기본값 false (v0.3 호환)
+        Assert.False(sel.KungfuList);   // v0.5.2 신규 — 기본값 false
     }
 
     [Fact]
@@ -35,6 +36,16 @@ public class ApplySelectionTests
         Assert.True(sel.ItemList);
         Assert.True(sel.SelfStorage);
         Assert.True(sel.Appearance);    // v0.5 — RestoreAll 은 전체 on
+        Assert.True(sel.KungfuList);    // v0.5.2 — RestoreAll 은 전체 on
+    }
+
+    [Fact]
+    public void JsonRoundTrip_PreservesKungfuList_WhenTrue()
+    {
+        var orig = new ApplySelection { KungfuList = true };
+        string json = ApplySelection.ToJson(orig);
+        var parsed = ApplySelection.FromJson(json);
+        Assert.True(parsed.KungfuList);
     }
 
     [Fact]

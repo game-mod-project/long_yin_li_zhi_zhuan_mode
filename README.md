@@ -3,7 +3,7 @@
 **龙胤立志传 (LongYinLiZhiZhuan) v1.0.0 f8.2** 의 BepInEx 6 IL2CPP 플러그인.
 플레이어 캐릭터(`heroID=0`) 스냅샷을 최대 20슬롯에 저장 / 관리한다.
 
-## 무엇을 할 수 있나 (v0.5.1)
+## 무엇을 할 수 있나 (v0.5.2)
 
 - **캡처** — 인게임에서 `F11` → `[+] 현재 캐릭터 저장` → 빈 슬롯 또는 선택한 슬롯에 현재 플레이어 데이터를 JSON 으로 저장.
 - **파일에서 가져오기** *(v0.2)* — `[F] 파일에서` → 게임 자체 SaveSlot 0~10 목록 → 선택한 슬롯의 캐릭터를 mod 슬롯에 import.
@@ -40,9 +40,17 @@
 - **v0.5 PoC 미해결 issue 모두 해소** — UI cache invalidation + save→reload persistence
 - **list 의존성 제한** — slot 의 active skillID 가 현재 player 의 무공 list 에 있어야 적용 (다른 캐릭터의 무공 set 은 적용 불가, v0.6 무공 list sub-project 와 통합 예정)
 
+### v0.5.2 — 무공 list 활성화
+
+- **무공 list 카테고리 활성화** — slot 의 무공 list 를 player 에 완전 교체 (clear + add all)
+- **lv / fightExp / bookExp 보존** — 각 무공의 학습 진도까지 slot 값으로 복원
+- **v0.5.1 active 의 N7 자동 해소** — 다른 캐릭터의 active set Apply 가능 (missing=0)
+- **알고리즘**: `LoseAllSkill` clear + `KungfuSkillLvData(skillID)` wrapper ctor + `GetSkill(wrapper)` add all (2-pass retry 로 silent fail 회피)
+- **step 순서**: `RebuildKungfuSkills` 가 `SetActiveKungfu` 직전 — list 정확화 후 active 매칭
+- **잠재 버그 fix**: SlotFile.Write 의 `appearance` + `kungfuList` JSON 직렬화 누락 (v0.5/v0.5.2 의 잠재 fix)
+
 **v0.6+ 후보 (현재 미지원)**:
 - **인벤토리 / 창고** — sub-data wrapper graph 미해결 (ItemData factory PoC A4 FAIL). v0.6 에서 게임 내부 Add method 추가 dump 필요
-- **무공 list** — KungfuSkillLvData wrapper ctor 의 IL2CPP 한계. v0.6 후보
 - **외형** — `faceData (HeroFaceData)` + `partPosture (PartPostureData)` sub-data wrapper graph. v0.6 후보
 
 **사용법**:
@@ -59,6 +67,7 @@
 | v0.3.0 | Apply (slot → game) + Restore (stat-backup) |
 | v0.4.0 | 9-카테고리 체크박스 UI + 정체성 활성화 |
 | v0.5.1 | 무공 active 활성화 (UI cache invalidate + persistence) |
+| v0.5.2 | 무공 list 활성화 (clear + add all + lv 복원) |
 
 ## 요구 사항
 

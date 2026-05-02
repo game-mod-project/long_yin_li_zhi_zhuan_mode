@@ -11,13 +11,14 @@
 - [v0.4.0](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.4.0) — 9-카테고리 체크박스 UI + 정체성 활성화 + 부상/충성/호감 영구 보존 회귀
 - (v0.5.0 — release 안 함 — 양쪽 PoC FAIL, dumps/2026-05-01-* 참고)
 - [v0.5.1](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.5.1) — 무공 active 활성화 (kungfuSkills.equiped + game 패턴 11-swap + UI cache invalidate + save persistence)
+- [v0.5.2](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.5.2) — 무공 list 활성화 (LoseAllSkill clear + ctor(int) wrapper + GetSkill add 2-pass + SlotFile JSON 직렬화 fix)
 
 ---
 
 ## 1. 한 줄 요약
 
 BepInEx 6 IL2CPP 환경에서 플레이어 캐릭터 스냅샷을 20슬롯에 저장 / 관리하는 모드.
-**현재 main baseline = v0.5.1** (selection-aware Apply / Restore + 9-카테고리 체크박스 UI + 정체성 활성화).
+**현재 main baseline = v0.5.2** (selection-aware Apply / Restore + 9-카테고리 체크박스 UI + 정체성 활성화).
 
 **v0.5 PoC dual-track (외형 + 무공 active) — 양쪽 FAIL → release 안 함**:
 - 외형 (G1 FAIL): `portraitID` field 부재. 진짜 외형 = `faceData / partPosture` sub-data wrapper graph (v0.4 ItemData 와 동일 패턴) → v0.6 통합 작업으로 deferred.

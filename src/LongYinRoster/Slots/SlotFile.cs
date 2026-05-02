@@ -111,6 +111,8 @@ public static class SlotFile
             w.WriteBoolean("activeKungfu", m.ApplySelection.ActiveKungfu);
             w.WriteBoolean("itemList",     m.ApplySelection.ItemList);
             w.WriteBoolean("selfStorage",  m.ApplySelection.SelfStorage);
+            w.WriteBoolean("appearance",   m.ApplySelection.Appearance);  // v0.5
+            w.WriteBoolean("kungfuList",   m.ApplySelection.KungfuList);  // v0.5.2
             w.WriteEndObject();
 
             w.WriteEndObject();

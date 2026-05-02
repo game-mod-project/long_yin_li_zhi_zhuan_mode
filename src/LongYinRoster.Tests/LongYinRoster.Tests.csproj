@@ -80,6 +80,9 @@
     <Compile Include="../LongYinRoster/Core/IdentityFieldMatrix.cs">
       <Link>Core/IdentityFieldMatrix.cs</Link>
     </Compile>
+    <Compile Include="../LongYinRoster/Core/KungfuListApplier.cs">
+      <Link>Core/KungfuListApplier.cs</Link>
+    </Compile>
     <Compile Include="../LongYinRoster/Core/ItemDataFactory.cs">
       <Link>Core/ItemDataFactory.cs</Link>
     </Compile>

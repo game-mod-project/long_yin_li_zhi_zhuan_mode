@@ -37,12 +37,13 @@ public static class PinpointPatcher
         using var doc = JsonDocument.Parse(slotPlayerJson);
         var slot = doc.RootElement;
 
+        // v0.5.2 — RebuildKungfuSkills 가 SetActiveKungfu 직전 (list 정확화 후 active 매칭)
         TryStep("SetSimpleFields",         () => SetSimpleFields(slot, currentPlayer, selection, res), res);
         TryStep("SetIdentityFields",       () => SetIdentityFields(slot, currentPlayer, selection, res), res);
+        TryStep("RebuildKungfuSkills",     () => RebuildKungfuSkills(slot, currentPlayer, selection, res), res);
         TryStep("SetActiveKungfu",         () => SetActiveKungfu(slot, currentPlayer, selection, res), res);
         TryStep("RebuildItemList",         () => RebuildItemList(slot, currentPlayer, selection, res), res);
         TryStep("RebuildSelfStorage",      () => RebuildSelfStorage(slot, currentPlayer, selection, res), res);
-        TryStep("RebuildKungfuSkills",     () => SkipKungfuSkills(res), res);
         TryStep("RebuildHeroTagData",      () => RebuildHeroTagData(slot, currentPlayer, selection, res), res);
         TryStep("RefreshSelfState",        () => RefreshSelfState(currentPlayer, res), res, fatal: true);
         TryStep("RefreshExternalManagers", () => RefreshExternalManagers(currentPlayer, res), res);
@@ -391,12 +392,19 @@ public static class PinpointPatcher
     }
 
     /// <summary>
-    /// v0.4 — kungfuSkills collection rebuild 은 v0.5+ 후보 (KungfuSkillLvData wrapper
-    /// 생성 path 미해결). 활성 무공만 SetActiveKungfu step 에서 별도 처리.
+    /// v0.5.2 — 무공 list Replace step. KungfuListApplier (LoseAllSkill clear + ctor(int)
+    /// wrapper + GetSkill add) 호출. v0.5.1 의 SkipKungfuSkills stub 교체.
     /// </summary>
-    private static void SkipKungfuSkills(ApplyResult res)
+    private static void RebuildKungfuSkills(JsonElement slot, object player, ApplySelection selection, ApplyResult res)
     {
-        res.SkippedFields.Add("kungfuSkills — collection rebuild deferred to v0.5+");
+        if (!selection.KungfuList) { res.SkippedFields.Add("kungfuList (selection off)"); return; }
+        if (!Probe().KungfuList)   { res.SkippedFields.Add("kungfuList (capability off)"); return; }
+
+        var r = KungfuListApplier.Apply(player, slot, selection);
+        if (r.Skipped) { res.SkippedFields.Add($"kungfuList — {r.Reason}"); return; }
+        res.AppliedFields.Add($"kungfuList (removed={r.RemovedCount} added={r.AddedCount} failed={r.FailedCount})");
+        if (r.FailedCount > 0)
+            res.WarnedFields.Add($"kungfuList — {r.FailedCount} entries failed");
     }
 
     /// <summary>
@@ -717,6 +725,7 @@ public static class PinpointPatcher
         bool activeKungfu = ProbeActiveKungfuCapability(p);
         bool itemList     = ProbeItemListCapability(p);
         bool selfStorage  = itemList;   // 둘 다 ItemDataFactory 공유
+        bool kungfuList   = ProbeKungfuListCapability(p);   // v0.5.2
 
         _capCache = new Capabilities
         {
@@ -724,6 +733,7 @@ public static class PinpointPatcher
             ActiveKungfu = activeKungfu,
             ItemList     = itemList,
             SelfStorage  = selfStorage,
+            KungfuList   = kungfuList,
         };
         Logger.Info($"PinpointPatcher.Probe → {_capCache}");
         return _capCache;
@@ -754,5 +764,12 @@ public static class PinpointPatcher
         return ItemDataFactory.IsAvailable
             && p.GetType().GetMethod("LoseAllItem", F) != null
             && p.GetType().GetMethod("GetItem", F) != null;
+    }
+
+    private static bool ProbeKungfuListCapability(object p)
+    {
+        // v0.5.2 — Spike PASS path: LoseAllSkill (clear) + GetSkill (add)
+        return p.GetType().GetMethod("LoseAllSkill", F, null, Type.EmptyTypes, null) != null
+            && p.GetType().GetMethod("GetSkill", F) != null;
     }
 }
