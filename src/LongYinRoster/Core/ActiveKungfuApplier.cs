@@ -119,8 +119,15 @@ public static class ActiveKungfuApplier
                 currentEquipped.Add(w);
         }
 
-        // Unequip phase
-        foreach (var w in currentEquipped)
+        // Unequip phase — game 자체 패턴 mirror (Phase B trace: 11×UnequipSkill → 11×EquipSkill).
+        // currentEquipped ∪ equipTargets 모두 unequip — 이게 game 의 UI cache invalidate trigger
+        // 핵심 + Equip phase 직전 모든 wrapper 가 false 상태로 reset 되어 silent fail 회피.
+        // 0 active → N active 시나리오에서는 equipTargets 만 unequip (no-op but trigger).
+        // self-Apply (같은 set) 도 모든 wrapper unequip → 다시 equip 으로 일관 동작.
+        var unequipSet = new HashSet<object>(currentEquipped);
+        foreach (var t in equipTargets) unequipSet.Add(t);
+
+        foreach (var w in unequipSet)
         {
             try
             {
