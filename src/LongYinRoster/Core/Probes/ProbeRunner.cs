@@ -19,4 +19,10 @@ public static class ProbeRunner
         Mode = (ProbeKungfuList.Mode)(((int)cur + 1) % 6);
         Logger.Info($"ProbeRunner.Mode = {Mode}");
     }
+
+    public static void SetMode(ProbeKungfuList.Mode m)
+    {
+        Mode = m;
+        Logger.Info($"ProbeRunner.Mode = {m}");
+    }
 }

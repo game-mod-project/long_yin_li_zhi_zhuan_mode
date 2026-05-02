@@ -481,9 +481,23 @@ public sealed class ModWindow : MonoBehaviour
     {
         if (Input.GetKeyDown(Config.ToggleHotkey.Value)) Toggle();
 
-        // v0.5.2 Spike — F12 trigger, F10 mode cycle (release 전 cleanup)
+        // v0.5.2 Spike — F12 trigger, mod 창 visible 동안 1-6 으로 Mode 직접 설정 (release 전 cleanup)
         if (Input.GetKeyDown(KeyCode.F12)) Core.Probes.ProbeRunner.Trigger();
-        if (Input.GetKeyDown(KeyCode.F10)) Core.Probes.ProbeRunner.CycleMode();
+        if (_visible)
+        {
+            if (Input.GetKeyDown(KeyCode.Alpha1) || Input.GetKeyDown(KeyCode.Keypad1))
+                Core.Probes.ProbeRunner.SetMode(Core.Probes.ProbeKungfuList.Mode.Step1);
+            else if (Input.GetKeyDown(KeyCode.Alpha2) || Input.GetKeyDown(KeyCode.Keypad2))
+                Core.Probes.ProbeRunner.SetMode(Core.Probes.ProbeKungfuList.Mode.Step2);
+            else if (Input.GetKeyDown(KeyCode.Alpha3) || Input.GetKeyDown(KeyCode.Keypad3))
+                Core.Probes.ProbeRunner.SetMode(Core.Probes.ProbeKungfuList.Mode.Step3);
+            else if (Input.GetKeyDown(KeyCode.Alpha4) || Input.GetKeyDown(KeyCode.Keypad4))
+                Core.Probes.ProbeRunner.SetMode(Core.Probes.ProbeKungfuList.Mode.Step4);
+            else if (Input.GetKeyDown(KeyCode.Alpha5) || Input.GetKeyDown(KeyCode.Keypad5))
+                Core.Probes.ProbeRunner.SetMode(Core.Probes.ProbeKungfuList.Mode.Step5);
+            else if (Input.GetKeyDown(KeyCode.Alpha6) || Input.GetKeyDown(KeyCode.Keypad6))
+                Core.Probes.ProbeRunner.SetMode(Core.Probes.ProbeKungfuList.Mode.Step6);
+        }
 
         if (_visible && Config.PauseGameWhileOpen.Value && Time.timeScale != 0f)
             Time.timeScale = 0f;
