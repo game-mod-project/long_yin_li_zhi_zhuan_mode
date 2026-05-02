@@ -25,7 +25,7 @@ public sealed class ContainerPanel
 
     public bool Visible { get; set; } = false;
     public Rect WindowRect => _rect;
-    private Rect _rect = new Rect(150, 100, 800, 600);
+    private Rect _rect = new Rect(150, 100, 800, 760);
     private const int WindowID = 0x4C593732;  // "LY72"
 
     private ItemCategory _filter = ItemCategory.All;
@@ -45,6 +45,7 @@ public sealed class ContainerPanel
     private Vector2 _invScroll = Vector2.zero;
     private Vector2 _stoScroll = Vector2.zero;
     private Vector2 _conScroll = Vector2.zero;
+    private Vector2 _leftColumnScroll = Vector2.zero;
 
     // 컨테이너 선택 / 신규 / 이름변경
     private ContainerRepository? _repo;
@@ -142,6 +143,8 @@ public sealed class ContainerPanel
     private void DrawLeftColumn()
     {
         GUILayout.BeginVertical(GUILayout.Width(390));
+        // 좌측 column 전체를 ScrollView 로 wrap — 작은 해상도 fallback 안전장치 (헤더 + 카테고리 탭 + 인벤/창고 list + 4 버튼).
+        _leftColumnScroll = GUILayout.BeginScrollView(_leftColumnScroll, GUILayout.Height(640));
 
         GUILayout.Label($"인벤토리 ({_inventoryRows.Count}개)");
         DrawItemList(_inventoryRows, _inventoryChecks, ref _invScroll, 220);
@@ -158,6 +161,7 @@ public sealed class ContainerPanel
         if (GUILayout.Button("→ 복사")) OnStorageToContainerCopy?.Invoke(new HashSet<int>(_storageChecks));
         GUILayout.EndHorizontal();
 
+        GUILayout.EndScrollView();
         GUILayout.EndVertical();
     }
 
