@@ -21,6 +21,7 @@ public sealed class ApplySelection
     public bool SelfStorage { get; set; } = false;
     public bool Appearance  { get; set; } = false;
     public bool KungfuList  { get; set; } = false;   // v0.5.2
+    public bool NowEquipment{ get; set; } = false;   // v0.6.0 — 착용 장비 슬롯
 
     public static ApplySelection V03Default() => new();
 
@@ -29,13 +30,13 @@ public sealed class ApplySelection
         Stat = true, Honor = true, TalentTag = true, Skin = true,
         SelfHouse = true, Identity = true, ActiveKungfu = true,
         ItemList = true, SelfStorage = true, Appearance = true,
-        KungfuList = true,
+        KungfuList = true, NowEquipment = true,
     };
 
     public bool AnyEnabled() =>
         Stat || Honor || TalentTag || Skin || SelfHouse ||
         Identity || ActiveKungfu || ItemList || SelfStorage || Appearance ||
-        KungfuList;
+        KungfuList || NowEquipment;
 
     public static string ToJson(ApplySelection s)
     {
@@ -54,6 +55,7 @@ public sealed class ApplySelection
             w.WriteBoolean("selfStorage",  s.SelfStorage);
             w.WriteBoolean("appearance",   s.Appearance);
             w.WriteBoolean("kungfuList",   s.KungfuList);
+            w.WriteBoolean("nowEquipment", s.NowEquipment);
             w.WriteEndObject();
         }
         return Encoding.UTF8.GetString(ms.ToArray());
@@ -81,6 +83,7 @@ public sealed class ApplySelection
         s.SelfStorage  = Read("selfStorage",  s.SelfStorage);
         s.Appearance   = Read("appearance",   s.Appearance);
         s.KungfuList   = Read("kungfuList",   s.KungfuList);
+        s.NowEquipment = Read("nowEquipment", s.NowEquipment);
         return s;
     }
 
@@ -103,6 +106,7 @@ public sealed class ApplySelection
         s.SelfStorage  = Read("selfStorage",  s.SelfStorage);
         s.Appearance   = Read("appearance",   s.Appearance);
         s.KungfuList   = Read("kungfuList",   s.KungfuList);
+        s.NowEquipment = Read("nowEquipment", s.NowEquipment);
         return s;
     }
 }

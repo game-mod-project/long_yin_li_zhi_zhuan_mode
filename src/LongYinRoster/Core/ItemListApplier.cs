@@ -157,7 +157,9 @@ public static class ItemListApplier
             res.Skipped = true; res.Reason = $"clear failed: {ex.Message}"; return res;
         }
 
-        // Add — 2-pass retry (v0.5.2 패턴)
+        // v0.5.4 → v0.6.0 retry: direct list.Add 시도 후 NullReferenceException flood
+        // 발생 (game inventory cache 우회). 다시 game-self GetItem 으로 복귀 — cache 정상.
+        // grid index 어긋남 문제는 NowEquipmentApplier 가 name-based matching 으로 해결.
         for (int pass = 0; pass < 2; pass++)
         {
             int beforePass = IL2CppListOps.Count(allItem);

@@ -89,6 +89,8 @@ public static class KoreanStrings
     public const string Cat_Appearance      = "외형";
     // v0.5.2 — 무공 list 카테고리
     public const string Cat_KungfuList      = "무공 목록";
+    // v0.6.0 — 착용 장비 (nowEquipment — ItemList capability 공유, allItem grid index 참조)
+    public const string Cat_NowEquipment    = "착용 장비";
     public const string Cat_DisabledSuffix  = " (v0.5+ 후보)";
     public const string ApplySectionHeader  = "─── Apply 항목 ───";
 }

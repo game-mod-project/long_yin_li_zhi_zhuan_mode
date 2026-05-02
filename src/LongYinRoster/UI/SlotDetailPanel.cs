@@ -102,15 +102,26 @@ public sealed class SlotDetailPanel
         GUILayout.EndHorizontal();
 
         // Row 3: 무공 active / 인벤토리 / 창고 (v0.4 신규 — capability gate)
+        // v0.6.0: 인벤토리 OFF → 착용 장비 자동 OFF (착용 장비 = 인벤토리 grid index 참조)
         GUILayout.BeginHorizontal();
         changed |= ToggleCell(KoreanStrings.Cat_ActiveKungfu, sel.ActiveKungfu, enabled: cap.ActiveKungfu, v => sel.ActiveKungfu = v);
-        changed |= ToggleCell(KoreanStrings.Cat_ItemList,     sel.ItemList,     enabled: cap.ItemList,     v => sel.ItemList = v);
+        changed |= ToggleCell(KoreanStrings.Cat_ItemList,     sel.ItemList,     enabled: cap.ItemList,     v => {
+            sel.ItemList = v;
+            if (!v) sel.NowEquipment = false;  // 인벤토리 OFF 시 착용 장비도 OFF
+        });
         changed |= ToggleCell(KoreanStrings.Cat_SelfStorage,  sel.SelfStorage,  enabled: cap.SelfStorage,  v => sel.SelfStorage = v);
         GUILayout.EndHorizontal();
 
-        // Row 4: 무공 목록 (v0.5.2 신규)
+        // Row 4: 무공 목록 (v0.5.2) / 착용 장비 (v0.6.0 신규 — ItemList capability 공유)
+        // 착용 장비 ON → 인벤토리 자동 ON (장비 grid index 가 인벤토리 grid 참조이므로
+        // 인벤토리 미적용 시 의미 없음). 착용 장비 OFF → 인벤토리는 그대로 유지.
         GUILayout.BeginHorizontal();
         changed |= ToggleCell(KoreanStrings.Cat_KungfuList,   sel.KungfuList,   enabled: cap.KungfuList,   v => sel.KungfuList = v);
+        changed |= ToggleCell(KoreanStrings.Cat_NowEquipment, sel.NowEquipment, enabled: cap.ItemList,     v => {
+            sel.NowEquipment = v;
+            if (v) sel.ItemList = true;  // ON 시 인벤토리도 강제 ON (linkage)
+            // OFF 시 인벤토리 토글 변경 안 함
+        });
         GUILayout.EndHorizontal();
 
         if (changed)

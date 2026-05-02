@@ -50,6 +50,7 @@ public static class PinpointPatcher
         TryStep("RebuildKungfuSkills",     () => RebuildKungfuSkills(slot, currentPlayer, selection, res), res);
         TryStep("SetActiveKungfu",         () => SetActiveKungfu(slot, currentPlayer, selection, res), res);
         TryStep("RebuildItemList",         () => RebuildItemList(slot, currentPlayer, selection, res), res);
+        TryStep("RebuildNowEquipment",     () => RebuildNowEquipment(slot, currentPlayer, selection, res), res);
         TryStep("RebuildSelfStorage",      () => RebuildSelfStorage(slot, currentPlayer, selection, res), res);
         TryStep("RebuildHeroTagData",      () => RebuildHeroTagData(slot, currentPlayer, selection, res), res);
         TryStep("RefreshSelfState",        () => RefreshSelfState(currentPlayer, res), res, fatal: true);
@@ -444,6 +445,24 @@ public static class PinpointPatcher
         res.AppliedFields.Add($"itemList (removed={r.RemovedCount} added={r.AddedCount} failed={r.FailedCount})");
         if (r.FailedCount > 0)
             res.WarnedFields.Add($"itemList — {r.FailedCount} entries failed");
+    }
+
+    /// <summary>
+    /// v0.6.0 — 장비 슬롯 (HeroData.nowEquipment) 별도 step.
+    /// nowEquipment.*SaveRecord 가 itemListData.allItem 의 grid index 참조이므로
+    /// 사용자가 ItemList 와 NowEquipment 둘 다 토글하는 게 권장. NowEquipment 만
+    /// 토글한 경우 현재 인벤토리 grid 에 의존 (warn 만 출력).
+    /// </summary>
+    private static void RebuildNowEquipment(JsonElement slot, object player, ApplySelection selection, ApplyResult res)
+    {
+        if (!selection.NowEquipment) { res.SkippedFields.Add("nowEquipment (selection off)"); return; }
+        if (!Probe().ItemList)       { res.SkippedFields.Add("nowEquipment (ItemList capability off)"); return; }
+
+        var r = NowEquipmentApplier.Apply(player, slot, selection);
+        if (r.Skipped) { res.SkippedFields.Add($"nowEquipment — {r.Reason}"); return; }
+        res.AppliedFields.Add($"nowEquipment (unequipped={r.UnequipedCount} equipped={r.EquipedCount} failed={r.FailedCount})");
+        if (r.FailedCount > 0)
+            res.WarnedFields.Add($"nowEquipment — {r.FailedCount} entries failed");
     }
 
     /// <summary>
