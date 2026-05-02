@@ -34,25 +34,71 @@ public static class RestKeepHeroTagPatch
             }
 
             var manageTagTime = AccessTools.Method(heroDataType, "ManageTagTime");
-            if (manageTagTime == null)
+            if (manageTagTime != null)
             {
-                Logger.Warn("RestKeepHeroTagPatch: HeroData.ManageTagTime not found — skip");
-                return;
+                var prefix  = new HarmonyMethod(typeof(RestKeepHeroTagPatch).GetMethod(
+                    nameof(Prefix),
+                    System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public));
+                var postfix = new HarmonyMethod(typeof(RestKeepHeroTagPatch).GetMethod(
+                    nameof(Postfix),
+                    System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public));
+                harmony.Patch(manageTagTime, prefix: prefix, postfix: postfix);
+                Logger.Info("RestKeepHeroTagPatch: HeroData.ManageTagTime patched");
             }
+            else Logger.Warn("RestKeepHeroTagPatch: HeroData.ManageTagTime not found");
 
-            var prefix  = new HarmonyMethod(typeof(RestKeepHeroTagPatch).GetMethod(
-                nameof(Prefix),
-                System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public));
-            var postfix = new HarmonyMethod(typeof(RestKeepHeroTagPatch).GetMethod(
-                nameof(Postfix),
-                System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public));
-
-            harmony.Patch(manageTagTime, prefix: prefix, postfix: postfix);
-            Logger.Info("RestKeepHeroTagPatch: HeroData.ManageTagTime patched");
+            // v0.7.0.1 Phase 4 iteration 2 — diagnostic patches: 추가 wipe path 식별용.
+            // ManageTagTime 첫 호출 후 다음 호출 사이에 누군가 heroTagData 를 wipe.
+            // 후보 method 의 Postfix 에서 player heroTagData.Count 출력 → log 로 culprit 식별.
+            RegisterDiagnostic(harmony, heroDataType, "ClearAllTempTag",            nameof(DiagPostfix_ClearAllTempTag));
+            RegisterDiagnostic(harmony, heroDataType, "set_heroTagData",            nameof(DiagPostfix_set_heroTagData));
+            RegisterDiagnostic(harmony, heroDataType, "RefreshMaxAttriAndSkill",    nameof(DiagPostfix_RefreshMaxAttriAndSkill));
+            RegisterDiagnostic(harmony, heroDataType, "RefreshHeroSalaryAndPopulation", nameof(DiagPostfix_RefreshHeroSalaryAndPopulation));
         }
         catch (System.Exception ex)
         {
             Logger.Warn($"RestKeepHeroTagPatch.Register threw: {ex.GetType().Name}: {ex.Message}");
+        }
+    }
+
+    private static void RegisterDiagnostic(HarmonyLib.Harmony harmony, System.Type heroDataType, string methodName, string postfixHelperName)
+    {
+        try
+        {
+            var m = AccessTools.Method(heroDataType, methodName);
+            if (m == null) { Logger.Warn($"RestKeepHeroTagPatch: HeroData.{methodName} not found — skip diag"); return; }
+            var post = new HarmonyMethod(typeof(RestKeepHeroTagPatch).GetMethod(
+                postfixHelperName,
+                System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public));
+            harmony.Patch(m, postfix: post);
+            Logger.Info($"RestKeepHeroTagPatch: HeroData.{methodName} diagnostic Postfix patched");
+        }
+        catch (System.Exception ex)
+        {
+            Logger.Warn($"RestKeepHeroTagPatch.RegisterDiagnostic({methodName}) threw: {ex.GetType().Name}: {ex.Message}");
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Diagnostic Postfixes — log only, no mutation. heroID==0 player only.
+    // -------------------------------------------------------------------------
+    public static void DiagPostfix_ClearAllTempTag(object __instance)             => DiagLog(__instance, "ClearAllTempTag");
+    public static void DiagPostfix_set_heroTagData(object __instance)             => DiagLog(__instance, "set_heroTagData");
+    public static void DiagPostfix_RefreshMaxAttriAndSkill(object __instance)     => DiagLog(__instance, "RefreshMaxAttriAndSkill");
+    public static void DiagPostfix_RefreshHeroSalaryAndPopulation(object __instance) => DiagLog(__instance, "RefreshHeroSalaryAndPopulation");
+
+    private static void DiagLog(object instance, string methodName)
+    {
+        try
+        {
+            if (GetHeroID(instance) != 0) return;
+            var ht = GetHeroTagData(instance);
+            int n = ht == null ? -1 : IL2CppListOps.Count(ht);
+            Logger.Info($"[DIAG] {methodName} (player) — heroTagData.Count={n}");
+        }
+        catch (System.Exception ex)
+        {
+            Logger.Warn($"DiagLog({methodName}) threw: {ex.GetType().Name}: {ex.Message}");
         }
     }
 
