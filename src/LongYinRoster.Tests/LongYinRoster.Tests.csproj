@@ -92,5 +92,8 @@
     <Compile Include="../LongYinRoster/Core/NowEquipmentApplier.cs">
       <Link>Core/NowEquipmentApplier.cs</Link>
     </Compile>
+    <Compile Include="../LongYinRoster/Core/AppearanceApplier.cs">
+      <Link>Core/AppearanceApplier.cs</Link>
+    </Compile>
   </ItemGroup>
 </Project>

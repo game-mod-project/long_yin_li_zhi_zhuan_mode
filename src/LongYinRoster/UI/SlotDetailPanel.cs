@@ -112,7 +112,7 @@ public sealed class SlotDetailPanel
         changed |= ToggleCell(KoreanStrings.Cat_SelfStorage,  sel.SelfStorage,  enabled: cap.SelfStorage,  v => sel.SelfStorage = v);
         GUILayout.EndHorizontal();
 
-        // Row 4: 무공 목록 (v0.5.2) / 착용 장비 (v0.6.0 신규 — ItemList capability 공유)
+        // Row 4: 무공 목록 (v0.5.2) / 착용 장비 (v0.6.0) / 외형 (v0.6.1 신규)
         // 착용 장비 ON → 인벤토리 자동 ON (장비 grid index 가 인벤토리 grid 참조이므로
         // 인벤토리 미적용 시 의미 없음). 착용 장비 OFF → 인벤토리는 그대로 유지.
         GUILayout.BeginHorizontal();
@@ -122,6 +122,7 @@ public sealed class SlotDetailPanel
             if (v) sel.ItemList = true;  // ON 시 인벤토리도 강제 ON (linkage)
             // OFF 시 인벤토리 토글 변경 안 함
         });
+        changed |= ToggleCell(KoreanStrings.Cat_Appearance,   sel.Appearance,   enabled: cap.Appearance,   v => sel.Appearance = v);
         GUILayout.EndHorizontal();
 
         if (changed)

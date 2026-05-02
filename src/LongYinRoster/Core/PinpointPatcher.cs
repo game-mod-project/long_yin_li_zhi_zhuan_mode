@@ -44,8 +44,11 @@ public static class PinpointPatcher
         using var doc = JsonDocument.Parse(slotPlayerJson);
         var slot = doc.RootElement;
 
-        // v0.5.2 — RebuildKungfuSkills 가 SetActiveKungfu 직전 (list 정확화 후 active 매칭)
-        TryStep("SetSimpleFields",         () => SetSimpleFields(slot, currentPlayer, selection, res), res);
+        // v0.6.1 — SetSimpleFields 를 SetIdentity / 무공 / 인벤토리 / 장비 / 외형 / RefreshSelfState
+        // 이후로 이동. v0.5.x 시리즈에서 다른 step (KungfuList rebuild, equipment add/remove,
+        // RefreshMaxAttriAndSkill, RecoverState) 이 stat 값을 부수적으로 변경하므로 stat 을
+        // 가장 마지막에 적용해 capture 시점 값으로 override. 사용자 보고: "스텟만 단독 체크
+        // 후 Apply = 정상, 모든 카테고리 동시 Apply = 스탯만 어긋남" 의 원인 해소.
         TryStep("SetIdentityFields",       () => SetIdentityFields(slot, currentPlayer, selection, res), res);
         TryStep("RebuildKungfuSkills",     () => RebuildKungfuSkills(slot, currentPlayer, selection, res), res);
         TryStep("SetActiveKungfu",         () => SetActiveKungfu(slot, currentPlayer, selection, res), res);
@@ -53,7 +56,9 @@ public static class PinpointPatcher
         TryStep("RebuildNowEquipment",     () => RebuildNowEquipment(slot, currentPlayer, selection, res), res);
         TryStep("RebuildSelfStorage",      () => RebuildSelfStorage(slot, currentPlayer, selection, res), res);
         TryStep("RebuildHeroTagData",      () => RebuildHeroTagData(slot, currentPlayer, selection, res), res);
+        TryStep("RebuildAppearance",       () => RebuildAppearance(slot, currentPlayer, selection, res), res);
         TryStep("RefreshSelfState",        () => RefreshSelfState(currentPlayer, res), res, fatal: true);
+        TryStep("SetSimpleFields",         () => SetSimpleFields(slot, currentPlayer, selection, res), res);
         TryStep("RefreshExternalManagers", () => RefreshExternalManagers(currentPlayer, res), res);
 
         Logger.Info($"PinpointPatcher.Apply done — applied={res.AppliedFields.Count} " +
@@ -597,6 +602,20 @@ public static class PinpointPatcher
         }
     }
 
+    /// <summary>
+    /// v0.6.1 — 외형 (faceData / skinColorDark / voicePitch) Replace step.
+    /// AppearanceApplier 호출 — ItemListApplier.ApplyJsonToObject deep-copy 재사용.
+    /// </summary>
+    private static void RebuildAppearance(JsonElement slot, object player, ApplySelection selection, ApplyResult res)
+    {
+        if (!selection.Appearance) { res.SkippedFields.Add("appearance (selection off)"); return; }
+        if (!Probe().Appearance)   { res.SkippedFields.Add("appearance (capability off)"); return; }
+
+        var r = AppearanceApplier.Apply(player, slot, selection);
+        if (r.Skipped) { res.SkippedFields.Add($"appearance — {r.Reason}"); return; }
+        res.AppliedFields.Add($"appearance (face={r.FaceIDApplied} skin={r.SkinColorApplied} voice={r.VoicePitchApplied})");
+    }
+
     private static void RefreshSelfState(object player, ApplyResult res)
     {
         // spec §7.2.1 Step 6 매핑 (dump 후 확정).
@@ -709,6 +728,7 @@ public static class PinpointPatcher
         bool itemList     = ProbeItemListCapability(p);
         bool selfStorage  = ProbeSelfStorageCapability(p);   // v0.5.5 — 직접 검사
         bool kungfuList   = ProbeKungfuListCapability(p);   // v0.5.2
+        bool appearance   = ProbeAppearanceCapability(p);   // v0.6.1
 
         _capCache = new Capabilities
         {
@@ -717,6 +737,7 @@ public static class PinpointPatcher
             ItemList     = itemList,
             SelfStorage  = selfStorage,
             KungfuList   = kungfuList,
+            Appearance   = appearance,
         };
         Logger.Info($"PinpointPatcher.Probe → {_capCache}");
         return _capCache;
@@ -758,6 +779,16 @@ public static class PinpointPatcher
         // v0.5.2 — Spike PASS path: LoseAllSkill (clear) + GetSkill (add)
         return p.GetType().GetMethod("LoseAllSkill", F, null, Type.EmptyTypes, null) != null
             && p.GetType().GetMethod("GetSkill", F) != null;
+    }
+
+    private static bool ProbeAppearanceCapability(object p)
+    {
+        // v0.6.1 — faceData (HeroFaceData) 객체 + faceID list 존재 확인
+        var t = p.GetType();
+        var fd = t.GetProperty("faceData", F)?.GetValue(p) ?? t.GetField("faceData", F)?.GetValue(p);
+        if (fd == null) return false;
+        var fdt = fd.GetType();
+        return fdt.GetProperty("faceID", F) != null || fdt.GetField("faceID", F) != null;
     }
 
     private static bool ProbeSelfStorageCapability(object p)
