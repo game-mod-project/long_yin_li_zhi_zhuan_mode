@@ -29,6 +29,16 @@ public static class PinpointPatcher
         if (currentPlayer == null) throw new ArgumentNullException(nameof(currentPlayer));
         if (selection == null) throw new ArgumentNullException(nameof(selection));
 
+        // v0.7.0.1 Phase 4 — RestKeepHeroTagPatch 가 ClearAllTempTag 를 hook 해 휴식 시 wipe
+        // 를 차단하지만, PinpointPatcher.RebuildHeroTagData 는 의도적으로 ClearAllTempTag 를
+        // 호출 (line 506-509). flag 로 Apply scope 의 ClearAllTempTag 호출은 통과시킴.
+        RestKeepHeroTagPatch.ApplyInProgress = true;
+        try { return ApplyImpl(slotPlayerJson, currentPlayer, selection); }
+        finally { RestKeepHeroTagPatch.ApplyInProgress = false; }
+    }
+
+    private static ApplyResult ApplyImpl(string slotPlayerJson, object currentPlayer, ApplySelection selection)
+    {
         // HeroLocator 의 cache 가 stale 일 수 있어 (다른 세이브 로드 후 등) Apply 진입 시
         // invalidate. currentPlayer 인자 자체는 호출자가 fresh fetch 했어야 하지만, 후속
         // step 의 helper 가 HeroLocator.GetPlayer() 다시 호출하면 일관 보장.

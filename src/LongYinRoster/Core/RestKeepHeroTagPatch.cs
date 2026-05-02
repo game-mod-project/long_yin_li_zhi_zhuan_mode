@@ -16,8 +16,17 @@ namespace LongYinRoster.Core;
 /// </summary>
 public static class RestKeepHeroTagPatch
 {
-    // Single static snapshot — player heroID==0 only. Unity is single-threaded.
+    // ManageTagTime snapshot — player heroID==0 only. Unity is single-threaded.
     private static List<object>? _snapshot;
+    // ClearAllTempTag snapshot — 별도 (메소드 nesting 가능성 대비).
+    private static List<object>? _catSnapshot;
+
+    /// <summary>
+    /// PinpointPatcher.Apply 가 ClearAllTempTag 를 의도적으로 호출 시 true. 휴식 routine 의
+    /// ClearAllTempTag (Apply 외부) 만 wipe → restore 하도록 분기. 진단 결과 (Phase 4 iteration 2):
+    /// ManageTagTime Postfix 후 ClearAllTempTag 가 17 → 0 으로 추가 wipe.
+    /// </summary>
+    public static bool ApplyInProgress;
 
     // -------------------------------------------------------------------------
     // Registration (manual Harmony patch — game type 은 attribute 로 참조 불가)
@@ -33,27 +42,8 @@ public static class RestKeepHeroTagPatch
                 return;
             }
 
-            var manageTagTime = AccessTools.Method(heroDataType, "ManageTagTime");
-            if (manageTagTime != null)
-            {
-                var prefix  = new HarmonyMethod(typeof(RestKeepHeroTagPatch).GetMethod(
-                    nameof(Prefix),
-                    System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public));
-                var postfix = new HarmonyMethod(typeof(RestKeepHeroTagPatch).GetMethod(
-                    nameof(Postfix),
-                    System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public));
-                harmony.Patch(manageTagTime, prefix: prefix, postfix: postfix);
-                Logger.Info("RestKeepHeroTagPatch: HeroData.ManageTagTime patched");
-            }
-            else Logger.Warn("RestKeepHeroTagPatch: HeroData.ManageTagTime not found");
-
-            // v0.7.0.1 Phase 4 iteration 2 — diagnostic patches: 추가 wipe path 식별용.
-            // ManageTagTime 첫 호출 후 다음 호출 사이에 누군가 heroTagData 를 wipe.
-            // 후보 method 의 Postfix 에서 player heroTagData.Count 출력 → log 로 culprit 식별.
-            RegisterDiagnostic(harmony, heroDataType, "ClearAllTempTag",            nameof(DiagPostfix_ClearAllTempTag));
-            RegisterDiagnostic(harmony, heroDataType, "set_heroTagData",            nameof(DiagPostfix_set_heroTagData));
-            RegisterDiagnostic(harmony, heroDataType, "RefreshMaxAttriAndSkill",    nameof(DiagPostfix_RefreshMaxAttriAndSkill));
-            RegisterDiagnostic(harmony, heroDataType, "RefreshHeroSalaryAndPopulation", nameof(DiagPostfix_RefreshHeroSalaryAndPopulation));
+            RegisterPair(harmony, heroDataType, "ManageTagTime",  nameof(Prefix),                nameof(Postfix));
+            RegisterPair(harmony, heroDataType, "ClearAllTempTag", nameof(Prefix_ClearAllTempTag), nameof(Postfix_ClearAllTempTag));
         }
         catch (System.Exception ex)
         {
@@ -61,44 +51,110 @@ public static class RestKeepHeroTagPatch
         }
     }
 
-    private static void RegisterDiagnostic(HarmonyLib.Harmony harmony, System.Type heroDataType, string methodName, string postfixHelperName)
+    private static void RegisterPair(HarmonyLib.Harmony harmony, System.Type heroDataType,
+                                     string methodName, string prefixName, string postfixName)
     {
         try
         {
             var m = AccessTools.Method(heroDataType, methodName);
-            if (m == null) { Logger.Warn($"RestKeepHeroTagPatch: HeroData.{methodName} not found — skip diag"); return; }
-            var post = new HarmonyMethod(typeof(RestKeepHeroTagPatch).GetMethod(
-                postfixHelperName,
-                System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public));
-            harmony.Patch(m, postfix: post);
-            Logger.Info($"RestKeepHeroTagPatch: HeroData.{methodName} diagnostic Postfix patched");
+            if (m == null) { Logger.Warn($"RestKeepHeroTagPatch: HeroData.{methodName} not found"); return; }
+            var prefix  = new HarmonyMethod(typeof(RestKeepHeroTagPatch).GetMethod(
+                prefixName,  System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public));
+            var postfix = new HarmonyMethod(typeof(RestKeepHeroTagPatch).GetMethod(
+                postfixName, System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public));
+            harmony.Patch(m, prefix: prefix, postfix: postfix);
+            Logger.Info($"RestKeepHeroTagPatch: HeroData.{methodName} patched");
         }
         catch (System.Exception ex)
         {
-            Logger.Warn($"RestKeepHeroTagPatch.RegisterDiagnostic({methodName}) threw: {ex.GetType().Name}: {ex.Message}");
+            Logger.Warn($"RestKeepHeroTagPatch.RegisterPair({methodName}) threw: {ex.GetType().Name}: {ex.Message}");
         }
     }
 
     // -------------------------------------------------------------------------
-    // Diagnostic Postfixes — log only, no mutation. heroID==0 player only.
+    // ClearAllTempTag — 휴식 routine 의 wipe 차단 (Apply 의 ClearAllTempTag 는 통과)
     // -------------------------------------------------------------------------
-    public static void DiagPostfix_ClearAllTempTag(object __instance)             => DiagLog(__instance, "ClearAllTempTag");
-    public static void DiagPostfix_set_heroTagData(object __instance)             => DiagLog(__instance, "set_heroTagData");
-    public static void DiagPostfix_RefreshMaxAttriAndSkill(object __instance)     => DiagLog(__instance, "RefreshMaxAttriAndSkill");
-    public static void DiagPostfix_RefreshHeroSalaryAndPopulation(object __instance) => DiagLog(__instance, "RefreshHeroSalaryAndPopulation");
-
-    private static void DiagLog(object instance, string methodName)
+    public static void Prefix_ClearAllTempTag(object __instance)
     {
+        _catSnapshot = null;
         try
         {
-            if (GetHeroID(instance) != 0) return;
-            var ht = GetHeroTagData(instance);
-            int n = ht == null ? -1 : IL2CppListOps.Count(ht);
-            Logger.Info($"[DIAG] {methodName} (player) — heroTagData.Count={n}");
+            if (GetHeroID(__instance) != 0) return;
+            if (ApplyInProgress) return;     // Apply 의 의도된 clear — snapshot 안 남김
+
+            var heroTagData = GetHeroTagData(__instance);
+            if (heroTagData == null) return;
+
+            int count = IL2CppListOps.Count(heroTagData);
+            var snap  = new List<object>(count);
+            for (int i = 0; i < count; i++)
+            {
+                var tag = IL2CppListOps.Get(heroTagData, i);
+                if (tag != null) snap.Add(tag);
+            }
+            _catSnapshot = snap;
+            Logger.Info($"RestKeepHeroTagPatch.Prefix_ClearAllTempTag: snapshot {snap.Count} tag(s)");
         }
         catch (System.Exception ex)
         {
-            Logger.Warn($"DiagLog({methodName}) threw: {ex.GetType().Name}: {ex.Message}");
+            Logger.Warn($"RestKeepHeroTagPatch.Prefix_ClearAllTempTag threw: {ex.GetType().Name}: {ex.Message}");
+            _catSnapshot = null;
+        }
+    }
+
+    public static void Postfix_ClearAllTempTag(object __instance)
+    {
+        try
+        {
+            if (_catSnapshot == null) return;     // Prefix skipped (NPC, ApplyInProgress, throw)
+            if (GetHeroID(__instance) != 0) return;
+
+            var heroTagData = GetHeroTagData(__instance);
+            if (heroTagData == null) return;
+
+            int currentCount  = IL2CppListOps.Count(heroTagData);
+            int snapshotCount = _catSnapshot.Count;
+            if (currentCount >= snapshotCount)
+            {
+                Logger.Info($"RestKeepHeroTagPatch.Postfix_ClearAllTempTag: count={currentCount} >= snapshot={snapshotCount}, no restore");
+                return;
+            }
+
+            var existingIDs = new System.Collections.Generic.HashSet<int>();
+            for (int i = 0; i < currentCount; i++)
+            {
+                var existing = IL2CppListOps.Get(heroTagData, i);
+                if (existing == null) continue;
+                var tidVal = ReadFieldOrProperty(existing, "tagID");
+                if (tidVal is int tidInt) existingIDs.Add(tidInt);
+            }
+
+            int restored = 0;
+            foreach (var tag in _catSnapshot)
+            {
+                var tidVal = ReadFieldOrProperty(tag, "tagID");
+                if (tidVal is int tid && existingIDs.Contains(tid)) continue;
+                try
+                {
+                    IL2CppListOps.Add(heroTagData, tag);
+                    if (tidVal is int addedTid) existingIDs.Add(addedTid);
+                    restored++;
+                }
+                catch (System.Exception ex)
+                {
+                    Logger.Warn($"RestKeepHeroTagPatch.Postfix_ClearAllTempTag: Add tag failed — {ex.GetType().Name}: {ex.Message}");
+                }
+            }
+
+            Logger.Info($"RestKeepHeroTagPatch.Postfix_ClearAllTempTag: restored {restored} tag(s) (was {currentCount}, snapshot {snapshotCount})");
+        }
+        catch (System.Exception ex)
+        {
+            Logger.Warn($"RestKeepHeroTagPatch.Postfix_ClearAllTempTag threw: {ex.GetType().Name}: {ex.Message}");
+        }
+        finally
+        {
+            _catSnapshot = null;
         }
     }
 
