@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text.Json;
 using LongYinRoster.Util;
 using Logger = LongYinRoster.Util.Logger;
@@ -44,6 +45,12 @@ public static class PinpointPatcher
         using var doc = JsonDocument.Parse(slotPlayerJson);
         var slot = doc.RootElement;
 
+        // v0.6.2 — selection.Stat=false 시 다른 step 의 부수효과 (KungfuList rebuild +
+        // EquipItem + RefreshMaxAttriAndSkill + RecoverState 등) 로부터 stat 보존.
+        // pre-Apply snapshot → 끝에서 직접 reflection 으로 복원.
+        Dictionary<string, object?>? statSnapshot = !selection.Stat ? CaptureStatSnapshot(currentPlayer) : null;
+        Dictionary<string, float[]>? statListSnapshot = !selection.Stat ? CaptureStatListSnapshot(currentPlayer) : null;
+
         // v0.6.1 — SetSimpleFields 를 SetIdentity / 무공 / 인벤토리 / 장비 / 외형 / RefreshSelfState
         // 이후로 이동. v0.5.x 시리즈에서 다른 step (KungfuList rebuild, equipment add/remove,
         // RefreshMaxAttriAndSkill, RecoverState) 이 stat 값을 부수적으로 변경하므로 stat 을
@@ -60,6 +67,10 @@ public static class PinpointPatcher
         TryStep("RefreshSelfState",        () => RefreshSelfState(currentPlayer, res), res, fatal: true);
         TryStep("SetSimpleFields",         () => SetSimpleFields(slot, currentPlayer, selection, res), res);
         TryStep("RefreshExternalManagers", () => RefreshExternalManagers(currentPlayer, res), res);
+        // v0.6.2 — Stat=false 일 때 pre-Apply snapshot 복원 (가장 마지막에 수행해 다른 step
+        // 의 stat 재계산 / RecoverState / 부수효과 모두 override).
+        if (statSnapshot != null)
+            TryStep("RestoreStatSnapshot", () => RestoreStatSnapshot(currentPlayer, statSnapshot, statListSnapshot, res), res);
 
         Logger.Info($"PinpointPatcher.Apply done — applied={res.AppliedFields.Count} " +
                     $"skipped={res.SkippedFields.Count} warned={res.WarnedFields.Count} " +
@@ -614,6 +625,107 @@ public static class PinpointPatcher
         var r = AppearanceApplier.Apply(player, slot, selection);
         if (r.Skipped) { res.SkippedFields.Add($"appearance — {r.Reason}"); return; }
         res.AppliedFields.Add($"appearance (face={r.FaceIDApplied} skin={r.SkinColorApplied} voice={r.VoicePitchApplied})");
+    }
+
+    // ============================================================ v0.6.2 stat snapshot
+
+    private static readonly string[] StatListPaths =
+        { "baseAttri", "maxAttri", "totalAttri",
+          "baseFightSkill", "maxFightSkill", "totalFightSkill",
+          "baseLivingSkill", "maxLivingSkill", "totalLivingSkill",
+          "expLivingSkill" };
+
+    /// <summary>
+    /// SimpleFieldMatrix 의 FieldCategory.Stat scalar entries 를 reflection 으로 캡처.
+    /// 다른 step (RefreshSelfState 의 RecoverState, EquipItem 등) 의 부수효과로부터 보호.
+    /// </summary>
+    private static Dictionary<string, object?> CaptureStatSnapshot(object player)
+    {
+        var dict = new Dictionary<string, object?>();
+        foreach (var entry in SimpleFieldMatrix.Entries)
+        {
+            if (entry.Category != FieldCategory.Stat) continue;
+            // list-indexed 는 별도 처리 (CaptureStatListSnapshot)
+            if (Array.IndexOf(StatListPaths, entry.JsonPath) >= 0) continue;
+            try { dict[entry.PropertyName] = ReadFieldOrProperty(player, entry.PropertyName); }
+            catch { }
+        }
+        return dict;
+    }
+
+    /// <summary>
+    /// list-indexed stat fields (baseAttri / baseFightSkill / 등) 의 element 값 캡처.
+    /// </summary>
+    private static Dictionary<string, float[]> CaptureStatListSnapshot(object player)
+    {
+        var dict = new Dictionary<string, float[]>();
+        foreach (var path in StatListPaths)
+        {
+            try
+            {
+                var list = ReadFieldOrProperty(player, path);
+                if (list == null) continue;
+                int n = IL2CppListOps.Count(list);
+                var arr = new float[n];
+                for (int i = 0; i < n; i++)
+                {
+                    var v = IL2CppListOps.Get(list, i);
+                    arr[i] = v is float f ? f : Convert.ToSingle(v);
+                }
+                dict[path] = arr;
+            }
+            catch { }
+        }
+        return dict;
+    }
+
+    private static void RestoreStatSnapshot(object player, Dictionary<string, object?> snapshot,
+        Dictionary<string, float[]>? listSnapshot, ApplyResult res)
+    {
+        var t = player.GetType();
+        int restored = 0;
+        // scalar fields — direct reflection write (ChangeXxx 같은 setter 우회)
+        foreach (var kv in snapshot)
+        {
+            if (kv.Value == null) continue;
+            try
+            {
+                var p = t.GetProperty(kv.Key, F);
+                if (p != null && p.CanWrite) { p.SetValue(player, kv.Value); restored++; continue; }
+                var f = t.GetField(kv.Key, F);
+                if (f != null) { f.SetValue(player, kv.Value); restored++; }
+            }
+            catch (Exception ex)
+            {
+                Logger.Info($"  RestoreStatSnapshot {kv.Key}: {ex.GetType().Name}: {ex.Message}");
+            }
+        }
+        // list-indexed — element 별 set (set_Item / Add 패턴)
+        if (listSnapshot != null)
+        {
+            foreach (var kv in listSnapshot)
+            {
+                try
+                {
+                    var list = ReadFieldOrProperty(player, kv.Key);
+                    if (list == null) continue;
+                    int curN = IL2CppListOps.Count(list);
+                    int n = Math.Min(curN, kv.Value.Length);
+                    var listType = list.GetType();
+                    var setItem = listType.GetMethod("set_Item", F, null, new[] { typeof(int), typeof(float) }, null);
+                    if (setItem == null) continue;
+                    for (int i = 0; i < n; i++)
+                        setItem.Invoke(list, new object[] { i, kv.Value[i] });
+                    restored++;
+                }
+                catch (Exception ex)
+                {
+                    Logger.Info($"  RestoreStatSnapshot list {kv.Key}: {ex.GetType().Name}: {ex.Message}");
+                }
+            }
+        }
+        Logger.Info($"RestoreStatSnapshot: {restored} stat fields/lists restored (Stat unchecked → pre-Apply 보존)");
+        res.AppliedFields.Add($"stat-snapshot-restore ({restored} fields)");
     }
 
     private static void RefreshSelfState(object player, ApplyResult res)
