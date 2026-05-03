@@ -78,9 +78,10 @@ public static class ContainerOps
 
     public sealed class GameMoveResult
     {
-        public int Succeeded { get; set; }
-        public int Failed    { get; set; }
-        public string? Reason { get; set; }
+        public int    Succeeded     { get; set; }
+        public int    Failed        { get; set; }
+        public float  OverCapWeight { get; set; }   // v0.7.1 — 인벤 over-cap 발생 무게 (kg, allowOvercap=true 분기)
+        public string? Reason       { get; set; }
     }
 
     /// <summary>
