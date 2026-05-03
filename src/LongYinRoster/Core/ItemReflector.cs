@@ -16,9 +16,10 @@ public static class ItemReflector
 {
     private const BindingFlags F = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
 
-    // Task 0 spike 결과 채움. 미발견 시 빈 array → -1 반환.
-    private static readonly string[] GRADE_NAMES   = new[] { "grade", "level", "lv", "tier", "rank" };
-    private static readonly string[] QUALITY_NAMES = new[] { "quality", "purity", "pin", "pinji", "pinzhi" };
+    // Spike 결과 (2026-05-03 — docs/superpowers/dumps/2026-05-03-v0.7.2-grade-quality-spike.md):
+    // itemLv = 등급 (Int32, 0~5), rareLv = 품질 (Int32, 0~5). 후속 best-guess 는 fallback.
+    private static readonly string[] GRADE_NAMES   = new[] { "itemLv", "grade", "level", "lv", "tier", "rank" };
+    private static readonly string[] QUALITY_NAMES = new[] { "rareLv", "quality", "purity", "pin", "pinji", "pinzhi" };
 
     // Task 0 spike 결과 한자 string 으로 노출되면 enable. int 노출이면 dictionary lookup skip.
     private static readonly Dictionary<string, int> GradeMap = new()
