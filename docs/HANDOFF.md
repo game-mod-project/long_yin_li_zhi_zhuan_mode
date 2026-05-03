@@ -1,7 +1,7 @@
 # LongYin Roster Mod — 작업 핸드오프 문서
 
 **일시 중지**: 2026-05-03
-**진행 상태**: **v0.7.3 release** — 컨테이너 Item 시각 표시 풍부화 (D-2 placeholder cell — 24×24 cell prefix: 등급 배경 + 품질 마름모 + 카테고리 한자 + 강화 `+N` + 착용 `착`). 기존 v0.7.2 검색·정렬 자산 100% 보존. 166/166 tests PASS + 인게임 smoke 5/5 PASS.
+**진행 상태**: **v0.7.4 release** — D-1 Item 상세 panel (view-only, hybrid curated+raw). ContainerPanel cell 클릭 single-focus + ⓘ toolbar 버튼 → 별도 ItemDetailPanel window. Curated 섹션 = 장비/비급/단약 카테고리별 한글 라벨 우선 cover (보물·재료·말 후속 patch). Raw fields 섹션 = reflection dump 접이식 (IL2CPP meta 필터). 컨테이너 area 는 JSON path 라 데이터 미지원 (focus outline 만). 182/182 tests PASS + 인게임 smoke 6/6 PASS (4-iteration UX fix).
 **저장소**: https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode (`main` 브랜치)
 **프로젝트 루트**: `E:/Games/龙胤立志传.v1.0.0f8.2/LongYinLiZhiZhuan/Save/_PlayerExport/`
 **Releases**:
@@ -25,6 +25,7 @@
 - [v0.7.1](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.7.1) — 컨테이너 UX 1차: destination 명시 (대칭 mirror 4-callback) / capacity 표시 무게 기반 (N개, X.X / MAX kg) + 인벤 over-cap ⚠ 초과 마커 / 가드 (인벤 over-weight 허용+속도페널티 안내, 창고 hard cap+거절 toast). Spike: ItemListData.maxWeight (Single) reflection 우선, 미발견 시 BepInEx Config InventoryMaxWeight/StorageMaxWeight (float, default 964/300) fallback.
 - [v0.7.2](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.7.2) — D-3 컨테이너 검색·정렬: 글로벌 toolbar (검색 box + 카테고리/이름/등급/품질 4 sort key + ▲/▼) 1줄 + 3-area cache. Item itemLv/rareLv (등급/품질) reflection. Row text 등급 6단계 색상 (열악 회색 → 절세 빨강). 인게임 smoke 통과 + 2 bug fix (color JSON path itemLv 우선 / dropdown lazy load).
 - [v0.7.3](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.7.3) — D-2 컨테이너 Item 시각 표시 풍부화 (placeholder cell): row 마다 24×24 cell prefix (등급 배경 6단계 + 우상단 품질 마름모 6단계 + 중앙 카테고리 한자 装/书/药/食/宝/材/马 + 우하단 강화 `+N` + 좌하단 착용 `착`). 신규 `CategoryGlyph` + `ItemCellRenderer` (Draw + GradeColor/QualityColor 단일 source). v0.7.2 검색·정렬 자산 100% 보존. IL2CPP IMGUI strip 회귀 2회 (Box 류 + GUILayoutUtility.GetLastRect) 발견 → `GUILayoutUtility.GetRect` 1-call 로 fallback. 진짜 game sprite 도입은 v0.8+ 별도 sub-project 후보.
+- [v0.7.4](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.7.4) — D-1 Item 상세 panel (view-only, hybrid curated+raw): ContainerPanel row 좌측 cell 클릭 single-focus (cyan 외곽선) + toolbar `ⓘ 상세` 버튼으로 별도 ItemDetailPanel window. **Curated 섹션** = 카테고리별 한글 라벨 (장비: 강화/착용/특수 강화/무게 경감/무게/가격, 비급: 무공 ID/무게/가격, 단약·음식: 강화/추가 보정/무게/가격) — 보물·재료·말 은 후속 v0.7.4.x patch. **Raw fields 섹션** (접이식) = 모든 reflection 필드 dump (IL2CPP meta 필터). **컨테이너 area** (외부 디스크) 는 JSON path 라 ItemDetailPanel 데이터 미지원 — focus outline 만 표시. **Cell vs Toggle 분리**: cell 클릭 = single-select + focus, toggle 라벨 클릭 = multi-check (이동·복사 워크플로우, focus 해제). ContainerPanel X 닫기 시 ItemDetailPanel 도 sync close. 신규 `ItemFieldExtractor` (GetRawFields + GetCuratedFields with sub-data wrapper unwrap) + `ItemDetailPanel` window. v0.7.2 검색·정렬 / v0.7.3 cell renderer 자산 100% 보존. 182/182 tests PASS + 인게임 smoke 6/6 PASS (4-iteration UX fix: ref equality / SetFocus call / single-select / Toggle clear + container focus). Sub-data wrapper inventory dump: `docs/superpowers/dumps/2026-05-03-v0.7.4-subdata-spike.md`. Item editor (수정 기능) 는 v0.7.7 후보 별도 sub-project.
 
 ## v0.7.1 Known Limitations
 - **무공 list만 단독 Apply 시 active 장착 정보 손실** (의도된 동작 — 무공 active 도 같이 체크 권장).
@@ -38,15 +39,16 @@
 ## 1. 한 줄 요약
 
 BepInEx 6 IL2CPP 환경에서 플레이어 캐릭터 스냅샷을 20슬롯에 저장 / 관리하는 모드 + 컨테이너 (인벤/창고 ↔ 외부 디스크) 관리.
-**현재 main baseline = v0.7.3** (D-2 컨테이너 Item 시각 표시 풍부화 — 24×24 placeholder cell (등급 배경 + 품질 마름모 + 카테고리 한자 + 강화 `+N` + 착용 `착`). v0.7.2 검색·정렬 자산 100% 보존. 166/166 tests PASS + 인게임 smoke 5/5 PASS).
+**현재 main baseline = v0.7.4** (D-1 Item 상세 panel — view-only hybrid curated+raw, ContainerPanel cell 클릭 single-focus + ⓘ toolbar 버튼 → 별도 ItemDetailPanel window. 장비/비급/단약 우선 cover. 컨테이너 area 는 JSON path 데이터 미지원. 182/182 tests PASS + 인게임 smoke 6/6 PASS — 4-iteration UX fix).
 
-**다음 세션 후속 sub-project** (v0.7.3 spec 가 D-2 scope 재정의 — 진짜 sprite 는 v0.8+ 후보로 분리):
-- v0.7.4: D-1 Item 상세 panel — 선택 item 의 reflection 데이터 (속성·강화·내구도 등) 표시
-- v0.7.5: D-4 Item 한글화 — 한글 패치 mod 사전 hook 또는 자체 itemID→한글 사전. ContainerPanel item 이름이 현재 중국어 한자 노출
+**다음 세션 후속 sub-project**:
+- v0.7.4.x patch (후보): 나머지 3 카테고리 curated — 말 우선 (HorseItemData 의 fightSpeed/normalSpeed/maxHp 등), 그 다음 보물 / 재료
+- v0.7.5: D-4 Item 한글화 — 한글 패치 mod 사전 hook 또는 자체 itemID→한글 사전. ContainerPanel + ItemDetailPanel item 이름이 현재 중국어 한자 노출
 - v0.7.6: 설정 panel — hotkey 변경 / 컨테이너 정원 / 창 크기 조정
-- v0.7.7: Apply 부분 미리보기 — 선택한 카테고리 적용 시 전후 비교
-- v0.7.8: Slot diff preview — Apply 전 어떤 필드가 바뀔지 미리보기 (스탯/장비/무공 차이 시각화)
-- v0.7.9: NPC 지원 — 캐릭터 선택 + apply target 확장 (heroID=0 외 다른 캐릭터)
+- **v0.7.7 (후보)**: Item editor — ItemDetailPanel 의 view-only 필드를 edit-able 로 확장 (강화 lv 직접 변경, equipUseSpeAddValue 같은 sub-data 직접 수정). game-self method 우선 + reflection setter fallback. v0.7.4 의 ItemFieldExtractor 자산 baseline
+- v0.7.8: Apply 부분 미리보기 — 선택한 카테고리 적용 시 전후 비교
+- v0.7.9: Slot diff preview — Apply 전 어떤 필드가 바뀔지 미리보기 (스탯/장비/무공 차이 시각화)
+- v0.7.10: NPC 지원 — 캐릭터 선택 + apply target 확장 (heroID=0 외 다른 캐릭터)
 - **v0.8 (후보)**: 진짜 game sprite 도입 — `ItemCellRenderer` 의 placeholder block 만 sprite blit 으로 교체. IL2CPP sprite asset 접근 + IMGUI texture caching challenge. v0.7.3 의 cell 구조가 baseline
 
 각 sub-project 는 별도 brainstorming → spec → plan → impl cycle. 진입점은 ModeSelector 메뉴에 항목 추가.
@@ -362,20 +364,22 @@ v0.7.3 출시 완료 (2026-05-03). D-2 컨테이너 Item 시각 표시 풍부화
 
 **컨테이너 D 계열** (작업 순서 D→C→A→B 사용자 채택):
 1. ✅ **v0.7.2 D-3 검색·정렬** (release 완료)
-2. ✅ **v0.7.3 D-2 Item 시각 표시 풍부화** (release 완료 — 본 commit) — D-2 scope 가 "정사각형 sprite grid" → "List 풍부화 (24×24 placeholder cell prefix)" 로 재정의. row 마다 cell prefix 로 등급 배경 + 품질 마름모 + 카테고리 한자 + 강화 `+N` + 착용 `착` 시각 표시. 진짜 game sprite 는 v0.8+ 별도 후보. IL2CPP IMGUI strip 회귀 2회 (Box 류 + GUILayoutUtility.GetLastRect) 발견 → `GUILayoutUtility.GetRect` 1-call API 로 fallback (자세한 회귀 학습 + strip-safe IMGUI patterns 목록: `docs/superpowers/dumps/2026-05-03-v0.7.3-smoke-results.md`).
-3. **v0.7.4 D-1 Item 상세 panel** — 선택 item 의 reflection 데이터 (속성·강화·내구도 등) 표시. v0.7.2 ItemReflector 확장 + sub-data wrapper 별 reflection 추가. v0.7.3 의 `ItemCellRenderer` 패턴 재활용 가능.
-4. **v0.7.5 D-4 Item 한글화** — 한글 패치 mod 사전 hook 또는 자체 itemID→한글 사전. 사용자가 이미 한글 패치 mod 사용 중 (인게임 "절세大劍/정량长劍" 같은 grade prefix + 한자 합성 표시 확인됨). 사전 hook 가능성 우선 조사.
+2. ✅ **v0.7.3 D-2 Item 시각 표시 풍부화** (release 완료) — D-2 scope 가 "정사각형 sprite grid" → "List 풍부화 (24×24 placeholder cell prefix)" 로 재정의. row 마다 cell prefix 로 등급 배경 + 품질 마름모 + 카테고리 한자 + 강화 `+N` + 착용 `착` 시각 표시. 진짜 game sprite 는 v0.8+ 별도 후보. IL2CPP IMGUI strip 회귀 2회 (Box 류 + GUILayoutUtility.GetLastRect) 발견 → `GUILayoutUtility.GetRect` 1-call API 로 fallback (자세한 회귀 학습 + strip-safe IMGUI patterns 목록: `docs/superpowers/dumps/2026-05-03-v0.7.3-smoke-results.md`).
+3. ✅ **v0.7.4 D-1 Item 상세 panel** (release 완료 — 본 commit) — view-only, hybrid curated+raw. ContainerPanel cell 클릭 single-focus (cyan 외곽선) + toolbar `ⓘ 상세` 버튼 → 별도 ItemDetailPanel window. **Curated 섹션** = 카테고리별 한글 라벨 (장비/비급/단약 우선 cover, 보물·재료·말 후속 patch). **Raw fields 섹션** (접이식) = 모든 reflection 필드 dump (IL2CPP meta 필터). **컨테이너 area** (외부 디스크) 는 JSON path 라 ItemDetailPanel 데이터 미지원 — focus outline 만 표시. **Cell vs Toggle 분리**: cell 클릭 = single-select + focus, toggle 라벨 = multi-check (이동·복사 워크플로우, focus 해제). 4-iteration smoke fix narrative + sub-data wrapper inventory: `docs/superpowers/dumps/2026-05-03-v0.7.4-smoke-results.md` + `docs/superpowers/dumps/2026-05-03-v0.7.4-subdata-spike.md`.
+4. **v0.7.4.x patch (후보)** — 나머지 3 카테고리 curated — 말 우선 (HorseItemData 의 fightSpeed/normalSpeed/maxHp 등), 그 다음 보물 / 재료. v0.7.4 의 `ItemFieldExtractor.GetCuratedFields` 의 카테고리별 switch 만 확장하면 됨 (단순 patch — 별도 sub-project 안 함).
+5. **v0.7.5 D-4 Item 한글화** — 한글 패치 mod 사전 hook 또는 자체 itemID→한글 사전. 사용자가 이미 한글 패치 mod 사용 중 (인게임 "절세大劍/정량长劍" 같은 grade prefix + 한자 합성 표시 확인됨). ContainerPanel + ItemDetailPanel item 이름이 현재 중국어 한자 노출. 사전 hook 가능성 우선 조사.
 
 **캐릭터 관리 계열** (D 끝나면):
-5. v0.7.6 설정 panel — hotkey / 컨테이너 정원 / 창 크기 / 검색·정렬 영속화 옵션
-6. v0.7.7 Apply 부분 미리보기
-7. v0.7.8 Slot diff preview
-8. v0.7.9 NPC 지원
+6. v0.7.6 설정 panel — hotkey / 컨테이너 정원 / 창 크기 / 검색·정렬 영속화 옵션
+7. **v0.7.7 (후보) Item editor** — ItemDetailPanel 의 view-only 필드를 edit-able 로 확장 (강화 lv 직접 변경, equipUseSpeAddValue 같은 sub-data 직접 수정). game-self method 우선 + reflection setter fallback. v0.7.4 의 `ItemFieldExtractor` 자산 baseline. 별도 brainstorming → spec → plan → impl cycle.
+8. v0.7.8 Apply 부분 미리보기
+9. v0.7.9 Slot diff preview
+10. v0.7.10 NPC 지원
 
 **v0.8 (후보) — 진짜 game sprite 도입**:
 - v0.7.3 의 `ItemCellRenderer` 의 placeholder block 만 game sprite blit 으로 교체 (cell 구조 + GradeColor/QualityColor/CategoryGlyph 자산 그대로 사용)
 - challenge: IL2CPP sprite asset 접근 (`item.iconID` → Sprite/Texture2D resolution + lazy-load), IMGUI texture caching, sprite atlas 핸들링
-- v0.7.2 spike 의 ItemData sub-data wrapper presence (`equipmentData` / `bookData` / etc.) + iconID field reflection 결과 활용
+- v0.7.2 spike 의 ItemData sub-data wrapper presence (`equipmentData` / `bookData` / etc.) + iconID field reflection 결과 활용 (v0.7.4 spike 가 이 inventory 를 한 번 더 확정)
 - 별도 brainstorming → spec → plan → impl cycle
 
 각 sub-project 는 별도 brainstorming → spec → plan → impl cycle.
@@ -386,27 +390,33 @@ v0.7.3 출시 완료 (2026-05-03). D-2 컨테이너 Item 시각 표시 풍부화
 
 **다음 세션 첫 메시지에 붙여넣을 요약**:
 
-> LongYin Roster Mod — **main baseline = v0.7.3** (2026-05-03 release). D 계열 두 번째 sub-project (D-2 Item 시각 표시 풍부화 — placeholder cell) 완료. 166/166 unit tests + 인게임 smoke 5/5 PASS.
+> LongYin Roster Mod — **main baseline = v0.7.4** (2026-05-03 release). D 계열 세 번째 sub-project (D-1 Item 상세 panel — view-only, hybrid curated+raw) 완료. 182/182 unit tests + 인게임 smoke 6/6 PASS (4-iteration UX fix).
 > 프로젝트 루트: `E:/Games/龙胤立志传.v1.0.0f8.2/LongYinLiZhiZhuan/Save/_PlayerExport/`.
-> 핸드오프: `docs/HANDOFF.md`. v0.7.3 spec: `docs/superpowers/specs/2026-05-03-longyin-roster-mod-v0.7.3-design.md`. plan: `docs/superpowers/plans/2026-05-03-longyin-roster-mod-v0.7.3-plan.md`.
-> v0.7.3 smoke: `docs/superpowers/dumps/2026-05-03-v0.7.3-smoke-results.md`.
+> 핸드오프: `docs/HANDOFF.md`. v0.7.4 spec: `docs/superpowers/specs/2026-05-03-longyin-roster-mod-v0.7.4-design.md`. plan: `docs/superpowers/plans/2026-05-03-longyin-roster-mod-v0.7.4-plan.md`.
+> v0.7.4 smoke: `docs/superpowers/dumps/2026-05-03-v0.7.4-smoke-results.md`. v0.7.4 sub-data spike: `docs/superpowers/dumps/2026-05-03-v0.7.4-subdata-spike.md`.
 >
-> **v0.7.3 결과**: ContainerPanel `DrawItemList` row 마다 24×24 placeholder cell prefix (`BeginHorizontal → ItemCellRenderer.Draw(24) → Toggle(label) → EndHorizontal`). cell = 등급 배경 (alpha ~0.6) + 우상단 8×8 품질 마름모 + 중앙 카테고리 한자 (装/书/药/食/宝/材/马/·) + 우하단 강화 `+N` (>0) + 좌하단 착용 `착`. 신규 `CategoryGlyph` (type/subType→한자) + `ItemCellRenderer` (Draw + GradeColor/QualityColor 6단계 hex 단일 source). v0.7.2 의 SearchSortState/ContainerView/4-key sort/검색 box/▲▼/카테고리 탭/row 텍스트 색상 100% 보존.
+> **v0.7.4 결과**: ContainerPanel row 좌측 cell 클릭 → single-focus (cyan 외곽선, area 별 단일 selection). toolbar `ⓘ 상세` 버튼 → 별도 ItemDetailPanel window 가 열려서 selected item 의 상세 정보 표시. 신규 `ItemFieldExtractor.GetRawFields(item)` (모든 reflection 필드 dump, IL2CPP meta 필터) + `GetCuratedFields(item)` (카테고리별 한글 라벨 + sub-data wrapper unwrap — 장비/비급/단약 우선 cover). 신규 `ItemDetailPanel` (window + curated 섹션 + raw 접이식 섹션). ContainerPanel X 닫기 시 ItemDetailPanel sync close. v0.7.2 검색·정렬 / v0.7.3 cell renderer 자산 100% 보존.
 >
-> **v0.7.3 D-2 scope 재정의**:
-> - 원래 plan: "정사각형 sprite grid (item.iconID IMGUI grid)"
-> - 재정의 후: "List 풍부화 (24×24 placeholder cell prefix)"
-> - 진짜 game sprite 는 비범위 → v0.8 별도 sub-project 후보
+> **v0.7.4 핵심 UX 결정** (smoke 4-iteration fix):
+> - **Cell 클릭** = single-select + focus (해당 row 만 체크 + cyan 외곽선)
+> - **Toggle 라벨 클릭** = multi-check (이동·복사 워크플로우, focus 해제)
+> - 1차: ref equality FAIL → IL2CPP wrapper 의 same-pointer 비교 issue, identity-based fallback 추가
+> - 2차: SetFocus call 누락 → cell 클릭 핸들러 명시 호출
+> - 3차: single-select UX 회귀 → cell 클릭이 다른 row 의 check 까지 끄도록 명시 동작
+> - 4차: container area focus + Toggle 클릭 시 focus clear
 >
-> **v0.7.3 IL2CPP IMGUI strip 회귀 학습** (다음 sub-project 필독):
-> - `GUILayout.Box(string, options)` ❌ strip → `GUILayout.Label("", options)` + `GUI.DrawTexture` 조합
-> - `GUI.Box(Rect, string)` ❌ strip → `GUI.DrawTexture(rect, Texture2D.whiteTexture)` + `GUI.color`
-> - `GUILayoutUtility.GetLastRect()` ❌ strip → **`GUILayoutUtility.GetRect(w, h, options)`** 1-call API 로 대체 (v0.7.3 검증)
-> - 자세한 strip-safe IMGUI patterns 목록 + 회귀 방지 체크리스트: smoke dump §자산
+> **v0.7.4 scope cover**:
+> - 장비 (EquipmentData): 강화 / 착용 / 특수 강화 / 무게 경감 / 무게 / 가격
+> - 비급 (BookData): 무공 ID / 무게 / 가격
+> - 단약·음식 (UseItemData): 강화 / 추가 보정 / 무게 / 가격
+> - **미지원**: 보물 / 재료 / 말 → v0.7.4.x patch 후보 (말 우선 — HorseItemData)
+> - **컨테이너 area** (외부 디스크) JSON path 라 데이터 미지원 — focus outline 만 표시
 >
 > **다음 단계 후보**:
-> - **v0.7.4 D-1 Item 상세 panel** — 선택 item reflection 표시 (sub-data wrapper 별 추가 reflection). v0.7.3 `ItemCellRenderer` 패턴 재활용
-> - **v0.7.5 D-4 Item 한글화** — 한글 패치 mod 사전 hook 또는 자체 사전
+> - **v0.7.4.x patch** — 나머지 3 카테고리 curated 추가 (말 우선). `ItemFieldExtractor.GetCuratedFields` switch 확장만 (단순 patch)
+> - **v0.7.5 D-4 Item 한글화** — 한글 패치 mod 사전 hook 또는 자체 사전. ContainerPanel + ItemDetailPanel item 이름 모두 한자 노출
+> - **v0.7.6 설정 panel** — hotkey / 컨테이너 정원 / 창 크기 / 검색·정렬 영속화 옵션
+> - **v0.7.7 (후보) Item editor** — ItemDetailPanel view-only 필드를 edit-able 로 확장. v0.7.4 `ItemFieldExtractor` 자산 baseline
 > - **v0.8 (후보) 진짜 sprite 도입** — `ItemCellRenderer` placeholder block 만 sprite blit 으로 교체. IL2CPP sprite asset 접근 + IMGUI texture caching
 > - **maintenance 모드** — 게임 patch 대응 대기
 

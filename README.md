@@ -79,6 +79,23 @@
 
 색상 매핑은 게임 본 UI 의 아이콘 표시 (등급 = 아이콘 배경, 품질 = 아이콘 상단 마름모) 와 일치합니다.
 
+### v0.7.4 — Item 상세 panel
+
+ContainerPanel 의 row 좌측 cell 을 클릭하면 single-focus 됩니다 (cyan 외곽선). toolbar 의 ⓘ 상세 버튼으로 별도 ItemDetailPanel window 가 열려서 선택 item 의 상세 정보를 표시합니다.
+
+- **Curated 섹션**: 카테고리별 한글 라벨 — 장비 (강화/착용/특수 강화/무게 경감/무게/가격), 비급 (무공 ID/무게/가격), 단약·음식 (강화/추가 보정/무게/가격) 우선 cover. 보물·재료·말 은 후속 patch.
+- **Raw fields 섹션** (접이식): 모든 reflection 필드 dump (IL2CPP meta 필터). game patch 후 새 필드도 즉시 표시.
+
+**Cell 클릭 vs Toggle 라벨 클릭**:
+- **Cell 클릭** = single-select (해당 row 만 체크 + focus)
+- **Toggle 라벨 클릭** = multi-check (이동·복사 워크플로우, focus 해제)
+
+**컨테이너 area** (외부 디스크) 는 JSON path 라 ItemDetailPanel 데이터 미지원 — focus outline 만 표시. 인벤·창고는 모든 정보 정상.
+
+ItemDetailPanel 은 view-only — item 수정 기능은 후속 sub-project (v0.7.7 후보 — Item editor) 에서 별도 release.
+
+ContainerPanel X 버튼 닫기 시 ItemDetailPanel 도 같이 닫힙니다. position 영속.
+
 ### Releases
 
 | Version | Highlights |
@@ -91,6 +108,7 @@
 | v0.5.2 | 무공 list 활성화 (clear + add all + lv 복원) |
 | v0.7.2 | 컨테이너 검색·정렬 — 글로벌 toolbar + 등급 6단계 색상 + itemLv/rareLv reflection |
 | v0.7.3 | 컨테이너 Item 시각 표시 풍부화 — 24×24 placeholder cell (등급 배경 + 품질 마름모 + 카테고리 한자 + 강화 `+N` + 착용 `착`) |
+| v0.7.4 | Item 상세 panel — cell 클릭 single-focus + ⓘ toolbar → ItemDetailPanel (curated 한글 라벨 + raw reflection dump, view-only) |
 
 ## 요구 사항
 
