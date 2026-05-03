@@ -370,10 +370,15 @@ public sealed class ContainerPanel
         foreach (var r in rows)
         {
             if (!ItemCategoryFilter.Matches(_filter, r.Type, r.SubType)) continue;
-            GUI.color = GradeColor(r.GradeOrder);
+
+            GUILayout.BeginHorizontal();
+            ItemCellRenderer.Draw(r, size: 24);
+            GUI.color = ItemCellRenderer.GradeColor(r.GradeOrder);   // v0.7.2 row 텍스트 색상 — source 단일화
             bool was = checks.Contains(r.Index);
             bool now = GUILayout.Toggle(was, BuildLabel(r));
             GUI.color = prevColor;
+            GUILayout.EndHorizontal();
+
             if (now && !was) checks.Add(r.Index);
             if (!now && was) checks.Remove(r.Index);
         }
@@ -387,22 +392,6 @@ public sealed class ContainerPanel
         string equipped = r.Equipped ? " [착용중]" : "";
         return $"{r.Name} ({cat}{enh}/{r.Weight:F1}kg){equipped}";
     }
-
-    /// <summary>
-    /// v0.7.2 D-3 — 등급 색상 매핑. 0~5: 회색·녹·하늘·보라·오렌지·빨강. 미발견(-1) → 흰색.
-    /// IL2CPP IMGUI strip-safe (GUI.color 만 사용, GUIStyle ctor 우회).
-    /// 사용자 입력 (spec §4.9) 기준 hex 추정값 — 정확한 게임 sprite 색은 v0.7.3 D-2 sprite 분석 시 확정.
-    /// </summary>
-    private static Color GradeColor(int gradeOrder) => gradeOrder switch
-    {
-        0 => new Color(0.61f, 0.64f, 0.69f),    // 회색  #9CA3AF
-        1 => new Color(0.13f, 0.77f, 0.37f),    // 녹    #22C55E
-        2 => new Color(0.22f, 0.74f, 0.97f),    // 하늘 #38BDF8
-        3 => new Color(0.66f, 0.33f, 0.97f),    // 보라 #A855F7
-        4 => new Color(0.98f, 0.45f, 0.09f),    // 오렌지 #F97316
-        5 => new Color(0.94f, 0.27f, 0.27f),    // 빨강 #EF4444
-        _ => Color.white,
-    };
 
     /// <summary>
     /// v0.7.1 — "{label} ({countN}개, {curW:F1} / {maxW:F1} kg)" + (인벤만) over-cap 마커.
