@@ -20,6 +20,9 @@ public static class Config
 
     public static ConfigEntry<int>     LogLevel = null!;
 
+    public static ConfigEntry<int>     InventoryCapacity = null!;
+    public static ConfigEntry<int>     StorageCapacity   = null!;
+
     public static void Bind(ConfigFile cfg)
     {
         ToggleHotkey       = cfg.Bind("General", "ToggleHotkey",       KeyCode.F11,
@@ -47,5 +50,14 @@ public static class Config
                             new ConfigDescription(
                                 "0=Off, 1=Error, 2=Warn, 3=Info, 4=Debug",
                                 new AcceptableValueRange<int>(0, 4)));
+
+        InventoryCapacity = cfg.Bind("Container", "InventoryCapacity", 171,
+                                     new ConfigDescription(
+                                         "인벤토리 capacity. spike PASS 시 reflection 우선, 미발견 시 본 값 fallback.",
+                                         new AcceptableValueRange<int>(1, 1000)));
+        StorageCapacity   = cfg.Bind("Container", "StorageCapacity",   217,
+                                     new ConfigDescription(
+                                         "창고 capacity. 동상.",
+                                         new AcceptableValueRange<int>(1, 10000)));
     }
 }
