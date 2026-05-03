@@ -170,8 +170,9 @@ public sealed class ModWindow : MonoBehaviour
         var ssd = GetPlayerSelfStorage();
         float invMax = Core.ItemListReflector.GetMaxWeight(ild, Config.InventoryMaxWeight.Value);
         float stoMax = Core.ItemListReflector.GetMaxWeight(ssd, Config.StorageMaxWeight.Value);
-        _containerPanel.SetInventoryRows(inv != null ? ContainerRowBuilder.FromGameAllItem(inv) : new List<ContainerPanel.ItemRow>(), invMax);
-        _containerPanel.SetStorageRows  (sto != null ? ContainerRowBuilder.FromGameAllItem(sto) : new List<ContainerPanel.ItemRow>(), stoMax);
+        // 임시 — Task 7 에서 진짜 raw item source (game list iteration) 로 교체
+        _containerPanel.SetInventoryRows(inv != null ? ContainerRowBuilder.FromGameAllItem(inv) : new List<ContainerPanel.ItemRow>(), new List<object>(), invMax);
+        _containerPanel.SetStorageRows  (sto != null ? ContainerRowBuilder.FromGameAllItem(sto) : new List<ContainerPanel.ItemRow>(), new List<object>(), stoMax);
         RefreshContainerRows();
     }
 
@@ -191,9 +192,9 @@ public sealed class ModWindow : MonoBehaviour
     {
         if (_containerOps == null || _containerRepo == null) return;
         if (_containerOps.CurrentContainerIndex > 0)
-            _containerPanel.SetContainerRows(ContainerRowBuilder.FromJsonArray(_containerRepo.LoadItemsJson(_containerOps.CurrentContainerIndex)));
+            _containerPanel.SetContainerRows(ContainerRowBuilder.FromJsonArray(_containerRepo.LoadItemsJson(_containerOps.CurrentContainerIndex)), new List<object>());
         else
-            _containerPanel.SetContainerRows(new List<ContainerPanel.ItemRow>());
+            _containerPanel.SetContainerRows(new List<ContainerPanel.ItemRow>(), new List<object>());
     }
 
     private void DoGameToContainer(Func<object?> getList, HashSet<int> checks, bool removeFromGame)

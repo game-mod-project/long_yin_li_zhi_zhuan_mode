@@ -51,6 +51,37 @@ public sealed class ContainerPanel
     private float         _inventoryMaxWeight = 964f;   // v0.7.1
     private float         _storageMaxWeight   = 300f;   // v0.7.1
 
+    // v0.7.4 D-1 — 글로벌 1 focus + raw item paired sources
+    private (ContainerArea Area, int Index)? _focus;
+    private List<object> _inventoryRawItems = new();
+    private List<object> _storageRawItems   = new();
+    private List<object> _containerRawItems = new();
+
+    // ItemDetailPanel toggle callback — Plugin.cs/ModWindow.cs 가 wire-up (Task 7).
+    public Action? OnToggleItemDetailPanel;
+    public Func<bool>? IsItemDetailPanelVisible;
+
+    public bool HasFocus => _focus.HasValue;
+    public (ContainerArea Area, int Index)? Focus => _focus;
+    public void SetFocus(ContainerArea area, int index) => _focus = (area, index);
+    public void ClearFocus() => _focus = null;
+
+    public object? GetFocusedRawItem()
+    {
+        if (!_focus.HasValue) return null;
+        var area = _focus.Value.Area;
+        var idx  = _focus.Value.Index;
+        var raw = area switch
+        {
+            ContainerArea.Inventory => _inventoryRawItems,
+            ContainerArea.Storage   => _storageRawItems,
+            ContainerArea.Container => _containerRawItems,
+            _ => null,
+        };
+        if (raw == null || idx < 0 || idx >= raw.Count) { _focus = null; return null; }
+        return raw[idx];
+    }
+
     // v0.7.2 D-3 — 1 global search/sort state (3-area 통합) + cached view
     private SearchSortState _globalState = SearchSortState.Default;
     private readonly ContainerView _invView = new();
@@ -96,25 +127,37 @@ public sealed class ContainerPanel
         RefreshContainerList();
     }
 
-    public void SetInventoryRows(List<ItemRow> rows, float maxWeight = 964f)
+    public void SetInventoryRows(List<ItemRow> rows, List<object> rawItems, float maxWeight = 964f)
     {
         _inventoryRows = rows;
+        _inventoryRawItems = rawItems;
         _inventoryChecks.Clear();
         _inventoryMaxWeight = maxWeight;
         _invView.Invalidate();
+        if (_focus.HasValue && _focus.Value.Area == ContainerArea.Inventory
+            && (_focus.Value.Index < 0 || _focus.Value.Index >= rawItems.Count))
+            _focus = null;
     }
-    public void SetStorageRows(List<ItemRow> rows, float maxWeight = 300f)
+    public void SetStorageRows(List<ItemRow> rows, List<object> rawItems, float maxWeight = 300f)
     {
         _storageRows = rows;
+        _storageRawItems = rawItems;
         _storageChecks.Clear();
         _storageMaxWeight = maxWeight;
         _stoView.Invalidate();
+        if (_focus.HasValue && _focus.Value.Area == ContainerArea.Storage
+            && (_focus.Value.Index < 0 || _focus.Value.Index >= rawItems.Count))
+            _focus = null;
     }
-    public void SetContainerRows(List<ItemRow> rows)
+    public void SetContainerRows(List<ItemRow> rows, List<object> rawItems)
     {
         _containerRows = rows;
+        _containerRawItems = rawItems;
         _containerChecks.Clear();
         _conView.Invalidate();
+        if (_focus.HasValue && _focus.Value.Area == ContainerArea.Container
+            && (_focus.Value.Index < 0 || _focus.Value.Index >= rawItems.Count))
+            _focus = null;
     }
     public void SetGradeQualityEnabled(bool enabled) { _gradeQualityEnabled = enabled; }
 
@@ -227,7 +270,7 @@ public sealed class ContainerPanel
         float invWeight = 0f;
         foreach (var r in _inventoryRows) invWeight += r.Weight;   // 라벨은 raw 기준 (전체 무게)
         GUILayout.Label(FormatCount(KoreanStrings.Lbl_Inventory, _inventoryRows.Count, invWeight, _inventoryMaxWeight, allowOvercap: true));
-        DrawItemList(invView, _inventoryChecks, ref _invScroll, 220);
+        DrawItemList(ContainerArea.Inventory, invView, _inventoryChecks, ref _invScroll, 220);
         GUILayout.BeginHorizontal();
         if (GUILayout.Button("→ 이동")) OnInventoryToContainerMove?.Invoke(new HashSet<int>(_inventoryChecks));
         if (GUILayout.Button("→ 복사")) OnInventoryToContainerCopy?.Invoke(new HashSet<int>(_inventoryChecks));
@@ -240,7 +283,7 @@ public sealed class ContainerPanel
         float stoWeight = 0f;
         foreach (var r in _storageRows) stoWeight += r.Weight;
         GUILayout.Label(FormatCount(KoreanStrings.Lbl_Storage, _storageRows.Count, stoWeight, _storageMaxWeight, allowOvercap: false));
-        DrawItemList(stoView, _storageChecks, ref _stoScroll, 220);
+        DrawItemList(ContainerArea.Storage, stoView, _storageChecks, ref _stoScroll, 220);
         GUILayout.BeginHorizontal();
         if (GUILayout.Button("→ 이동")) OnStorageToContainerMove?.Invoke(new HashSet<int>(_storageChecks));
         if (GUILayout.Button("→ 복사")) OnStorageToContainerCopy?.Invoke(new HashSet<int>(_storageChecks));
@@ -333,7 +376,7 @@ public sealed class ContainerPanel
 
         var conView = _conView.ApplyView(_containerRows, _globalState);
         GUILayout.Label($"{KoreanStrings.Lbl_Container} ({_containerRows.Count}개)");
-        DrawItemList(conView, _containerChecks, ref _conScroll, 500);
+        DrawItemList(ContainerArea.Container, conView, _containerChecks, ref _conScroll, 500);
 
         // v0.7.1: destination 별 4 버튼 (좌측 column mirror) + 삭제
         GUILayout.BeginHorizontal();
@@ -361,9 +404,19 @@ public sealed class ContainerPanel
             _stoView.Invalidate();
             _conView.Invalidate();
         }
+
+        // v0.7.4 D-1 — ⓘ 상세 토글 (active=cyan)
+        GUILayout.BeginHorizontal();
+        bool detailVisible = IsItemDetailPanelVisible?.Invoke() ?? false;
+        var prevColor = GUI.color;
+        if (detailVisible) GUI.color = Color.cyan;
+        if (GUILayout.Button("ⓘ 상세", GUILayout.Width(60)))
+            OnToggleItemDetailPanel?.Invoke();
+        GUI.color = prevColor;
+        GUILayout.EndHorizontal();
     }
 
-    private void DrawItemList(List<ItemRow> rows, HashSet<int> checks, ref Vector2 scroll, float height)
+    private void DrawItemList(ContainerArea area, List<ItemRow> rows, HashSet<int> checks, ref Vector2 scroll, float height)
     {
         scroll = GUILayout.BeginScrollView(scroll, GUILayout.Height(height));
         var prevColor = GUI.color;
@@ -372,7 +425,21 @@ public sealed class ContainerPanel
             if (!ItemCategoryFilter.Matches(_filter, r.Type, r.SubType)) continue;
 
             GUILayout.BeginHorizontal();
-            ItemCellRenderer.Draw(r, size: 24);
+
+            // v0.7.4 D-1 — cell = GetRect 자리잡기 + DrawAtRect overlay + Event.current 클릭 감지
+            // (v0.7.3 strip lesson: GetLastRect 는 strip 됨 → Button+GetLastRect 패턴 회피)
+            var cellRect = GUILayoutUtility.GetRect(24, 24, GUILayout.Width(24), GUILayout.Height(24));
+            ItemCellRenderer.DrawAtRect(r, cellRect);
+            if (_focus.HasValue && _focus.Value.Area == area && _focus.Value.Index == r.Index)
+                DrawFocusOutline(cellRect);
+            if (Event.current != null
+                && Event.current.type == EventType.MouseDown
+                && cellRect.Contains(Event.current.mousePosition))
+            {
+                _focus = (area, r.Index);
+                Event.current.Use();
+            }
+
             GUI.color = ItemCellRenderer.GradeColor(r.GradeOrder);   // v0.7.2 row 텍스트 색상 — source 단일화
             bool was = checks.Contains(r.Index);
             bool now = GUILayout.Toggle(was, BuildLabel(r));
@@ -383,6 +450,21 @@ public sealed class ContainerPanel
             if (!now && was) checks.Remove(r.Index);
         }
         GUILayout.EndScrollView();
+    }
+
+    /// <summary>
+    /// v0.7.4 D-1 — 24x24 cell focus outline (4-edge 1px cyan).
+    /// strip-safe: GUI.DrawTexture(Rect, Texture2D.whiteTexture) — DialogStyle.FillBackground 와 동일 패턴 (검증됨).
+    /// </summary>
+    private static void DrawFocusOutline(Rect rect)
+    {
+        var prev = GUI.color;
+        GUI.color = Color.cyan;
+        GUI.DrawTexture(new Rect(rect.xMin,     rect.yMin,     rect.width, 1),          Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(rect.xMin,     rect.yMax - 1, rect.width, 1),          Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(rect.xMin,     rect.yMin,     1,          rect.height), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(rect.xMax - 1, rect.yMin,     1,          rect.height), Texture2D.whiteTexture);
+        GUI.color = prev;
     }
 
     private static string BuildLabel(ItemRow r)

@@ -15,12 +15,24 @@ namespace UnityEngine
         public float yMin => y;
         public float xMax => x + width;
         public float yMax => y + height;
+        public bool Contains(Vector2 p) => p.x >= x && p.x < x + width && p.y >= y && p.y < y + height;
     }
 
     public struct Vector2
     {
         public float x, y;
+        public Vector2(float x, float y) { this.x = x; this.y = y; }
         public static readonly Vector2 zero = default;
+    }
+
+    public enum EventType { MouseDown, MouseUp, MouseMove, MouseDrag, KeyDown, KeyUp, Repaint, Layout, Used, Ignore }
+
+    public class Event
+    {
+        public EventType type;
+        public Vector2 mousePosition;
+        public void Use() { }
+        public static Event current { get; } = new Event();
     }
 
     public struct Color
