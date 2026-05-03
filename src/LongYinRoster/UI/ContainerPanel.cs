@@ -70,6 +70,7 @@ public sealed class ContainerPanel
     private ContainerRepository? _repo;
     private List<ContainerMetadata> _containerList = new();
     private int    _selectedContainerIdx = -1;
+    private bool   _initialContainerLoadPending = false;   // v0.7.2 Bug B fix v2 — OnGUI 에서 lazy invoke
     private bool   _dropdownOpen = false;
     private string _renameBuffer = "";
     private bool   _renameMode = false;
@@ -135,15 +136,22 @@ public sealed class ContainerPanel
         if (_selectedContainerIdx < 0 && _containerList.Count > 0)
         {
             _selectedContainerIdx = _containerList[0].ContainerIndex;
-            // v0.7.2 fix: host (ModWindow) 에 즉시 알림 → 컨테이너 파일 read + SetContainerRows 트리거.
-            // v0.7.0 부터의 latent bug — 사용자가 드롭다운 다시 클릭해야 처음 list 채워짐.
-            OnContainerSelected?.Invoke(_selectedContainerIdx);
+            // v0.7.2 Bug B fix v2: SetRepository 시점엔 OnContainerSelected callback 이 아직 wiring 안 됨.
+            // OnGUI 에서 lazy invoke (callback wiring 후 첫 frame).
+            _initialContainerLoadPending = true;
         }
     }
 
     public void OnGUI()
     {
         if (!Visible) return;
+        // v0.7.2 Bug B fix v2 — lazy invoke (SetRepository 시점에 wiring 안 된 경우).
+        if (_initialContainerLoadPending && _selectedContainerIdx > 0 && OnContainerSelected != null)
+        {
+            _initialContainerLoadPending = false;
+            try { OnContainerSelected.Invoke(_selectedContainerIdx); }
+            catch (System.Exception ex) { Util.Logger.Warn($"ContainerPanel initial container load: {ex.Message}"); }
+        }
         try
         {
             _rect = GUI.Window(WindowID, _rect, (GUI.WindowFunction)Draw, "");
@@ -325,7 +333,7 @@ public sealed class ContainerPanel
 
         var conView = _conView.ApplyView(_containerRows, _globalState);
         GUILayout.Label($"{KoreanStrings.Lbl_Container} ({_containerRows.Count}개)");
-        DrawItemList(conView, _containerChecks, ref _conScroll, 360);
+        DrawItemList(conView, _containerChecks, ref _conScroll, 500);
 
         // v0.7.1: destination 별 4 버튼 (좌측 column mirror) + 삭제
         GUILayout.BeginHorizontal();
