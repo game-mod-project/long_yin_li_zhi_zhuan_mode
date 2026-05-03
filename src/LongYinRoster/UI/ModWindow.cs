@@ -119,8 +119,10 @@ public sealed class ModWindow : MonoBehaviour
         _containerPanel.OnInventoryToContainerCopy = checks => DoGameToContainer(getList: GetPlayerInventoryList, checks, removeFromGame: false);
         _containerPanel.OnStorageToContainerMove   = checks => DoGameToContainer(getList: GetPlayerStorageList,   checks, removeFromGame: true);
         _containerPanel.OnStorageToContainerCopy   = checks => DoGameToContainer(getList: GetPlayerStorageList,   checks, removeFromGame: false);
-        _containerPanel.OnContainerToInventoryMove = checks => DoContainerToGame(checks, removeFromContainer: true);
-        _containerPanel.OnContainerToInventoryCopy = checks => DoContainerToGame(checks, removeFromContainer: false);
+        _containerPanel.OnContainerToInventoryMove = checks => DoContainerToInventory(checks, removeFromContainer: true);
+        _containerPanel.OnContainerToInventoryCopy = checks => DoContainerToInventory(checks, removeFromContainer: false);
+        _containerPanel.OnContainerToStorageMove   = checks => DoContainerToStorage  (checks, removeFromContainer: true);
+        _containerPanel.OnContainerToStorageCopy   = checks => DoContainerToStorage  (checks, removeFromContainer: false);
         _containerPanel.OnContainerDelete           = checks => {
             var r = _containerOps.DeleteFromContainer(checks);
             _containerPanel.Toast($"삭제: {r.Succeeded}개" + (string.IsNullOrEmpty(r.Reason) ? "" : $" — {r.Reason}"));
@@ -164,9 +166,25 @@ public sealed class ModWindow : MonoBehaviour
     {
         var inv = GetPlayerInventoryList();
         var sto = GetPlayerStorageList();
-        _containerPanel.SetInventoryRows(inv != null ? ContainerRowBuilder.FromGameAllItem(inv) : new List<ContainerPanel.ItemRow>());
-        _containerPanel.SetStorageRows  (sto != null ? ContainerRowBuilder.FromGameAllItem(sto) : new List<ContainerPanel.ItemRow>());
+        var ild = GetPlayerItemListData();
+        var ssd = GetPlayerSelfStorage();
+        float invMax = Core.ItemListReflector.GetMaxWeight(ild, Config.InventoryMaxWeight.Value);
+        float stoMax = Core.ItemListReflector.GetMaxWeight(ssd, Config.StorageMaxWeight.Value);
+        _containerPanel.SetInventoryRows(inv != null ? ContainerRowBuilder.FromGameAllItem(inv) : new List<ContainerPanel.ItemRow>(), invMax);
+        _containerPanel.SetStorageRows  (sto != null ? ContainerRowBuilder.FromGameAllItem(sto) : new List<ContainerPanel.ItemRow>(), stoMax);
         RefreshContainerRows();
+    }
+
+    private object? GetPlayerItemListData()
+    {
+        var p = Core.HeroLocator.GetPlayer();
+        return p != null ? ReadFieldOrProperty(p, "itemListData") : null;
+    }
+
+    private object? GetPlayerSelfStorage()
+    {
+        var p = Core.HeroLocator.GetPlayer();
+        return p != null ? ReadFieldOrProperty(p, "selfStorage") : null;
     }
 
     private void RefreshContainerRows()
@@ -215,13 +233,65 @@ public sealed class ModWindow : MonoBehaviour
         RefreshAllContainerRows();
     }
 
-    private void DoContainerToGame(HashSet<int> checks, bool removeFromContainer)
+    private void DoContainerToInventory(HashSet<int> checks, bool removeFromContainer)
     {
         if (_containerOps == null) return;
         var p = Core.HeroLocator.GetPlayer();
-        if (p == null) { _containerPanel.Toast("게임 진입 후 사용 가능"); return; }
-        var r = _containerOps.ContainerToGame(p, checks, removeFromContainer);
-        _containerPanel.Toast($"{(removeFromContainer ? "이동" : "복사")}: {r.Succeeded}개" + (r.Failed > 0 ? $" / {r.Failed}개 가득 참" : "") + (string.IsNullOrEmpty(r.Reason) ? "" : $" — {r.Reason}"));
+        if (p == null) { _containerPanel.Toast(KoreanStrings.ToastContainerNeedGameEnter); return; }
+        float maxW = Core.ItemListReflector.GetMaxWeight(GetPlayerItemListData(), Config.InventoryMaxWeight.Value);
+        var r = _containerOps.ContainerToInventory(p, checks, removeFromContainer, maxW);
+        if (!string.IsNullOrEmpty(r.Reason) && r.Succeeded == 0)
+        {
+            _containerPanel.Toast(r.Reason);
+        }
+        else if (r.OverCapWeight > 0f)
+        {
+            // 인벤 over-cap 발생: 현재 무게 = inventory wrapper.weight 합산 (refresh 전 값)
+            float finalW = 0f;
+            var inv = GetPlayerInventoryList();
+            if (inv != null)
+            {
+                int n = Core.IL2CppListOps.Count(inv);
+                for (int i = 0; i < n; i++)
+                {
+                    var item = Core.IL2CppListOps.Get(inv, i);
+                    if (item == null) continue;
+                    var w = ReadFieldOrProperty(item, "weight");
+                    if (w is float wf) finalW += wf;
+                }
+            }
+            _containerPanel.Toast(string.Format(KoreanStrings.ToastInvOvercap, r.Succeeded, finalW, maxW));
+        }
+        else
+        {
+            _containerPanel.Toast(string.Format(KoreanStrings.ToastInvOk, r.Succeeded));
+        }
+        RefreshAllContainerRows();
+    }
+
+    private void DoContainerToStorage(HashSet<int> checks, bool removeFromContainer)
+    {
+        if (_containerOps == null) return;
+        var p = Core.HeroLocator.GetPlayer();
+        if (p == null) { _containerPanel.Toast(KoreanStrings.ToastContainerNeedGameEnter); return; }
+        float maxW = Core.ItemListReflector.GetMaxWeight(GetPlayerSelfStorage(), Config.StorageMaxWeight.Value);
+        var r = _containerOps.ContainerToStorage(p, checks, removeFromContainer, maxW);
+        if (!string.IsNullOrEmpty(r.Reason) && r.Succeeded == 0 && r.Failed == 0)
+        {
+            _containerPanel.Toast(r.Reason);
+        }
+        else if (r.Succeeded == 0 && r.Failed > 0)
+        {
+            _containerPanel.Toast(KoreanStrings.ToastStoFull);
+        }
+        else if (r.Failed > 0)
+        {
+            _containerPanel.Toast(string.Format(KoreanStrings.ToastStoPartial, r.Succeeded, r.Failed));
+        }
+        else
+        {
+            _containerPanel.Toast(string.Format(KoreanStrings.ToastStoOk, r.Succeeded));
+        }
         RefreshAllContainerRows();
     }
 
