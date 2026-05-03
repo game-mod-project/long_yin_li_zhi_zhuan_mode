@@ -469,6 +469,10 @@ public sealed class ContainerPanel
                 // raw ref 가 null 인 채로 남아 다음 frame GetFocusedRawItem 의 ref equality
                 // 검증에서 mismatch → focus 자동 clear (smoke 1차 회귀 root cause).
                 SetFocus(area, r.Index);
+                // v0.7.4 D-1 smoke 2차 — cell 클릭 = single-select. 같은 area 의 다른 check 모두 해제,
+                // 클릭된 row 만 add. 다른 area (인벤·창고·컨테이너) 의 check 는 영향 없음.
+                checks.Clear();
+                checks.Add(r.Index);
                 Event.current.Use();
             }
 
