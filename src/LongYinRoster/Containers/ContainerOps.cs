@@ -107,10 +107,11 @@ public static class ContainerOps
     }
 
     /// <summary>
-    /// JSON array 의 각 entry 를 ItemData wrapper 로 deep-copy 후 player 의 GetItem 호출.
-    /// 가득 참 시 partial — Succeeded/Failed 반환.
+    /// JSON array 의 각 entry 를 ItemData wrapper 로 deep-copy 후 player.{targetField}.allItem 에 GetItem 호출.
+    /// allowOvercap=true (인벤): maxWeight 가드 skip, 모든 entry 시도. 결과 OverCapWeight = max(0, finalWeight - maxWeight).
+    /// allowOvercap=false (창고): 누적 weight 합산해서 currentWeight + sumTried > maxWeight 시 그 entry 부터 Failed.
     /// </summary>
-    public static GameMoveResult AddItemsJsonToGame(object player, string itemsJson, int maxCapacity)
+    public static GameMoveResult AddItemsJsonToGame(object player, string itemsJson, float maxWeight, bool allowOvercap, string targetField)
     {
         var res = new GameMoveResult();
         try
@@ -119,10 +120,13 @@ public static class ContainerOps
             var arr = doc.RootElement;
             if (arr.ValueKind != JsonValueKind.Array) { res.Reason = "itemsJson 이 array 아님"; return res; }
 
-            var ild = ReadFieldOrProperty(player, "itemListData");
+            var ild = ReadFieldOrProperty(player, targetField);
             var allItem = ild != null ? ReadFieldOrProperty(ild, "allItem") : null;
-            if (allItem == null) { res.Reason = "player.itemListData.allItem null"; return res; }
+            if (allItem == null) { res.Reason = $"player.{targetField}.allItem null"; return res; }
             int curN = IL2CppListOps.Count(allItem);
+
+            // 현재 무게: itemListData.weight property 시도, 미발견 시 wrapper.weight 합산 fallback
+            float currentWeight = TryGetCurrentWeight(ild!, allItem, curN);
 
             Type? wrapperType = null;
             for (int k = 0; k < curN && wrapperType == null; k++)
@@ -130,7 +134,7 @@ public static class ContainerOps
                 var s = IL2CppListOps.Get(allItem, k);
                 if (s != null) wrapperType = s.GetType();
             }
-            if (wrapperType == null) { res.Reason = "wrapperType 미발견 (인벤토리 비어있음)"; return res; }
+            if (wrapperType == null) { res.Reason = "wrapperType 미발견 (인벤토리/창고 비어있음)"; return res; }
 
             ConstructorInfo? ctor = null;
             Type? itemTypeEnum = null;
@@ -144,12 +148,22 @@ public static class ContainerOps
             }
             if (ctor == null) { res.Reason = "ItemType ctor 미발견"; return res; }
 
-            int available = Math.Max(0, maxCapacity - curN);
+            int requested = arr.GetArrayLength();
+            float accumulatedWeight = 0f;       // 시도된 entry 의 weight 합산
 
-            for (int i = 0; i < arr.GetArrayLength(); i++)
+            for (int i = 0; i < requested; i++)
             {
-                if (res.Succeeded >= available) { res.Failed++; continue; }
                 var entry = arr[i];
+                float entryWeight = entry.TryGetProperty("weight", out var wEl) && wEl.ValueKind == JsonValueKind.Number
+                    ? wEl.GetSingle() : 0f;
+
+                // 창고 모드: 누적 weight 가 한계 초과 예상되면 그 entry 부터 Failed
+                if (!allowOvercap && currentWeight + accumulatedWeight + entryWeight > maxWeight)
+                {
+                    res.Failed++;
+                    continue;
+                }
+
                 try
                 {
                     int type = entry.TryGetProperty("type", out var tEl) && tEl.ValueKind == JsonValueKind.Number ? tEl.GetInt32() : 0;
@@ -157,6 +171,7 @@ public static class ContainerOps
                     ItemListApplier.ApplyJsonToObject(entry, wrapper, depth: 0);
                     InvokeMethod(player, "GetItem", new object[] { wrapper, false });
                     res.Succeeded++;
+                    accumulatedWeight += entryWeight;
                 }
                 catch (Exception ex)
                 {
@@ -164,12 +179,40 @@ public static class ContainerOps
                     Logger.Warn($"ContainerOps.AddItemsJsonToGame entry[{i}]: {ex.GetType().Name}: {ex.Message}");
                 }
             }
+
+            // allowOvercap=true 시 maxWeight 초과분을 OverCapWeight 로 보고
+            if (allowOvercap)
+            {
+                float finalWeight = currentWeight + accumulatedWeight;
+                res.OverCapWeight = Math.Max(0f, finalWeight - maxWeight);
+            }
         }
         catch (Exception ex)
         {
             res.Reason = $"AddItemsJsonToGame threw: {ex.Message}";
         }
         return res;
+    }
+
+    /// <summary>
+    /// itemListData.weight property reflection 시도. 미발견 시 allItem 의 wrapper.weight 합산 fallback.
+    /// </summary>
+    private static float TryGetCurrentWeight(object itemListData, object allItem, int count)
+    {
+        // 1차: itemListData.weight property
+        var w = ReadFieldOrProperty(itemListData, "weight");
+        if (w is float wf) return wf;
+
+        // 2차: wrapper.weight 합산
+        float sum = 0f;
+        for (int i = 0; i < count; i++)
+        {
+            var item = IL2CppListOps.Get(allItem, i);
+            if (item == null) continue;
+            var iw = ReadFieldOrProperty(item, "weight");
+            if (iw is float iwf) sum += iwf;
+        }
+        return sum;
     }
 
     /// <summary>
