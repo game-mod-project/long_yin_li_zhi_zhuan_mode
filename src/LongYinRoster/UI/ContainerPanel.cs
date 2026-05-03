@@ -41,6 +41,8 @@ public sealed class ContainerPanel
     private HashSet<int>  _inventoryChecks = new();
     private HashSet<int>  _storageChecks   = new();
     private HashSet<int>  _containerChecks = new();
+    private float         _inventoryMaxWeight = 964f;   // v0.7.1
+    private float         _storageMaxWeight   = 300f;   // v0.7.1
 
     private Vector2 _invScroll = Vector2.zero;
     private Vector2 _stoScroll = Vector2.zero;
@@ -74,8 +76,8 @@ public sealed class ContainerPanel
         RefreshContainerList();
     }
 
-    public void SetInventoryRows(List<ItemRow> rows) { _inventoryRows = rows; _inventoryChecks.Clear(); }
-    public void SetStorageRows(List<ItemRow> rows)   { _storageRows = rows; _storageChecks.Clear(); }
+    public void SetInventoryRows(List<ItemRow> rows, float maxWeight = 964f) { _inventoryRows = rows; _inventoryChecks.Clear(); _inventoryMaxWeight = maxWeight; }
+    public void SetStorageRows  (List<ItemRow> rows, float maxWeight = 300f) { _storageRows   = rows; _storageChecks.Clear();   _storageMaxWeight   = maxWeight; }
     public void SetContainerRows(List<ItemRow> rows) { _containerRows = rows; _containerChecks.Clear(); }
 
     /// <summary>
