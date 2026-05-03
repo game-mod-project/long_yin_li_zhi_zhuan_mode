@@ -49,4 +49,53 @@ public static class ItemCellRenderer
 
     /// <summary>착용중일 때 "착", 아니면 "". 단위 테스트 가능한 helper.</summary>
     public static string EquippedMarker(bool equipped) => equipped ? "착" : "";
+
+    /// <summary>
+    /// 24×24 (또는 size 지정) placeholder cell.
+    /// - 배경: GradeColor (alpha 0.6 — row 텍스트 색상보다 약화)
+    /// - 중앙: CategoryGlyph 한자 1자
+    /// - 우상단 8×8: QualityColor 마름모 (Box, QualityOrder ≥ 0 일 때만)
+    /// - 우하단: 강화 +N (EnhanceLv > 0 일 때만)
+    /// - 좌하단: 착 (Equipped 일 때만)
+    /// strip-safe — default skin overload (GUI.Label/GUI.Box) 만 사용.
+    /// GUIStyle ctor 회피.
+    /// </summary>
+    public static void Draw(ContainerPanel.ItemRow r, int size = 24)
+    {
+        var prevColor = GUI.color;
+
+        // 1. 배경 — GradeColor (alpha 0.6)
+        GUI.color = GradeBackground(r.GradeOrder);
+        GUILayout.Box("", GUILayout.Width(size), GUILayout.Height(size));
+        var rect = GUILayoutUtility.GetLastRect();
+        GUI.color = prevColor;
+
+        // 2. 중앙 카테고리 한자
+        GUI.Label(rect, CategoryGlyph.For(r.Type, r.SubType));
+
+        // 3. 우상단 품질 마름모 (8×8 Box, alpha 1.0)
+        if (r.QualityOrder >= 0)
+        {
+            GUI.color = QualityColor(r.QualityOrder);
+            GUI.Box(new Rect(rect.xMax - 9, rect.yMin + 1, 8, 8), "");
+            GUI.color = prevColor;
+        }
+
+        // 4. 우하단 강화 (있을 때만)
+        var badge = BadgeText(r.EnhanceLv);
+        if (!string.IsNullOrEmpty(badge))
+            GUI.Label(new Rect(rect.xMax - 18, rect.yMax - 14, 18, 14), badge);
+
+        // 5. 좌하단 착용중 (있을 때만)
+        var marker = EquippedMarker(r.Equipped);
+        if (!string.IsNullOrEmpty(marker))
+            GUI.Label(new Rect(rect.xMin + 1, rect.yMax - 14, 14, 14), marker);
+    }
+
+    private static Color GradeBackground(int grade)
+    {
+        var c = GradeColor(grade);
+        c.a = 0.6f;
+        return c;
+    }
 }

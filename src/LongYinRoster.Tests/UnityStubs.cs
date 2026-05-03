@@ -11,6 +11,10 @@ namespace UnityEngine
     {
         public float x, y, width, height;
         public Rect(float x, float y, float width, float height) { this.x = x; this.y = y; this.width = width; this.height = height; }
+        public float xMin => x;
+        public float yMin => y;
+        public float xMax => x + width;
+        public float yMax => y + height;
     }
 
     public struct Vector2
@@ -57,6 +61,7 @@ namespace UnityEngine
 
         public static void DrawTexture(Rect position, Texture image) { }
         public static void Label(Rect position, string text) { }
+        public static void Box(Rect position, string text) { }
         public static bool Button(Rect position, string text) => false;
         public static string TextField(string text, int maxLength = int.MaxValue) => text;
         public static bool Toggle(bool value, string text) => value;
@@ -72,6 +77,7 @@ namespace UnityEngine
         public static void Space(float pixels) { }
         public static void Label(string text) { }
         public static void Label(string text, params GUILayoutOption[] options) { }
+        public static void Box(string text, params GUILayoutOption[] options) { }
         public static bool Button(string text, params GUILayoutOption[] options) => false;
         public static bool Toggle(bool value, string text, params GUILayoutOption[] options) => value;
         public static string TextField(string text, params GUILayoutOption[] options) => text;
@@ -85,6 +91,11 @@ namespace UnityEngine
     }
 
     public class GUILayoutOption { }
+
+    public static class GUILayoutUtility
+    {
+        public static Rect GetLastRect() => default;
+    }
 
     public static class Time
     {
