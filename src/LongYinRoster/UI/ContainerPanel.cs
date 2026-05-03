@@ -67,6 +67,8 @@ public sealed class ContainerPanel
     public Action<HashSet<int>>? OnStorageToContainerCopy;
     public Action<HashSet<int>>? OnContainerToInventoryMove;
     public Action<HashSet<int>>? OnContainerToInventoryCopy;
+    public Action<HashSet<int>>? OnContainerToStorageMove;     // v0.7.1
+    public Action<HashSet<int>>? OnContainerToStorageCopy;     // v0.7.1
     public Action<HashSet<int>>? OnContainerDelete;
     public Action? OnRequestRefresh;  // 호스트에 row 갱신 요청
 
