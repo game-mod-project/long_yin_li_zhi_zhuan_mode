@@ -107,6 +107,9 @@
     <Compile Include="../LongYinRoster/Containers/ContainerMetadata.cs">
       <Link>Containers/ContainerMetadata.cs</Link>
     </Compile>
+    <Compile Include="../LongYinRoster/Containers/ContainerArea.cs">
+      <Link>Containers/ContainerArea.cs</Link>
+    </Compile>
     <Compile Include="../LongYinRoster/Containers/ContainerFile.cs">
       <Link>Containers/ContainerFile.cs</Link>
     </Compile>
