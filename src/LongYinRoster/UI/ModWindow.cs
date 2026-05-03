@@ -50,6 +50,8 @@ public sealed class ModWindow : MonoBehaviour
             // v0.7.0 — ModeSelector 메뉴 / ContainerPanel 영역도 차단
             if (_instance._modeSelector.MenuVisible && _instance._modeSelector.WindowRect.Contains(pos)) return true;
             if (_instance._containerPanel.Visible    && _instance._containerPanel.WindowRect.Contains(pos)) return true;
+            // v0.7.4 D-1 final review HIGH — ItemDetailPanel 영역 mouse 차단 (game input pass-through 회피)
+            if (_instance._itemDetailPanel.Visible    && _instance._itemDetailPanel.WindowRect.Contains(pos)) return true;
 
             if (!_instance._visible) return false;
             if (_instance._confirm.IsVisible
