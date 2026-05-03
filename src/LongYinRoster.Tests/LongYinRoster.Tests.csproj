@@ -113,5 +113,17 @@
     <Compile Include="../LongYinRoster/Containers/ContainerOpsHelper.cs">
       <Link>Containers/ContainerOpsHelper.cs</Link>
     </Compile>
+    <Compile Include="../LongYinRoster/Util/KoreanStrings.cs">
+      <Link>Util/KoreanStrings.cs</Link>
+    </Compile>
+    <Compile Include="../LongYinRoster/UI/ToastService.cs">
+      <Link>UI/ToastService.cs</Link>
+    </Compile>
+    <Compile Include="../LongYinRoster/UI/DialogStyle.cs">
+      <Link>UI/DialogStyle.cs</Link>
+    </Compile>
+    <Compile Include="../LongYinRoster/UI/ContainerPanel.cs">
+      <Link>UI/ContainerPanel.cs</Link>
+    </Compile>
   </ItemGroup>
 </Project>

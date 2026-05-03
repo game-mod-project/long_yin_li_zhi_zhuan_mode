@@ -61,6 +61,10 @@
     </Reference>
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="LongYinRoster.Tests" />
+  </ItemGroup>
+
   <Target Name="DeployToBepInEx" AfterTargets="Build"
           Condition="'$(Configuration)' == 'Release'"
           Inputs="$(OutputPath)$(AssemblyName).dll"
