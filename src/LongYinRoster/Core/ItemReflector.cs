@@ -61,23 +61,23 @@ public static class ItemReflector
         {
             var raw = ReadFieldOrProperty(t, item, name);
             if (raw == null) continue;
-            // int / byte / short / long → int 캐스팅
-            if (raw is System.IConvertible)
-            {
-                try
-                {
-                    int n = System.Convert.ToInt32(raw);
-                    if (raw is string s) { return map.TryGetValue(s, out var ord) ? ord : -1; }
-                    return n;
-                }
-                catch (System.Exception ex) { Logger.Warn($"ItemReflector.Read int cast {name}: {ex.Message}"); }
-            }
-            // string (한자 enum)
+
+            // string (한자/한글 enum) — IConvertible 보다 먼저 체크. 그렇지 않으면
+            // string 도 IConvertible 이라 Convert.ToInt32 가 먼저 시도되고 FormatException →
+            // Logger.Warn 폭주 (refresh 마다 수백 줄). v0.7.2 D-3 hot path.
             if (raw is string str)
             {
                 return map.TryGetValue(str, out var ord) ? ord : -1;
             }
-            // Il2CppSystem.Enum 또는 .NET enum 의 ToString
+
+            // int / byte / short / long / enum-as-int → int 캐스팅
+            if (raw is System.IConvertible)
+            {
+                try { return System.Convert.ToInt32(raw); }
+                catch (System.Exception ex) { Logger.Warn($"ItemReflector.Read int cast {name}: {ex.Message}"); }
+            }
+
+            // Il2CppSystem.Enum 등 — ToString 결과를 한자/한글 사전에서 lookup
             var s2 = raw.ToString() ?? "";
             if (map.TryGetValue(s2, out var ord2)) return ord2;
         }
