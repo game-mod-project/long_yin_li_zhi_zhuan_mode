@@ -133,7 +133,12 @@ public sealed class ContainerPanel
         if (_repo == null) return;
         _containerList = _repo.List();
         if (_selectedContainerIdx < 0 && _containerList.Count > 0)
+        {
             _selectedContainerIdx = _containerList[0].ContainerIndex;
+            // v0.7.2 fix: host (ModWindow) 에 즉시 알림 → 컨테이너 파일 read + SetContainerRows 트리거.
+            // v0.7.0 부터의 latent bug — 사용자가 드롭다운 다시 클릭해야 처음 list 채워짐.
+            OnContainerSelected?.Invoke(_selectedContainerIdx);
+        }
     }
 
     public void OnGUI()

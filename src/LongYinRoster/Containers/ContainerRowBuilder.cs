@@ -25,8 +25,13 @@ public static class ContainerRowBuilder
                 int type    = RI(e, "type");
                 int subType = RI(e, "subType");
                 string name = R(e, "name", "");
-                int grade   = e.TryGetProperty("grade", out var gv)   && gv.ValueKind == JsonValueKind.Number ? gv.GetInt32() : -1;
-                int quality = e.TryGetProperty("quality", out var qv) && qv.ValueKind == JsonValueKind.Number ? qv.GetInt32() : -1;
+                // v0.7.2 spike: 게임 ItemData JSON 은 itemLv/rareLv 를 사용 (grade/quality 는 best-guess fallback).
+                int grade   = (e.TryGetProperty("itemLv", out var glv) && glv.ValueKind == JsonValueKind.Number) ? glv.GetInt32()
+                            : (e.TryGetProperty("grade",  out var gv)  && gv.ValueKind  == JsonValueKind.Number) ? gv.GetInt32()
+                            : -1;
+                int quality = (e.TryGetProperty("rareLv", out var qlv) && qlv.ValueKind == JsonValueKind.Number) ? qlv.GetInt32()
+                            : (e.TryGetProperty("quality", out var qv) && qv.ValueKind  == JsonValueKind.Number) ? qv.GetInt32()
+                            : -1;
                 list.Add(new ContainerPanel.ItemRow
                 {
                     Index        = i++,
