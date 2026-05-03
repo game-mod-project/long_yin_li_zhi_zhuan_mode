@@ -22,15 +22,24 @@ public static class ContainerRowBuilder
             int i = 0;
             foreach (var e in doc.RootElement.EnumerateArray())
             {
+                int type    = RI(e, "type");
+                int subType = RI(e, "subType");
+                string name = R(e, "name", "");
+                int grade   = e.TryGetProperty("grade", out var gv)   && gv.ValueKind == JsonValueKind.Number ? gv.GetInt32() : -1;
+                int quality = e.TryGetProperty("quality", out var qv) && qv.ValueKind == JsonValueKind.Number ? qv.GetInt32() : -1;
                 list.Add(new ContainerPanel.ItemRow
                 {
-                    Index     = i++,
-                    Name      = R(e, "name", ""),
-                    Type      = RI(e, "type"),
-                    SubType   = RI(e, "subType"),
-                    EnhanceLv = ReadEnhance(e),
-                    Weight    = RF(e, "weight"),
-                    Equipped  = false,
+                    Index        = i++,
+                    Name         = name,
+                    Type         = type,
+                    SubType      = subType,
+                    EnhanceLv    = ReadEnhance(e),
+                    Weight       = RF(e, "weight"),
+                    Equipped     = false,
+                    CategoryKey  = $"{type:D3}.{subType:D3}",
+                    NameRaw      = name,
+                    GradeOrder   = grade,
+                    QualityOrder = quality,
                 });
             }
         }
@@ -65,8 +74,17 @@ public static class ContainerRowBuilder
             }
             list.Add(new ContainerPanel.ItemRow
             {
-                Index = i, Name = name, Type = type, SubType = subType,
-                EnhanceLv = enh, Weight = weight, Equipped = equipped,
+                Index        = i,
+                Name         = name,
+                Type         = type,
+                SubType      = subType,
+                EnhanceLv    = enh,
+                Weight       = weight,
+                Equipped     = equipped,
+                CategoryKey  = $"{type:D3}.{subType:D3}",
+                NameRaw      = name,
+                GradeOrder   = LongYinRoster.Core.ItemReflector.GetGradeOrder(item),
+                QualityOrder = LongYinRoster.Core.ItemReflector.GetQualityOrder(item),
             });
         }
         return list;
