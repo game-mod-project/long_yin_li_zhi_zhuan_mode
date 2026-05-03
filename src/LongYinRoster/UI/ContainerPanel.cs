@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using LongYinRoster.Containers;
+using LongYinRoster.Util;
 using UnityEngine;
 
 namespace LongYinRoster.UI;
@@ -297,6 +298,18 @@ public sealed class ContainerPanel
         string enh = r.EnhanceLv > 0 ? $"/강화{r.EnhanceLv}" : "";
         string equipped = r.Equipped ? " [착용중]" : "";
         return $"{r.Name} ({cat}{enh}/{r.Weight:F1}kg){equipped}";
+    }
+
+    /// <summary>
+    /// v0.7.1 — "{label} ({countN}개, {curW:F1} / {maxW:F1} kg)" + (인벤만) over-cap 마커.
+    /// 창고 hard cap 이라 allowOvercap=false 일 때는 마커 미부착.
+    /// internal — LongYinRoster.Tests 가 InternalsVisibleTo 로 호출.
+    /// </summary>
+    internal static string FormatCount(string label, int countN, float currentWeight, float maxWeight, bool allowOvercap)
+    {
+        string s = $"{label} ({countN}개, {currentWeight:F1} / {maxWeight:F1} kg)";
+        if (allowOvercap && currentWeight > maxWeight) s += KoreanStrings.Lbl_OvercapMarker;
+        return s;
     }
 
     private void DrawToast()
