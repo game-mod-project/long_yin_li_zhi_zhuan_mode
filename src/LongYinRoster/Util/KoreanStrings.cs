@@ -100,4 +100,21 @@ public static class KoreanStrings
     public const string ToastContainerOpsThrew        = "컨테이너 작업 실패: {0} (BepInEx 로그 확인)";
     public const string ToastContainerNeedGameEnter   = "게임 진입 후 사용 가능합니다";
     public const string ToastContainerCreated         = "신규 컨테이너 #{0} 생성 완료";
+
+    // v0.7.1 — 컨테이너 UX 개선 (무게 기반)
+    public const string Lbl_Inventory          = "인벤토리";
+    public const string Lbl_Storage            = "창고";
+    public const string Lbl_Container          = "컨테이너";
+    public const string Lbl_OvercapMarker      = " ⚠ 초과";
+
+    public const string BtnInvMove             = "← 인벤으로 이동";
+    public const string BtnInvCopy             = "← 인벤으로 복사";
+    public const string BtnStoMove             = "← 창고로 이동";
+    public const string BtnStoCopy             = "← 창고로 복사";
+
+    public const string ToastInvOk             = "인벤토리로 {0}개 처리";
+    public const string ToastInvOvercap        = "인벤토리로 {0}개 처리 ({1:F1}/{2:F1} kg 초과 — 이동속도 저하)";
+    public const string ToastStoOk             = "창고로 {0}개 처리";
+    public const string ToastStoPartial        = "창고로 {0}개 처리 ({1}개는 무게 초과로 컨테이너에 남김)";
+    public const string ToastStoFull           = "창고 무게 한계 — 처리 불가";
 }
