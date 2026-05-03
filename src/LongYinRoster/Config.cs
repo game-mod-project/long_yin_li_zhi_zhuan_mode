@@ -20,8 +20,8 @@ public static class Config
 
     public static ConfigEntry<int>     LogLevel = null!;
 
-    public static ConfigEntry<int>     InventoryCapacity = null!;
-    public static ConfigEntry<int>     StorageCapacity   = null!;
+    public static ConfigEntry<float>   InventoryMaxWeight = null!;
+    public static ConfigEntry<float>   StorageMaxWeight   = null!;
 
     public static void Bind(ConfigFile cfg)
     {
@@ -51,13 +51,13 @@ public static class Config
                                 "0=Off, 1=Error, 2=Warn, 3=Info, 4=Debug",
                                 new AcceptableValueRange<int>(0, 4)));
 
-        InventoryCapacity = cfg.Bind("Container", "InventoryCapacity", 171,
-                                     new ConfigDescription(
-                                         "인벤토리 capacity. spike PASS 시 reflection 우선, 미발견 시 본 값 fallback.",
-                                         new AcceptableValueRange<int>(1, 1000)));
-        StorageCapacity   = cfg.Bind("Container", "StorageCapacity",   217,
-                                     new ConfigDescription(
-                                         "창고 capacity. 동상.",
-                                         new AcceptableValueRange<int>(1, 10000)));
+        InventoryMaxWeight = cfg.Bind("Container", "InventoryMaxWeight", 964f,
+                                      new ConfigDescription(
+                                          "인벤토리 무게 한계 (kg, float). reflection 우선 (ItemListData.maxWeight), 미발견 시 본 값 fallback.",
+                                          new AcceptableValueRange<float>(100f, 10000f)));
+        StorageMaxWeight   = cfg.Bind("Container", "StorageMaxWeight",   300f,
+                                      new ConfigDescription(
+                                          "창고 무게 한계 (kg, float). 동상.",
+                                          new AcceptableValueRange<float>(10f, 50000f)));
     }
 }
