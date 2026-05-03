@@ -272,11 +272,19 @@ public sealed class ContainerPanel
             GUILayout.EndHorizontal();
         }
 
-        GUILayout.Label($"컨테이너 ({_containerRows.Count}개)");
-        DrawItemList(_containerRows, _containerChecks, ref _conScroll, 420);
+        GUILayout.Label($"{KoreanStrings.Lbl_Container} ({_containerRows.Count}개)");
+        DrawItemList(_containerRows, _containerChecks, ref _conScroll, 360);
+
+        // v0.7.1: destination 별 4 버튼 (좌측 column mirror) + 삭제
         GUILayout.BeginHorizontal();
-        if (GUILayout.Button("← 이동")) OnContainerToInventoryMove?.Invoke(new HashSet<int>(_containerChecks));
-        if (GUILayout.Button("← 복사")) OnContainerToInventoryCopy?.Invoke(new HashSet<int>(_containerChecks));
+        if (GUILayout.Button(KoreanStrings.BtnInvMove)) OnContainerToInventoryMove?.Invoke(new HashSet<int>(_containerChecks));
+        if (GUILayout.Button(KoreanStrings.BtnInvCopy)) OnContainerToInventoryCopy?.Invoke(new HashSet<int>(_containerChecks));
+        GUILayout.EndHorizontal();
+        GUILayout.BeginHorizontal();
+        if (GUILayout.Button(KoreanStrings.BtnStoMove)) OnContainerToStorageMove?.Invoke(new HashSet<int>(_containerChecks));
+        if (GUILayout.Button(KoreanStrings.BtnStoCopy)) OnContainerToStorageCopy?.Invoke(new HashSet<int>(_containerChecks));
+        GUILayout.EndHorizontal();
+        GUILayout.BeginHorizontal();
         if (GUILayout.Button("☓ 삭제")) OnContainerDelete?.Invoke(new HashSet<int>(_containerChecks));
         GUILayout.EndHorizontal();
 
