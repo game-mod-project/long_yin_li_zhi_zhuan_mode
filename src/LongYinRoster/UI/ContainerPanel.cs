@@ -52,7 +52,10 @@ public sealed class ContainerPanel
     private float         _storageMaxWeight   = 300f;   // v0.7.1
 
     // v0.7.4 D-1 — 글로벌 1 focus + raw item paired sources
+    // _focusRawRef: 클릭 시점의 raw item reference. Set*Rows 호출 시 ref equality 검증으로
+    // IL2Cpp List packing 후 idx 가 within bounds 여도 다른 item 으로 바뀌면 stale 감지 → focus clear.
     private (ContainerArea Area, int Index)? _focus;
+    private object? _focusRawRef;
     private List<object> _inventoryRawItems = new();
     private List<object> _storageRawItems   = new();
     private List<object> _containerRawItems = new();
@@ -63,24 +66,38 @@ public sealed class ContainerPanel
 
     public bool HasFocus => _focus.HasValue;
     public (ContainerArea Area, int Index)? Focus => _focus;
-    public void SetFocus(ContainerArea area, int index) => _focus = (area, index);
-    public void ClearFocus() => _focus = null;
+    public void SetFocus(ContainerArea area, int index)
+    {
+        _focus = (area, index);
+        var raw = AreaToRawItems(area);
+        _focusRawRef = (raw != null && index >= 0 && index < raw.Count) ? raw[index] : null;
+    }
+    public void ClearFocus() { _focus = null; _focusRawRef = null; }
 
     public object? GetFocusedRawItem()
     {
         if (!_focus.HasValue) return null;
         var area = _focus.Value.Area;
         var idx  = _focus.Value.Index;
-        var raw = area switch
+        var raw = AreaToRawItems(area);
+        if (raw == null || idx < 0 || idx >= raw.Count) { _focus = null; _focusRawRef = null; return null; }
+        var current = raw[idx];
+        // raw ref 검증 — IL2Cpp List packing 후 idx 가 다른 item 으로 바뀌면 clear.
+        if (current == null || !ReferenceEquals(current, _focusRawRef))
         {
-            ContainerArea.Inventory => _inventoryRawItems,
-            ContainerArea.Storage   => _storageRawItems,
-            ContainerArea.Container => _containerRawItems,
-            _ => null,
-        };
-        if (raw == null || idx < 0 || idx >= raw.Count) { _focus = null; return null; }
-        return raw[idx];
+            _focus = null; _focusRawRef = null;
+            return null;
+        }
+        return current;
     }
+
+    private List<object>? AreaToRawItems(ContainerArea area) => area switch
+    {
+        ContainerArea.Inventory => _inventoryRawItems,
+        ContainerArea.Storage   => _storageRawItems,
+        ContainerArea.Container => _containerRawItems,
+        _ => null,
+    };
 
     // v0.7.2 D-3 — 1 global search/sort state (3-area 통합) + cached view
     private SearchSortState _globalState = SearchSortState.Default;
@@ -134,9 +151,7 @@ public sealed class ContainerPanel
         _inventoryChecks.Clear();
         _inventoryMaxWeight = maxWeight;
         _invView.Invalidate();
-        if (_focus.HasValue && _focus.Value.Area == ContainerArea.Inventory
-            && (_focus.Value.Index < 0 || _focus.Value.Index >= rawItems.Count))
-            _focus = null;
+        InvalidateFocusIfStale(ContainerArea.Inventory, rawItems);
     }
     public void SetStorageRows(List<ItemRow> rows, List<object> rawItems, float maxWeight = 300f)
     {
@@ -145,9 +160,7 @@ public sealed class ContainerPanel
         _storageChecks.Clear();
         _storageMaxWeight = maxWeight;
         _stoView.Invalidate();
-        if (_focus.HasValue && _focus.Value.Area == ContainerArea.Storage
-            && (_focus.Value.Index < 0 || _focus.Value.Index >= rawItems.Count))
-            _focus = null;
+        InvalidateFocusIfStale(ContainerArea.Storage, rawItems);
     }
     public void SetContainerRows(List<ItemRow> rows, List<object> rawItems)
     {
@@ -155,9 +168,25 @@ public sealed class ContainerPanel
         _containerRawItems = rawItems;
         _containerChecks.Clear();
         _conView.Invalidate();
-        if (_focus.HasValue && _focus.Value.Area == ContainerArea.Container
-            && (_focus.Value.Index < 0 || _focus.Value.Index >= rawItems.Count))
+        InvalidateFocusIfStale(ContainerArea.Container, rawItems);
+    }
+
+    /// <summary>
+    /// v0.7.4 D-1 — Set*Rows 호출 후 focus stale 감지: idx OOB 또는 idx 의 raw item 이
+    /// 이전 _focusRawRef 와 다른 (IL2Cpp List packing 또는 이동·삭제) 시 focus clear.
+    /// 다른 area 의 focus 는 영향 없음.
+    /// </summary>
+    private void InvalidateFocusIfStale(ContainerArea area, List<object> rawItems)
+    {
+        if (!_focus.HasValue || _focus.Value.Area != area) return;
+        int idx = _focus.Value.Index;
+        if (idx < 0 || idx >= rawItems.Count
+            || rawItems[idx] == null
+            || !ReferenceEquals(rawItems[idx], _focusRawRef))
+        {
             _focus = null;
+            _focusRawRef = null;
+        }
     }
     public void SetGradeQualityEnabled(bool enabled) { _gradeQualityEnabled = enabled; }
 
