@@ -662,7 +662,13 @@ public sealed class ModWindow : MonoBehaviour
         _lastContainerVisible = _containerPanel.Visible;
 
         // v0.5.3 Spike — F12 trigger, mod 창 visible 동안 1-3 으로 Mode 직접 설정 (release 전 cleanup)
-        if (Input.GetKeyDown(KeyCode.F12)) Core.Probes.ProbeRunner.Trigger();
+        if (Input.GetKeyDown(KeyCode.F12))
+        {
+            if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))
+                Core.Probes.ProbeItemListCapacity.Run();
+            else
+                Core.Probes.ProbeRunner.Trigger();
+        }
         if (_visible)
         {
             if (Input.GetKeyDown(KeyCode.Alpha1) || Input.GetKeyDown(KeyCode.Keypad1))
