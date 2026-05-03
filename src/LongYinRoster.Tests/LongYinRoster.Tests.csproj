@@ -131,6 +131,9 @@
     <Compile Include="../LongYinRoster/UI/DialogStyle.cs">
       <Link>UI/DialogStyle.cs</Link>
     </Compile>
+    <Compile Include="../LongYinRoster/UI/SearchSortToolbar.cs">
+      <Link>UI/SearchSortToolbar.cs</Link>
+    </Compile>
     <Compile Include="../LongYinRoster/UI/ContainerPanel.cs">
       <Link>UI/ContainerPanel.cs</Link>
     </Compile>

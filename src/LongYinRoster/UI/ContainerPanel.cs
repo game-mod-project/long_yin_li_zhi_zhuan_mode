@@ -51,6 +51,18 @@ public sealed class ContainerPanel
     private float         _inventoryMaxWeight = 964f;   // v0.7.1
     private float         _storageMaxWeight   = 300f;   // v0.7.1
 
+    // v0.7.2 D-3 — area 별 search/sort state + cached view
+    private SearchSortState _invState   = SearchSortState.Default;
+    private SearchSortState _stoState   = SearchSortState.Default;
+    private SearchSortState _conState   = SearchSortState.Default;
+    private readonly ContainerView _invView = new();
+    private readonly ContainerView _stoView = new();
+    private readonly ContainerView _conView = new();
+
+    // v0.7.2 — Task 0 spike 결과로 enable/disable. 미발견 시 dropdown grade/quality 비활성 + 토스트 1회.
+    private bool _gradeQualityEnabled    = true;
+    private bool _gradeQualityToastShown = false;
+
     private Vector2 _invScroll = Vector2.zero;
     private Vector2 _stoScroll = Vector2.zero;
     private Vector2 _conScroll = Vector2.zero;
@@ -85,9 +97,27 @@ public sealed class ContainerPanel
         RefreshContainerList();
     }
 
-    public void SetInventoryRows(List<ItemRow> rows, float maxWeight = 964f) { _inventoryRows = rows; _inventoryChecks.Clear(); _inventoryMaxWeight = maxWeight; }
-    public void SetStorageRows  (List<ItemRow> rows, float maxWeight = 300f) { _storageRows   = rows; _storageChecks.Clear();   _storageMaxWeight   = maxWeight; }
-    public void SetContainerRows(List<ItemRow> rows) { _containerRows = rows; _containerChecks.Clear(); }
+    public void SetInventoryRows(List<ItemRow> rows, float maxWeight = 964f)
+    {
+        _inventoryRows = rows;
+        _inventoryChecks.Clear();
+        _inventoryMaxWeight = maxWeight;
+        _invView.Invalidate();
+    }
+    public void SetStorageRows(List<ItemRow> rows, float maxWeight = 300f)
+    {
+        _storageRows = rows;
+        _storageChecks.Clear();
+        _storageMaxWeight = maxWeight;
+        _stoView.Invalidate();
+    }
+    public void SetContainerRows(List<ItemRow> rows)
+    {
+        _containerRows = rows;
+        _containerChecks.Clear();
+        _conView.Invalidate();
+    }
+    public void SetGradeQualityEnabled(bool enabled) { _gradeQualityEnabled = enabled; }
 
     /// <summary>
     /// 컨테이너 panel 안 toast — global ToastService.Push 로 위임 (v0.7.0.1 fix:
@@ -126,6 +156,13 @@ public sealed class ContainerPanel
     {
         try
         {
+            // v0.7.2 D-3 — grade/quality reflection 미발견 1회 토스트
+            if (!_gradeQualityEnabled && !_gradeQualityToastShown)
+            {
+                ToastService.Push(KoreanStrings.Tip_GradeQualityUnavailable, ToastKind.Info);
+                _gradeQualityToastShown = true;
+            }
+
             DialogStyle.FillBackground(_rect.width, _rect.height);
             DialogStyle.DrawHeader(_rect.width, "컨테이너 관리");
 
@@ -170,24 +207,31 @@ public sealed class ContainerPanel
     private void DrawLeftColumn()
     {
         GUILayout.BeginVertical(GUILayout.Width(390));
-        // 좌측 column 전체를 ScrollView 로 wrap — 작은 해상도 fallback 안전장치 (헤더 + 카테고리 탭 + 인벤/창고 list + 4 버튼).
         _leftColumnScroll = GUILayout.BeginScrollView(_leftColumnScroll, GUILayout.Height(640));
 
-        // v0.7.1: 라벨에 갯수 + 현재무게/MAX 무게 표시. 인벤은 over-cap 마커 가능.
+        // 인벤
+        var invView = _invView.ApplyView(_inventoryRows, _invState);
         float invWeight = 0f;
-        foreach (var r in _inventoryRows) invWeight += r.Weight;
+        foreach (var r in _inventoryRows) invWeight += r.Weight;   // 라벨은 raw 기준 (전체 무게)
         GUILayout.Label(FormatCount(KoreanStrings.Lbl_Inventory, _inventoryRows.Count, invWeight, _inventoryMaxWeight, allowOvercap: true));
-        DrawItemList(_inventoryRows, _inventoryChecks, ref _invScroll, 220);
+        var newInvState = SearchSortToolbar.Draw(_invState, _gradeQualityEnabled);
+        if (!newInvState.Equals(_invState)) { _invState = newInvState; _invView.Invalidate(); }
+        DrawItemList(invView, _inventoryChecks, ref _invScroll, 200);
         GUILayout.BeginHorizontal();
         if (GUILayout.Button("→ 이동")) OnInventoryToContainerMove?.Invoke(new HashSet<int>(_inventoryChecks));
         if (GUILayout.Button("→ 복사")) OnInventoryToContainerCopy?.Invoke(new HashSet<int>(_inventoryChecks));
         GUILayout.EndHorizontal();
 
         GUILayout.Space(4);
+
+        // 창고
+        var stoView = _stoView.ApplyView(_storageRows, _stoState);
         float stoWeight = 0f;
         foreach (var r in _storageRows) stoWeight += r.Weight;
         GUILayout.Label(FormatCount(KoreanStrings.Lbl_Storage, _storageRows.Count, stoWeight, _storageMaxWeight, allowOvercap: false));
-        DrawItemList(_storageRows, _storageChecks, ref _stoScroll, 220);
+        var newStoState = SearchSortToolbar.Draw(_stoState, _gradeQualityEnabled);
+        if (!newStoState.Equals(_stoState)) { _stoState = newStoState; _stoView.Invalidate(); }
+        DrawItemList(stoView, _storageChecks, ref _stoScroll, 200);
         GUILayout.BeginHorizontal();
         if (GUILayout.Button("→ 이동")) OnStorageToContainerMove?.Invoke(new HashSet<int>(_storageChecks));
         if (GUILayout.Button("→ 복사")) OnStorageToContainerCopy?.Invoke(new HashSet<int>(_storageChecks));
@@ -278,8 +322,11 @@ public sealed class ContainerPanel
             GUILayout.EndHorizontal();
         }
 
+        var conView = _conView.ApplyView(_containerRows, _conState);
         GUILayout.Label($"{KoreanStrings.Lbl_Container} ({_containerRows.Count}개)");
-        DrawItemList(_containerRows, _containerChecks, ref _conScroll, 360);
+        var newConState = SearchSortToolbar.Draw(_conState, _gradeQualityEnabled);
+        if (!newConState.Equals(_conState)) { _conState = newConState; _conView.Invalidate(); }
+        DrawItemList(conView, _containerChecks, ref _conScroll, 340);
 
         // v0.7.1: destination 별 4 버튼 (좌측 column mirror) + 삭제
         GUILayout.BeginHorizontal();

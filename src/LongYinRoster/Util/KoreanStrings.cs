@@ -107,6 +107,9 @@ public static class KoreanStrings
     public const string Lbl_Container          = "컨테이너";
     public const string Lbl_OvercapMarker      = " ⚠ 초과";
 
+    // v0.7.2 D-3 검색·정렬
+    public const string Tip_GradeQualityUnavailable = "등급/품질 reflection 미발견 — 정렬 불가 (spike 재시도 권장)";
+
     public const string BtnInvMove             = "← 인벤으로 이동";
     public const string BtnInvCopy             = "← 인벤으로 복사";
     public const string BtnStoMove             = "← 창고로 이동";
