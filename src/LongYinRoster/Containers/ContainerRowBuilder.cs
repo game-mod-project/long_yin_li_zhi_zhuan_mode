@@ -52,6 +52,25 @@ public static class ContainerRowBuilder
         return list;
     }
 
+    /// <summary>
+    /// v0.7.4 D-1 — IL2Cpp List 의 raw item 객체를 원본 인덱스 정렬로 추출.
+    /// ContainerPanel.SetFocus 는 row.Index (= 원본 IL2Cpp 인덱스) 를 저장 → GetFocusedRawItem 이
+    /// raws[row.Index] 를 인덱싱하므로 null slot 은 List 안에서도 null 로 유지해야 정렬이 맞는다.
+    /// (FromGameAllItem 은 null 을 skip 하지만 row.Index = i 로 원본 인덱스를 보존하므로 정합.)
+    /// </summary>
+    public static List<object> RawItemsFromGameAllItem(object il2List)
+    {
+        // List<object> 사용 (ContainerPanel.SetInventoryRows 시그니처 일치). null 슬롯은 null 그대로 보존.
+        // GetFocusedRawItem 에서 raws[idx] 가 null 이면 null 반환 → DrawDetails 가 호출 안 됨 (DrawEmpty 분기).
+        var raws = new List<object>();
+        int n = IL2CppListOps.Count(il2List);
+        for (int i = 0; i < n; i++)
+        {
+            raws.Add(IL2CppListOps.Get(il2List, i)!);   // null 도 그대로 저장 — 인덱스 정렬 보존
+        }
+        return raws;
+    }
+
     public static List<ContainerPanel.ItemRow> FromGameAllItem(object il2List)
     {
         var list = new List<ContainerPanel.ItemRow>();

@@ -23,6 +23,13 @@ public static class Config
     public static ConfigEntry<float>   InventoryMaxWeight = null!;
     public static ConfigEntry<float>   StorageMaxWeight   = null!;
 
+    // v0.7.4 D-1 — ItemDetailPanel 위치/크기/디폴트 visibility
+    public static ConfigEntry<float>   ItemDetailPanelX      = null!;
+    public static ConfigEntry<float>   ItemDetailPanelY      = null!;
+    public static ConfigEntry<float>   ItemDetailPanelWidth  = null!;
+    public static ConfigEntry<float>   ItemDetailPanelHeight = null!;
+    public static ConfigEntry<bool>    ItemDetailPanelOpen   = null!;
+
     public static void Bind(ConfigFile cfg)
     {
         ToggleHotkey       = cfg.Bind("General", "ToggleHotkey",       KeyCode.F11,
@@ -59,5 +66,12 @@ public static class Config
                                       new ConfigDescription(
                                           "창고 무게 한계 (kg, float). 동상.",
                                           new AcceptableValueRange<float>(10f, 50000f)));
+
+        // v0.7.4 D-1 — ItemDetailPanel 영속화
+        ItemDetailPanelX      = cfg.Bind("UI", "ItemDetailPanelX",      970f,  "item 상세 panel X 좌표");
+        ItemDetailPanelY      = cfg.Bind("UI", "ItemDetailPanelY",      100f,  "item 상세 panel Y 좌표");
+        ItemDetailPanelWidth  = cfg.Bind("UI", "ItemDetailPanelWidth",  380f,  "item 상세 panel 폭");
+        ItemDetailPanelHeight = cfg.Bind("UI", "ItemDetailPanelHeight", 500f,  "item 상세 panel 높이");
+        ItemDetailPanelOpen   = cfg.Bind("UI", "ItemDetailPanelOpen",   false, "item 상세 panel 디폴트 visibility (F11+2 진입 시 시작 상태)");
     }
 }

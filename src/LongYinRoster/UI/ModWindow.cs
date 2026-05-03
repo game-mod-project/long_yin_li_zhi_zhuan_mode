@@ -74,6 +74,9 @@ public sealed class ModWindow : MonoBehaviour
     private ContainerRepository?      _containerRepo;
     private ContainerOpsHelper?       _containerOps;
 
+    // v0.7.4 D-1 — item 상세 panel (ContainerPanel 의 ⓘ 토글로 visibility 제어)
+    private readonly ItemDetailPanel  _itemDetailPanel = new();
+
     private void Awake()
     {
         _instance = this;
@@ -129,6 +132,17 @@ public sealed class ModWindow : MonoBehaviour
             RefreshContainerRows();
         };
 
+        // v0.7.4 D-1 — ItemDetailPanel 초기화 + ContainerPanel ⓘ 토글 wiring
+        _itemDetailPanel.Init(
+            _containerPanel,
+            Config.ItemDetailPanelX.Value,
+            Config.ItemDetailPanelY.Value,
+            Config.ItemDetailPanelWidth.Value,
+            Config.ItemDetailPanelHeight.Value);
+        _itemDetailPanel.Visible = Config.ItemDetailPanelOpen.Value;
+        _containerPanel.OnToggleItemDetailPanel = () => _itemDetailPanel.Visible = !_itemDetailPanel.Visible;
+        _containerPanel.IsItemDetailPanelVisible = () => _itemDetailPanel.Visible;
+
         Logger.Info($"ModWindow Awake (slots dir: {slotDir}, containers dir: {containerDir})");
     }
 
@@ -170,9 +184,11 @@ public sealed class ModWindow : MonoBehaviour
         var ssd = GetPlayerSelfStorage();
         float invMax = Core.ItemListReflector.GetMaxWeight(ild, Config.InventoryMaxWeight.Value);
         float stoMax = Core.ItemListReflector.GetMaxWeight(ssd, Config.StorageMaxWeight.Value);
-        // 임시 — Task 7 에서 진짜 raw item source (game list iteration) 로 교체
-        _containerPanel.SetInventoryRows(inv != null ? ContainerRowBuilder.FromGameAllItem(inv) : new List<ContainerPanel.ItemRow>(), new List<object>(), invMax);
-        _containerPanel.SetStorageRows  (sto != null ? ContainerRowBuilder.FromGameAllItem(sto) : new List<ContainerPanel.ItemRow>(), new List<object>(), stoMax);
+        // v0.7.4 D-1 — raw item paired source: row.Index 가 원본 IL2Cpp 인덱스이므로 raws 도 같은 정렬로 추출.
+        var invRaws = inv != null ? ContainerRowBuilder.RawItemsFromGameAllItem(inv) : new List<object>();
+        var stoRaws = sto != null ? ContainerRowBuilder.RawItemsFromGameAllItem(sto) : new List<object>();
+        _containerPanel.SetInventoryRows(inv != null ? ContainerRowBuilder.FromGameAllItem(inv) : new List<ContainerPanel.ItemRow>(), invRaws, invMax);
+        _containerPanel.SetStorageRows  (sto != null ? ContainerRowBuilder.FromGameAllItem(sto) : new List<ContainerPanel.ItemRow>(), stoRaws, stoMax);
         RefreshContainerRows();
     }
 
@@ -728,6 +744,8 @@ public sealed class ModWindow : MonoBehaviour
         {
             _modeSelector.SetMode(ModeSelector.Mode.None);
             _lastSeenMode = ModeSelector.Mode.None;
+            // v0.7.4 D-1 — ContainerPanel close (F11/X) 와 함께 ItemDetailPanel 도 sync close
+            _itemDetailPanel.Visible = false;
         }
         _lastVisible = _visible;
         _lastContainerVisible = _containerPanel.Visible;
@@ -766,6 +784,14 @@ public sealed class ModWindow : MonoBehaviour
         // v0.7.0 — ModeSelector + ContainerPanel (캐릭터 panel 과 독립)
         _modeSelector.OnGUI();
         _containerPanel.OnGUI();
+        // v0.7.4 D-1 — ItemDetailPanel (Visible 일 때만 그림 — Visible 체크는 panel 내부)
+        _itemDetailPanel.OnGUI();
+        // ItemDetailPanel 위치/크기/visibility 영속화
+        Config.ItemDetailPanelX.Value      = _itemDetailPanel.WindowRect.x;
+        Config.ItemDetailPanelY.Value      = _itemDetailPanel.WindowRect.y;
+        Config.ItemDetailPanelWidth.Value  = _itemDetailPanel.WindowRect.width;
+        Config.ItemDetailPanelHeight.Value = _itemDetailPanel.WindowRect.height;
+        Config.ItemDetailPanelOpen.Value   = _itemDetailPanel.Visible;
 
         if (!_visible) return;
 
