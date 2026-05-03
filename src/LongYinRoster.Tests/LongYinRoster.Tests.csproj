@@ -137,5 +137,8 @@
     <Compile Include="../LongYinRoster/Containers/ContainerRowBuilder.cs">
       <Link>Containers/ContainerRowBuilder.cs</Link>
     </Compile>
+    <Compile Include="../LongYinRoster/Containers/ContainerView.cs">
+      <Link>Containers/ContainerView.cs</Link>
+    </Compile>
   </ItemGroup>
 </Project>
