@@ -116,6 +116,9 @@
     <Compile Include="../LongYinRoster/Containers/ItemCategoryFilter.cs">
       <Link>Containers/ItemCategoryFilter.cs</Link>
     </Compile>
+    <Compile Include="../LongYinRoster/Containers/CategoryGlyph.cs">
+      <Link>Containers/CategoryGlyph.cs</Link>
+    </Compile>
     <Compile Include="../LongYinRoster/Containers/ContainerOps.cs">
       <Link>Containers/ContainerOps.cs</Link>
     </Compile>
