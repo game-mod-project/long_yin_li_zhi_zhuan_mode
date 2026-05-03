@@ -80,7 +80,10 @@ public sealed class ContainerPanel
         var area = _focus.Value.Area;
         var idx  = _focus.Value.Index;
         var raw = AreaToRawItems(area);
-        if (raw == null || idx < 0 || idx >= raw.Count) { _focus = null; _focusRawRef = null; return null; }
+        // raw list 가 비어있는 경우 (Container JSON path 의도) — focus 유지하되 panel 데이터는 null 반환.
+        // 이렇게 해야 컨테이너 area cell 클릭 시 outline 시각 피드백 유지 (panel 내용은 빈 상태).
+        if (raw == null || raw.Count == 0) return null;
+        if (idx < 0 || idx >= raw.Count) { _focus = null; _focusRawRef = null; return null; }
         var current = raw[idx];
         // raw ref 검증 — IL2Cpp List packing 후 idx 가 다른 item 으로 바뀌면 clear.
         if (current == null || !ReferenceEquals(current, _focusRawRef))
@@ -175,10 +178,13 @@ public sealed class ContainerPanel
     /// v0.7.4 D-1 — Set*Rows 호출 후 focus stale 감지: idx OOB 또는 idx 의 raw item 이
     /// 이전 _focusRawRef 와 다른 (IL2Cpp List packing 또는 이동·삭제) 시 focus clear.
     /// 다른 area 의 focus 는 영향 없음.
+    /// raw list 빈 경우 (Container JSON path 의도) — ref 검증 skip 하고 focus 유지
+    /// (panel 은 GetFocusedRawItem 에서 null 반환, outline 만 시각 피드백).
     /// </summary>
     private void InvalidateFocusIfStale(ContainerArea area, List<object> rawItems)
     {
         if (!_focus.HasValue || _focus.Value.Area != area) return;
+        if (rawItems.Count == 0) return;   // Container JSON path — focus 유지
         int idx = _focus.Value.Index;
         if (idx < 0 || idx >= rawItems.Count
             || rawItems[idx] == null
@@ -482,6 +488,12 @@ public sealed class ContainerPanel
             GUI.color = prevColor;
             GUILayout.EndHorizontal();
 
+            if (now != was)
+            {
+                // v0.7.4 D-1 smoke 2차 — Toggle 라벨 multi-check 진입 시 같은 area 의 cell focus 해제
+                // (single cell-focus 와 multi-check 워크플로우 명확 분리).
+                if (_focus.HasValue && _focus.Value.Area == area) ClearFocus();
+            }
             if (now && !was) checks.Add(r.Index);
             if (!now && was) checks.Remove(r.Index);
         }
