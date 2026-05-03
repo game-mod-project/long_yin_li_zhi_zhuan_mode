@@ -101,6 +101,9 @@
     <Compile Include="../LongYinRoster/Containers/SearchSortState.cs">
       <Link>Containers/SearchSortState.cs</Link>
     </Compile>
+    <Compile Include="../LongYinRoster/Core/ItemReflector.cs">
+      <Link>Core/ItemReflector.cs</Link>
+    </Compile>
     <Compile Include="../LongYinRoster/Containers/ContainerMetadata.cs">
       <Link>Containers/ContainerMetadata.cs</Link>
     </Compile>
