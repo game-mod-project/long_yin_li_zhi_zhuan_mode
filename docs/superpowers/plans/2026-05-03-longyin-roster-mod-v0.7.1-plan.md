@@ -10,6 +10,35 @@
 
 ---
 
+## ⚠ Amendment (2026-05-03) — spike 결과 따른 capacity → maxWeight 변경
+
+Phase 1.2 인게임 spike 결과 (`docs/superpowers/dumps/2026-05-03-v0.7.1-capacity-spike.md`):
+- ItemListData 의 capacity 후보는 `maxWeight` (Single/float) 단 하나
+- **갯수 기반 capacity 자체가 게임에 없음 — 무게 기반 (kg)**
+- 사용자 결정 (B): 라벨에 갯수+무게 둘 다 표시, 가드는 무게 기반
+
+**Spec 갱신**: §3.4 / §4.2 / §4.3 / §6 / §7.2 / §9 무게 기반으로 재정의. 본 plan 의 아래 phase 들은 spec 변경에 따라 **int / capacity → float / maxWeight** 일관 치환:
+
+| Phase | 변경 사항 |
+|---|---|
+| 2.1 | ConfigEntry<int> → <float>, default 171/217 → 964f/300f, 이름 InventoryCapacity → InventoryMaxWeight, AcceptableValueRange<float>(100, 10000) / (10, 50000). **이미 commit `358991a` 됐음 → fix-up commit 으로 변경** |
+| 2.2 | CAPACITY_NAMES = `{ "maxWeight" }`, GetCapacity → **GetMaxWeight (float, float fallback)** |
+| 3.1 | ToastInvOk = `"인벤토리로 {0}개 처리"`, ToastInvOvercap = `"인벤토리로 {0}개 처리 ({1:F1}/{2:F1} kg 초과 — 이동속도 저하)"`, ToastStoFull = `"창고 무게 한계 — 처리 불가"`, ToastStoPartial = `"창고로 {0}개 처리 ({1}개는 무게 초과로 컨테이너에 남김)"` |
+| 4.1 | OverCap (int) → **OverCapWeight (float)** |
+| 4.2 | maxCapacity (int) → **maxWeight (float)** + 누적 weight 계산 (entry.weight 합산해서 currentWeight + sumTried > maxWeight 체크) |
+| 5.1 | capacity (int) → **maxWeight (float)**, Result.OverCapWeight (float) |
+| 6.1 | _inventoryCapacity / _storageCapacity (int, default 171/217) → **_inventoryMaxWeight / _storageMaxWeight (float, default 964f/300f)** |
+| 6.3 | FormatCount(label, cur, max, allowOvercap) → **FormatCount(label, countN, currentWeight, maxWeight, allowOvercap)**. 반환: `"{label} ({countN}개, {curW:F1} / {maxW:F1} kg)"` + over-cap 마커 |
+| 6.4 | DrawLeftColumn — currentWeight = `_inventoryRows.Sum(r => r.Weight)` (또는 LINQ 없이 foreach) |
+| 7.1 | InventoryCapacity → InventoryMaxWeight, GetCapacity → GetMaxWeight, capacity → maxWeight, OverCap → OverCapWeight 일관 변경 |
+| 8.3 | FormatCount tests — `(label, countN, curW, maxW, allowOvercap)` signature 맞춰 4 케이스 update |
+
+다른 phase (1.1, 6.2, 6.5, 8.1, 8.2, 9.1, 9.2, 10) 는 영향 없음.
+
+각 implementer prompt 시 controller 가 위 변경 반영된 정확한 코드를 직접 전달 — implementer 는 본 plan 의 옛 코드 블록 대신 prompt 의 코드를 따름.
+
+---
+
 ## File Structure
 
 **Create:**

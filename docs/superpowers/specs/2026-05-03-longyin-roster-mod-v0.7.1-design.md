@@ -46,13 +46,15 @@ D 계열 (Item 상세 panel / 아이콘 그리드 / 검색·정렬) 은 자체 d
 
 **시나리오**: 컨테이너 → 인벤/창고 [이동/복사] 시 destination 에 capacity 가 남아있는지 사전 check 가 없음. 현재 `ContainerOps.AddItemsJsonToGame` 이 partial 처리는 안전하게 하지만 (Succeeded 갯수만큼만 컨테이너에서 제거) 사용자에게 결과 toast 가 부족 — "조금이라도 들어갔는지" 외부에서 확인해야 함.
 
-### 3.4 게임 시스템 사실 (Q5 user input)
+### 3.4 게임 시스템 사실 (Q5 user input + spike 결과)
 
-가드 정책에 영향:
-- **인벤토리**: capacity 초과 추가 허용 (캐릭터 이동속도 페널티 발생, add 자체는 성공)
-- **창고**: capacity hard cap (초과분 add 거절)
+가드 정책 + 단위에 영향:
+- **인벤토리**: maxWeight 초과 추가 허용 (캐릭터 이동속도 페널티 발생, add 자체는 성공)
+- **창고**: maxWeight hard cap (초과분 add 거절)
+- **단위는 무게 (kg, Single/float)** — spike (`docs/superpowers/dumps/2026-05-03-v0.7.1-capacity-spike.md`) 로 확정. ItemListData 에 갯수 기반 capacity 자체가 없음. `maxWeight` (Single) property 만 노출.
+- 사용자 결정 (B): 라벨에 **갯수 + 무게 둘 다 표시** (`"인벤토리 (45개, 720.3 / 964 kg)"`), 가드는 무게 기반.
 
-→ 두 destination 의 가드 정책을 다르게 분기.
+→ 두 destination 의 가드 정책을 다르게 분기 + capacity 단위는 float 무게로 통일.
 
 ## 4. 디자인 결정
 
@@ -76,28 +78,24 @@ D 계열 (Item 상세 panel / 아이콘 그리드 / 검색·정렬) 은 자체 d
 
 **Layout 영향**: 컨테이너 list height 420 → 약 360 (버튼 행 1개 추가, ~28px). ScrollView 안이라 스크롤로 보완.
 
-### 4.2 Task B — capacity 표시
+### 4.2 Task B — capacity 표시 (무게 기반 + 갯수 동시)
 
-**Step 1: capacity source spike** (≤1시간 box):
-- 신규 `Core/Probes/ProbeItemListCapacity.cs` — F12 ad-hoc handler
-- `player.itemListData` / `player.selfStorage` 의 모든 property + field enumerate → 키워드 매칭 (`capacity` / `max` / `count` / `limit` / `size` / `volume`)
-- 결과 BepInEx 로그에 dump
+**Spike 결과** (완료 — `docs/superpowers/dumps/2026-05-03-v0.7.1-capacity-spike.md`):
+- ItemListData 에 `maxWeight` (Single/float) property 한 개만 capacity 후보로 매칭
+- 갯수 기반 capacity 자체 부재. **단위 = kg, 자료형 = float**
+- → PASS path 채택, 단 reflector 가 갯수가 아닌 무게 반환
 
-**Step 2: spike 결과에 따라 fork**:
-- **PASS path** (capacity property 발견):
-  - `Core/ItemListReflector.cs` — `int GetCapacity(object itemList)` helper
-  - ContainerOpsHelper 의 `gameMaxCapacity` 인자 제거, 호출 site 에서 reflector 사용
-- **FAIL path** (미발견):
-  - `Config.cs` 에 BepInEx ConfigEntry 추가:
-    - `InventoryCapacity` (int, default 171)
-    - `StorageCapacity` (int, default 217)
-  - 사용자가 게임 patch 로 capacity 변경 시 직접 조정 가능
-  - capacity helper 가 config 값 반환
+**Helper**: `Core/ItemListReflector.cs` — `float GetMaxWeight(object? itemList, float fallback)`. `CAPACITY_NAMES = new[] { "maxWeight" }`. 미발견 시 fallback.
 
-**라벨 포맷** (B-2):
-- 정상: `"인벤토리 (45 / 171 개)"` / `"창고 (32 / 217 개)"`
-- 인벤 over-cap: `"인벤토리 (175 / 171 개) ⚠ 초과"`
-- 창고는 hard cap → over-cap 상태 발생 불가, 마커 미표시
+**Config fallback**: `Config.cs` 에 BepInEx ConfigEntry 추가 (항상 bind, helper fallback 으로 사용):
+- `InventoryMaxWeight` (float, default 964f)
+- `StorageMaxWeight` (float, default 300f)
+
+**라벨 포맷** (B + 무게):
+- 정상: `"인벤토리 (45개, 720.3 / 964 kg)"` / `"창고 (32개, 156.8 / 300 kg)"`
+- 인벤 over-cap: `"인벤토리 (180개, 1020.5 / 964 kg) ⚠ 초과"` (currentWeight > maxWeight 시 마커)
+- 창고는 hard cap → over-cap 상태 발생 불가 (가드가 거절), 마커 미표시
+- currentWeight = ItemRow.Weight 합계 (ContainerPanel 자체 계산)
 
 **KoreanStrings 추가**:
 - `Lbl_Inventory = "인벤토리"`
@@ -105,11 +103,11 @@ D 계열 (Item 상세 panel / 아이콘 그리드 / 검색·정렬) 은 자체 d
 - `Lbl_OvercapMarker = " ⚠ 초과"`
 
 **ContainerPanel signature 변경**:
-- `SetInventoryRows(List<ItemRow> rows, int capacity)` (capacity 인자 추가)
-- `SetStorageRows(List<ItemRow> rows, int capacity)` (capacity 인자 추가)
-- 내부 helper: `private static string FormatCount(string label, int cur, int max, bool allowOvercap)`
+- `SetInventoryRows(List<ItemRow> rows, float maxWeight)` (maxWeight 인자 추가)
+- `SetStorageRows(List<ItemRow> rows, float maxWeight)` (maxWeight 인자 추가)
+- 내부 helper: `internal static string FormatCount(string label, int countN, float currentWeight, float maxWeight, bool allowOvercap)`
 
-### 4.3 Task C — destination 별 가드 정책
+### 4.3 Task C — destination 별 가드 정책 (무게 기반)
 
 **ContainerOps.AddItemsJsonToGame signature 변경**:
 
@@ -117,19 +115,21 @@ D 계열 (Item 상세 panel / 아이콘 그리드 / 검색·정렬) 은 자체 d
 public static GameMoveResult AddItemsJsonToGame(
     object player,
     string itemsJson,
-    int maxCapacity,
-    bool allowOvercap,         // 신규
+    float maxWeight,           // int → float (kg)
+    bool  allowOvercap,        // 신규
     string targetField)        // 신규 ("itemListData" or "selfStorage")
 ```
 
-- `allowOvercap=true` → capacity 가드 skip, 모든 entry 시도. 결과 OverCap = max(0, finalCount - maxCapacity)
-- `allowOvercap=false` → 현 로직 유지: available = max(0, max - cur), 초과분 Failed
+- 현재 weight = `sum(allItem[i].weight)` (reflection)
+- 시도할 entry 의 weight = JSON entry.weight
+- `allowOvercap=true` (인벤): weight 가드 skip, 모든 entry 시도. 결과 `OverCapWeight = max(0, finalWeight - maxWeight)` (Single)
+- `allowOvercap=false` (창고): 누적 시도 weight 합산해서 `currentWeight + sumTried > maxWeight` 시 그 entry 부터 Failed
 
 **ContainerOpsHelper 변경** — 단일 `ContainerToGame` 분리:
 
 ```csharp
-public Result ContainerToInventory(object player, HashSet<int> indices, bool removeFromContainer, int capacity);
-public Result ContainerToStorage  (object player, HashSet<int> indices, bool removeFromContainer, int capacity);
+public Result ContainerToInventory(object player, HashSet<int> indices, bool removeFromContainer, float maxWeight);
+public Result ContainerToStorage  (object player, HashSet<int> indices, bool removeFromContainer, float maxWeight);
 ```
 
 - 내부적으로 `AddItemsJsonToGame` 에 적절한 (allowOvercap, targetField) 전달
@@ -140,19 +140,19 @@ public Result ContainerToStorage  (object player, HashSet<int> indices, bool rem
 ```csharp
 public sealed class Result
 {
-    public int    Succeeded { get; set; }
-    public int    Failed    { get; set; }
-    public int    OverCap   { get; set; }   // 신규 — 인벤 over-cap 발생 갯수
-    public string Reason    { get; set; } = "";
+    public int    Succeeded     { get; set; }
+    public int    Failed        { get; set; }
+    public float  OverCapWeight { get; set; }   // 신규 — 인벤 over-cap 발생 무게 (kg)
+    public string Reason        { get; set; } = "";
 }
 ```
 
 **Toast 메시지** (KoreanStrings 신규 / 기존 보강):
 - 인벤 정상: `"인벤토리로 N개 처리"`
-- 인벤 over-cap: `"인벤토리로 N개 처리 (X/MAX 초과 — 이동속도 저하)"`
+- 인벤 over-cap: `"인벤토리로 N개 처리 ({finalW:F1}/{maxW:F1} kg 초과 — 이동속도 저하)"`
 - 창고 정상: `"창고로 N개 처리"`
-- 창고 partial: `"창고로 N개 처리 (K개는 컨테이너에 남김)"`
-- 창고 zero-available: `"창고 가득 참 — 처리 불가"` + no-op
+- 창고 partial: `"창고로 N개 처리 (K개는 무게 초과로 컨테이너에 남김)"`
+- 창고 zero-available: `"창고 무게 한계 — 처리 불가"` + no-op
 - 0개 선택: `"선택된 항목 없음"` (기존 유지)
 - 컨테이너 미선택: `"컨테이너 미선택"` (기존 유지)
 
@@ -175,7 +175,7 @@ public sealed class Result
 | `Core/ItemListReflector.cs` (조건부 신규) | spike PASS 시 GetCapacity helper |
 | `Plugin.cs` | 4 callback wiring, capacity 인자 row refresh, [F12] handler 임시 |
 | `Util/KoreanStrings.cs` | 라벨 / toast 상수 추가 |
-| `Config.cs` (조건부) | spike FAIL 시 InventoryCapacity / StorageCapacity entry |
+| `Config.cs` | InventoryMaxWeight / StorageMaxWeight ConfigEntry<float> (default 964f / 300f, fallback 용) |
 | `LongYinRoster.Tests/ContainerOpsTests.cs` (신규) | allowOvercap 분기 테스트 |
 | `LongYinRoster.Tests/ContainerOpsHelperTests.cs` (신규) | Result 형 / partial 시나리오 |
 | `LongYinRoster.Tests/ContainerPanelFormatTests.cs` (신규) | FormatCount string assertion |
@@ -199,11 +199,11 @@ public sealed class Result
 
 ### 7.2 인게임 smoke (사용자 검증 6 항목)
 
-1. **인벤토리 라벨** `(N / MAX)` 표시 — capacity reflection 또는 config fallback 둘 중 PASS
-2. **인벤토리 over-cap 마커** — 가득 찬 상태에서 컨테이너→인벤 이동 후 `⚠ 초과` 표시
-3. **창고 라벨** `(N / MAX)` 표시
-4. **컨테이너 → 인벤** 4 버튼 (이동·복사) 동작 + over-cap 시 toast `(이동속도 저하)`
-5. **컨테이너 → 창고** 4 버튼 (이동·복사) 동작 + 가득 참 시 거절 toast / partial 시 `K개 남김` toast
+1. **인벤토리 라벨** `"인벤토리 (N개, X.X / 964 kg)"` 표시 — reflection 우선, 미발견 시 config fallback
+2. **인벤토리 over-cap 마커** — 무게 초과 상태에서 라벨 끝에 `⚠ 초과` 표시
+3. **창고 라벨** `"창고 (N개, X.X / 300 kg)"` 표시
+4. **컨테이너 → 인벤** 4 버튼 (이동·복사) 동작 + over-cap 시 toast `(X.X/964 kg 초과 — 이동속도 저하)`
+5. **컨테이너 → 창고** 4 버튼 (이동·복사) 동작 + 무게 한계 시 거절 toast `"창고 무게 한계 — 처리 불가"` / partial 시 `K개는 무게 초과로 컨테이너에 남김`
 6. **회귀 검증** — v0.7.0.1 의 컨테이너 신규/이름변경/삭제 + 인벤/창고 → 컨테이너 동작 정상
 
 ## 8. Release 절차
@@ -221,8 +221,9 @@ public sealed class Result
 
 | 위험 | 완화 |
 |---|---|
-| Capacity reflection spike FAIL | (c) Config fallback path 가 미리 합의됨 — 결정 비용 0 |
-| 인벤 over-cap 시 게임 측 추가 부수효과 (속도 외) | smoke 4 에서 인게임 확인. 추가 부수효과 발견 시 plan 단계에서 toast 메시지 보강 |
+| Spike 가 갯수 capacity 가 아닌 무게 maxWeight 만 노출 (이미 발생) | spec §3.4/4.2/4.3 무게 기반으로 재정의. Config fallback 도 float. 영향 phases 모두 update |
+| 인벤 over-weight 시 게임 측 추가 부수효과 (속도 외) | smoke 4 에서 인게임 확인. 추가 부수효과 발견 시 toast 메시지 보강 |
+| ItemRow.Weight (float) 합산 정확도 (float 누적 오차) | 일반 weight 1~50 kg 단위, 합산 200개 이내라면 float 정밀도 충분 |
 | `AddItemsJsonToGame` signature 변경의 회귀 (인벤 → 컨테이너 측은 호출 site 영향 없음) | 회귀 검증 항목 6 으로 fence |
 | ContainerPanel layout reflow 로 기존 회귀 (높이 760 다시 모자라는 등) | smoke 1~5 로 직접 확인 |
 | KoreanStrings 추가가 기존 const 와 충돌 | 빌드 시 즉시 catch |
