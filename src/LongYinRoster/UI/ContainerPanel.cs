@@ -465,7 +465,10 @@ public sealed class ContainerPanel
                 && Event.current.type == EventType.MouseDown
                 && cellRect.Contains(Event.current.mousePosition))
             {
-                _focus = (area, r.Index);
+                // SetFocus 호출로 _focus + _focusRawRef 동시 갱신 — 직접 _focus 할당 시
+                // raw ref 가 null 인 채로 남아 다음 frame GetFocusedRawItem 의 ref equality
+                // 검증에서 mismatch → focus 자동 clear (smoke 1차 회귀 root cause).
+                SetFocus(area, r.Index);
                 Event.current.Use();
             }
 
