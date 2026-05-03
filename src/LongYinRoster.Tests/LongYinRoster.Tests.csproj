@@ -143,6 +143,9 @@
     <Compile Include="../LongYinRoster/UI/ItemCellRenderer.cs">
       <Link>UI/ItemCellRenderer.cs</Link>
     </Compile>
+    <Compile Include="../LongYinRoster/UI/ItemDetailPanel.cs">
+      <Link>UI/ItemDetailPanel.cs</Link>
+    </Compile>
     <Compile Include="../LongYinRoster/UI/SearchSortToolbar.cs">
       <Link>UI/SearchSortToolbar.cs</Link>
     </Compile>
