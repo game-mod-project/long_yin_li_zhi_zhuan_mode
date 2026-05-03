@@ -95,6 +95,7 @@ namespace UnityEngine
     public static class GUILayoutUtility
     {
         public static Rect GetLastRect() => default;
+        public static Rect GetRect(float width, float height, params GUILayoutOption[] options) => default;
     }
 
     public static class Time

@@ -58,22 +58,24 @@ public static class ItemCellRenderer
     /// - 우하단: 강화 +N (EnhanceLv > 0 일 때만)
     /// - 좌하단: 착 (Equipped 일 때만)
     ///
-    /// strip-safe (v0.7.3 smoke 회귀 후 fallback) — `GUILayout.Box(string, options)` 와
-    /// `GUI.Box(Rect, string)` 가 IL2CPP 빌드에서 strip 됨 → `Method unstripping failed`
-    /// + GUIClip imbalance 폭주. spec §6 fallback 적용:
-    ///   배경/마름모 = `GUI.DrawTexture(rect, Texture2D.whiteTexture)` + GUI.color
-    ///   layout 자리 = `GUILayout.Label("", GUILayout.Width/Height)` (Label + 옵션은 v0.7.2 검증)
-    /// GUIStyle ctor / GUIStyle 인자 받는 overload 회피.
+    /// strip-safe (v0.7.3 smoke 2회 회귀 후 재 fallback):
+    /// 1차 strip 발견: `GUILayout.Box(string, options)` + `GUI.Box(Rect, string)`
+    /// 2차 strip 발견: `GUILayoutUtility.GetLastRect()` (v0.7.2 어디에서도 미사용 — plan 추정 오류)
+    /// 본 fallback: GetLastRect 회피 → `GUILayoutUtility.GetRect(width, height)` 단일 호출 시도
+    /// (GetLastRect 와 다른 method, 같이 strip 되었을 가능성 있으나 1회 시도 가치).
+    /// 작동하면 spec §4.5 의도대로 cell 표시. 또 strip 시 spec §6 의 마지막 fallback 검토.
+    ///
+    /// 사용 검증된 IMGUI: GUI.DrawTexture (DialogStyle.FillBackground), GUI.Label(Rect),
+    /// GUILayout.Label(string, params) (SlotDetailPanel:152), GUI.color (everywhere).
     /// </summary>
     public static void Draw(ContainerPanel.ItemRow r, int size = 24)
     {
         var prevColor = GUI.color;
 
-        // 1. layout 자리 잡기 (GUILayout.Label 은 strip-safe — v0.7.2 검증)
-        GUILayout.Label("", GUILayout.Width(size), GUILayout.Height(size));
-        var rect = GUILayoutUtility.GetLastRect();
+        // 1. layout 자리 + rect 동시 — GetRect 1-call (GetLastRect 회피)
+        var rect = GUILayoutUtility.GetRect(size, size, GUILayout.Width(size), GUILayout.Height(size));
 
-        // 2. 배경 사각형 — GUI.DrawTexture + GUI.color (Box 류 strip 회피)
+        // 2. 배경 사각형 — DialogStyle.FillBackground 와 동일 패턴 (검증됨)
         GUI.color = GradeBackground(r.GradeOrder);
         GUI.DrawTexture(rect, Texture2D.whiteTexture);
         GUI.color = prevColor;
