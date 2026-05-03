@@ -167,7 +167,10 @@ public sealed class ContainerPanel
         // 좌측 column 전체를 ScrollView 로 wrap — 작은 해상도 fallback 안전장치 (헤더 + 카테고리 탭 + 인벤/창고 list + 4 버튼).
         _leftColumnScroll = GUILayout.BeginScrollView(_leftColumnScroll, GUILayout.Height(640));
 
-        GUILayout.Label($"인벤토리 ({_inventoryRows.Count}개)");
+        // v0.7.1: 라벨에 갯수 + 현재무게/MAX 무게 표시. 인벤은 over-cap 마커 가능.
+        float invWeight = 0f;
+        foreach (var r in _inventoryRows) invWeight += r.Weight;
+        GUILayout.Label(FormatCount(KoreanStrings.Lbl_Inventory, _inventoryRows.Count, invWeight, _inventoryMaxWeight, allowOvercap: true));
         DrawItemList(_inventoryRows, _inventoryChecks, ref _invScroll, 220);
         GUILayout.BeginHorizontal();
         if (GUILayout.Button("→ 이동")) OnInventoryToContainerMove?.Invoke(new HashSet<int>(_inventoryChecks));
@@ -175,7 +178,9 @@ public sealed class ContainerPanel
         GUILayout.EndHorizontal();
 
         GUILayout.Space(4);
-        GUILayout.Label($"창고 ({_storageRows.Count}개)");
+        float stoWeight = 0f;
+        foreach (var r in _storageRows) stoWeight += r.Weight;
+        GUILayout.Label(FormatCount(KoreanStrings.Lbl_Storage, _storageRows.Count, stoWeight, _storageMaxWeight, allowOvercap: false));
         DrawItemList(_storageRows, _storageChecks, ref _stoScroll, 220);
         GUILayout.BeginHorizontal();
         if (GUILayout.Button("→ 이동")) OnStorageToContainerMove?.Invoke(new HashSet<int>(_storageChecks));
