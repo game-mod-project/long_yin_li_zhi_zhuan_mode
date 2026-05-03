@@ -10,7 +10,8 @@ namespace LongYinRoster.UI;
 /// `ContainerPanel.GradeColor` (private static) 는 본 release 에서 제거되고 row
 /// 텍스트 색상도 `ItemCellRenderer.GradeColor` 호출로 대체.
 ///
-/// IMGUI Draw method 는 Task 3 에서 추가 (본 step 은 helper 만).
+/// 본 class 는 IMGUI Draw + helper (BadgeText/EquippedMarker) + 색상 (GradeColor/QualityColor)
+/// 통합. IMGUI 호출 strip-safe 패턴은 Draw 메서드의 doc 참고.
 /// </summary>
 public static class ItemCellRenderer
 {
