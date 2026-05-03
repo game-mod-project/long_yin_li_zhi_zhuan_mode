@@ -22,6 +22,12 @@ public sealed class ContainerPanel
         public int     EnhanceLv { get; init; }
         public float   Weight    { get; init; }
         public bool    Equipped  { get; init; }
+
+        // v0.7.2 D-3 sort keys (ContainerRowBuilder 가 채움). 미발견 시 -1 / "" — 정렬 끝/앞으로 밀림.
+        public string  CategoryKey  { get; init; } = "";
+        public string  NameRaw      { get; init; } = "";
+        public int     GradeOrder   { get; init; } = -1;
+        public int     QualityOrder { get; init; } = -1;
     }
 
     public bool Visible { get; set; } = false;
