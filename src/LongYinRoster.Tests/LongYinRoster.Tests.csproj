@@ -95,6 +95,12 @@
     <Compile Include="../LongYinRoster/Core/AppearanceApplier.cs">
       <Link>Core/AppearanceApplier.cs</Link>
     </Compile>
+    <Compile Include="../LongYinRoster/Containers/SortKey.cs">
+      <Link>Containers/SortKey.cs</Link>
+    </Compile>
+    <Compile Include="../LongYinRoster/Containers/SearchSortState.cs">
+      <Link>Containers/SearchSortState.cs</Link>
+    </Compile>
     <Compile Include="../LongYinRoster/Containers/ContainerMetadata.cs">
       <Link>Containers/ContainerMetadata.cs</Link>
     </Compile>
