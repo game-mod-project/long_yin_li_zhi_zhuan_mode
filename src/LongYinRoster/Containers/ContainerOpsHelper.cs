@@ -16,9 +16,10 @@ public sealed class ContainerOpsHelper
 
     public sealed class Result
     {
-        public int    Succeeded { get; set; }
-        public int    Failed    { get; set; }
-        public string Reason    { get; set; } = "";
+        public int    Succeeded     { get; set; }
+        public int    Failed        { get; set; }
+        public float  OverCapWeight { get; set; }   // v0.7.1 — 인벤 over-cap 발생 무게 (kg)
+        public string Reason        { get; set; } = "";
     }
 
     public Result GameToContainer(object il2List, HashSet<int> indices, bool removeFromGame)
@@ -44,7 +45,26 @@ public sealed class ContainerOpsHelper
         return res;
     }
 
-    public Result ContainerToGame(object player, HashSet<int> indices, bool removeFromContainer, int gameMaxCapacity = 171)
+    /// <summary>
+    /// v0.7.1: 컨테이너 → player.itemListData (인벤토리). over-weight 허용 (속도 페널티는 게임 메커니즘).
+    /// </summary>
+    public Result ContainerToInventory(object player, HashSet<int> indices, bool removeFromContainer, float maxWeight)
+    {
+        return ContainerToTarget(player, indices, removeFromContainer, maxWeight,
+                                  allowOvercap: true, targetField: "itemListData");
+    }
+
+    /// <summary>
+    /// v0.7.1: 컨테이너 → player.selfStorage (창고). hard cap (무게 초과 거절).
+    /// </summary>
+    public Result ContainerToStorage(object player, HashSet<int> indices, bool removeFromContainer, float maxWeight)
+    {
+        return ContainerToTarget(player, indices, removeFromContainer, maxWeight,
+                                  allowOvercap: false, targetField: "selfStorage");
+    }
+
+    private Result ContainerToTarget(object player, HashSet<int> indices, bool removeFromContainer,
+                                      float maxWeight, bool allowOvercap, string targetField)
     {
         var res = new Result();
         if (CurrentContainerIndex < 0) { res.Reason = "컨테이너 미선택"; return res; }
@@ -53,9 +73,10 @@ public sealed class ContainerOpsHelper
         {
             string existing  = _repo.LoadItemsJson(CurrentContainerIndex);
             string extracted = ContainerOps.ExtractItemsByIndex(existing, indices);
-            var gr = ContainerOps.AddItemsJsonToGame(player, extracted, gameMaxCapacity);
-            res.Succeeded = gr.Succeeded;
-            res.Failed    = gr.Failed;
+            var gr = ContainerOps.AddItemsJsonToGame(player, extracted, maxWeight, allowOvercap, targetField);
+            res.Succeeded     = gr.Succeeded;
+            res.Failed        = gr.Failed;
+            res.OverCapWeight = gr.OverCapWeight;
             if (removeFromContainer && gr.Succeeded > 0)
             {
                 var sortedIndices = new List<int>(indices);
@@ -69,7 +90,7 @@ public sealed class ContainerOpsHelper
         }
         catch (System.Exception ex)
         {
-            res.Reason = $"ContainerToGame threw: {ex.Message}";
+            res.Reason = $"ContainerToTarget({targetField}) threw: {ex.Message}";
             Logger.Warn(res.Reason);
         }
         return res;
