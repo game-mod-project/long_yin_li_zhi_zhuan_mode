@@ -103,6 +103,43 @@ public static class ItemCellRenderer
             GUI.Label(new Rect(rect.xMin + 1, rect.yMax - 14, 14, 14), marker);
     }
 
+    /// <summary>
+    /// v0.7.4 D-1 — 인자 rect 에 cell overlay.
+    /// 호출자가 이미 rect 영역을 layout 으로 잡아둔 경우 사용 (예: ContainerPanel
+    /// DrawItemList 의 invisible Button 이 자리 잡고 GetLastRect 로 rect 받은 후 overlay).
+    /// `Draw(r, size)` 와 동일 기능 — layout 자리 잡기 단계만 생략.
+    /// </summary>
+    public static void DrawAtRect(ContainerPanel.ItemRow r, Rect rect)
+    {
+        var prevColor = GUI.color;
+
+        // 배경 — GradeColor (alpha 0.6)
+        GUI.color = GradeBackground(r.GradeOrder);
+        GUI.DrawTexture(rect, Texture2D.whiteTexture);
+        GUI.color = prevColor;
+
+        // 중앙 카테고리 한자
+        GUI.Label(rect, CategoryGlyph.For(r.Type, r.SubType));
+
+        // 우상단 품질 마름모
+        if (r.QualityOrder >= 0)
+        {
+            GUI.color = QualityColor(r.QualityOrder);
+            GUI.DrawTexture(new Rect(rect.xMax - 9, rect.yMin + 1, 8, 8), Texture2D.whiteTexture);
+            GUI.color = prevColor;
+        }
+
+        // 우하단 강화
+        var badge = BadgeText(r.EnhanceLv);
+        if (!string.IsNullOrEmpty(badge))
+            GUI.Label(new Rect(rect.xMax - 18, rect.yMax - 14, 18, 14), badge);
+
+        // 좌하단 착용중
+        var marker = EquippedMarker(r.Equipped);
+        if (!string.IsNullOrEmpty(marker))
+            GUI.Label(new Rect(rect.xMin + 1, rect.yMax - 14, 14, 14), marker);
+    }
+
     private static Color GradeBackground(int grade)
     {
         var c = GradeColor(grade);
