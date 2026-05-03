@@ -22,24 +22,24 @@ public static class SearchSortToolbar
         var result = current;
         GUILayout.BeginHorizontal();
 
-        // 검색 box (폭 140)
-        string newText = GUILayout.TextField(current.Search ?? "", GUILayout.Width(140));
+        // 검색 box (폭 200)
+        string newText = GUILayout.TextField(current.Search ?? "", GUILayout.Width(200));
         if (!ReferenceEquals(newText, current.Search) && newText != current.Search)
             result = result.WithSearch(newText);
 
         GUILayout.Space(4);
 
         // 정렬 키 4 segmented
-        result = DrawKeyButton(result, SortKey.Category, "카테고리", 60);
-        result = DrawKeyButton(result, SortKey.Name,     "이름",     50);
-        result = DrawKeyButton(result, SortKey.Grade,    "등급",     50, gradeQualityEnabled);
-        result = DrawKeyButton(result, SortKey.Quality,  "품질",     50, gradeQualityEnabled);
+        result = DrawKeyButton(result, SortKey.Category, "카테고리", 70);
+        result = DrawKeyButton(result, SortKey.Name,     "이름",     60);
+        result = DrawKeyButton(result, SortKey.Grade,    "등급",     60, gradeQualityEnabled);
+        result = DrawKeyButton(result, SortKey.Quality,  "품질",     60, gradeQualityEnabled);
 
         GUILayout.Space(4);
 
         // 방향 토글
         string arrow = result.Ascending ? "▲" : "▼";
-        if (GUILayout.Button(arrow, GUILayout.Width(28)))
+        if (GUILayout.Button(arrow, GUILayout.Width(32)))
             result = result.ToggleDirection();
 
         GUILayout.EndHorizontal();

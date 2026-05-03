@@ -51,10 +51,8 @@ public sealed class ContainerPanel
     private float         _inventoryMaxWeight = 964f;   // v0.7.1
     private float         _storageMaxWeight   = 300f;   // v0.7.1
 
-    // v0.7.2 D-3 — area 별 search/sort state + cached view
-    private SearchSortState _invState   = SearchSortState.Default;
-    private SearchSortState _stoState   = SearchSortState.Default;
-    private SearchSortState _conState   = SearchSortState.Default;
+    // v0.7.2 D-3 — 1 global search/sort state (3-area 통합) + cached view
+    private SearchSortState _globalState = SearchSortState.Default;
     private readonly ContainerView _invView = new();
     private readonly ContainerView _stoView = new();
     private readonly ContainerView _conView = new();
@@ -173,6 +171,8 @@ public sealed class ContainerPanel
             // content 시작 — 헤더 28 + 여백 4
             GUILayout.Space(DialogStyle.HeaderHeight);
             DrawCategoryTabs();
+            GUILayout.Space(2);
+            DrawGlobalToolbar();   // v0.7.2 D-3 — global toolbar (인벤/창고/컨테이너 통합)
             GUILayout.Space(4);
             GUILayout.BeginHorizontal();
             DrawLeftColumn();
@@ -210,13 +210,11 @@ public sealed class ContainerPanel
         _leftColumnScroll = GUILayout.BeginScrollView(_leftColumnScroll, GUILayout.Height(640));
 
         // 인벤
-        var invView = _invView.ApplyView(_inventoryRows, _invState);
+        var invView = _invView.ApplyView(_inventoryRows, _globalState);
         float invWeight = 0f;
         foreach (var r in _inventoryRows) invWeight += r.Weight;   // 라벨은 raw 기준 (전체 무게)
         GUILayout.Label(FormatCount(KoreanStrings.Lbl_Inventory, _inventoryRows.Count, invWeight, _inventoryMaxWeight, allowOvercap: true));
-        var newInvState = SearchSortToolbar.Draw(_invState, _gradeQualityEnabled);
-        if (!newInvState.Equals(_invState)) { _invState = newInvState; _invView.Invalidate(); }
-        DrawItemList(invView, _inventoryChecks, ref _invScroll, 200);
+        DrawItemList(invView, _inventoryChecks, ref _invScroll, 220);
         GUILayout.BeginHorizontal();
         if (GUILayout.Button("→ 이동")) OnInventoryToContainerMove?.Invoke(new HashSet<int>(_inventoryChecks));
         if (GUILayout.Button("→ 복사")) OnInventoryToContainerCopy?.Invoke(new HashSet<int>(_inventoryChecks));
@@ -225,13 +223,11 @@ public sealed class ContainerPanel
         GUILayout.Space(4);
 
         // 창고
-        var stoView = _stoView.ApplyView(_storageRows, _stoState);
+        var stoView = _stoView.ApplyView(_storageRows, _globalState);
         float stoWeight = 0f;
         foreach (var r in _storageRows) stoWeight += r.Weight;
         GUILayout.Label(FormatCount(KoreanStrings.Lbl_Storage, _storageRows.Count, stoWeight, _storageMaxWeight, allowOvercap: false));
-        var newStoState = SearchSortToolbar.Draw(_stoState, _gradeQualityEnabled);
-        if (!newStoState.Equals(_stoState)) { _stoState = newStoState; _stoView.Invalidate(); }
-        DrawItemList(stoView, _storageChecks, ref _stoScroll, 200);
+        DrawItemList(stoView, _storageChecks, ref _stoScroll, 220);
         GUILayout.BeginHorizontal();
         if (GUILayout.Button("→ 이동")) OnStorageToContainerMove?.Invoke(new HashSet<int>(_storageChecks));
         if (GUILayout.Button("→ 복사")) OnStorageToContainerCopy?.Invoke(new HashSet<int>(_storageChecks));
@@ -322,11 +318,9 @@ public sealed class ContainerPanel
             GUILayout.EndHorizontal();
         }
 
-        var conView = _conView.ApplyView(_containerRows, _conState);
+        var conView = _conView.ApplyView(_containerRows, _globalState);
         GUILayout.Label($"{KoreanStrings.Lbl_Container} ({_containerRows.Count}개)");
-        var newConState = SearchSortToolbar.Draw(_conState, _gradeQualityEnabled);
-        if (!newConState.Equals(_conState)) { _conState = newConState; _conView.Invalidate(); }
-        DrawItemList(conView, _containerChecks, ref _conScroll, 340);
+        DrawItemList(conView, _containerChecks, ref _conScroll, 360);
 
         // v0.7.1: destination 별 4 버튼 (좌측 column mirror) + 삭제
         GUILayout.BeginHorizontal();
@@ -342,6 +336,18 @@ public sealed class ContainerPanel
         GUILayout.EndHorizontal();
 
         GUILayout.EndVertical();
+    }
+
+    private void DrawGlobalToolbar()
+    {
+        var newState = SearchSortToolbar.Draw(_globalState, _gradeQualityEnabled);
+        if (!newState.Equals(_globalState))
+        {
+            _globalState = newState;
+            _invView.Invalidate();
+            _stoView.Invalidate();
+            _conView.Invalidate();
+        }
     }
 
     private void DrawItemList(List<ItemRow> rows, HashSet<int> checks, ref Vector2 scroll, float height)
