@@ -44,13 +44,13 @@ public class ContainerOpsHelperGuardTests
     }
 
     [Fact]
-    public void ContainerToGame_ContainerNotSelected_ReturnsReason()
+    public void ContainerToInventory_ContainerNotSelected_ReturnsReason()
     {
         var dir = MakeTempDir();
         var repo = new ContainerRepository(dir);
         var helper = new ContainerOpsHelper(repo);
 
-        var result = helper.ContainerToGame(player: new object(), indices: new HashSet<int> { 0 }, removeFromContainer: false);
+        var result = helper.ContainerToInventory(player: new object(), indices: new HashSet<int> { 0 }, removeFromContainer: false, maxWeight: 964f);
 
         Assert.Equal("컨테이너 미선택", result.Reason);
     }
@@ -76,6 +76,44 @@ public class ContainerOpsHelperGuardTests
         helper.CurrentContainerIndex = repo.CreateNew("test");
 
         var result = helper.DeleteFromContainer(new HashSet<int>());
+
+        Assert.Equal("선택된 항목 없음", result.Reason);
+    }
+
+    [Fact]
+    public void ContainerToStorage_ContainerNotSelected_ReturnsReason()
+    {
+        var dir = MakeTempDir();
+        var repo = new ContainerRepository(dir);
+        var helper = new ContainerOpsHelper(repo);
+
+        var result = helper.ContainerToStorage(player: new object(), indices: new HashSet<int> { 0 }, removeFromContainer: false, maxWeight: 300f);
+
+        Assert.Equal("컨테이너 미선택", result.Reason);
+    }
+
+    [Fact]
+    public void ContainerToInventory_EmptyChecks_ReturnsReason()
+    {
+        var dir = MakeTempDir();
+        var repo = new ContainerRepository(dir);
+        var helper = new ContainerOpsHelper(repo);
+        helper.CurrentContainerIndex = repo.CreateNew("test");
+
+        var result = helper.ContainerToInventory(player: new object(), indices: new HashSet<int>(), removeFromContainer: false, maxWeight: 964f);
+
+        Assert.Equal("선택된 항목 없음", result.Reason);
+    }
+
+    [Fact]
+    public void ContainerToStorage_EmptyChecks_ReturnsReason()
+    {
+        var dir = MakeTempDir();
+        var repo = new ContainerRepository(dir);
+        var helper = new ContainerOpsHelper(repo);
+        helper.CurrentContainerIndex = repo.CreateNew("test");
+
+        var result = helper.ContainerToStorage(player: new object(), indices: new HashSet<int>(), removeFromContainer: false, maxWeight: 300f);
 
         Assert.Equal("선택된 항목 없음", result.Reason);
     }
