@@ -83,6 +83,9 @@
     <Compile Include="../LongYinRoster/Core/KungfuListApplier.cs">
       <Link>Core/KungfuListApplier.cs</Link>
     </Compile>
+    <Compile Include="../LongYinRoster/Core/ItemDetailReflector.cs">
+      <Link>Core/ItemDetailReflector.cs</Link>
+    </Compile>
     <Compile Include="../LongYinRoster/Core/ItemListApplier.cs">
       <Link>Core/ItemListApplier.cs</Link>
     </Compile>
