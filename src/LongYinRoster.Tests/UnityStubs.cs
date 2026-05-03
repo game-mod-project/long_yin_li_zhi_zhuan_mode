@@ -50,6 +50,7 @@ namespace UnityEngine
     public static class GUI
     {
         public static Color color { get; set; }
+        public static bool enabled { get; set; } = true;
         public static GUISkin skin { get; } = new GUISkin();
 
         public delegate void WindowFunction(int id);

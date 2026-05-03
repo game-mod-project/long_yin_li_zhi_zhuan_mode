@@ -50,12 +50,13 @@ public static class SearchSortToolbar
     {
         bool active = s.Key == key;
         var prevColor = GUI.color;
-        // GUI.enabled 미사용 (IL2CPP interop stub 에 없음) — 비활성 시 color alpha 로 시각화.
-        if (!enabled) { GUI.color = new Color(prevColor.r, prevColor.g, prevColor.b, 0.4f); }
+        var prevEnabled = GUI.enabled;
+        if (!enabled) { GUI.enabled = false; }
         else if (active) { GUI.color = Color.cyan; }
         if (GUILayout.Button(label, GUILayout.Width(width)) && enabled)
             s = s.WithKey(key);
         GUI.color = prevColor;
+        GUI.enabled = prevEnabled;
         return s;
     }
 }
