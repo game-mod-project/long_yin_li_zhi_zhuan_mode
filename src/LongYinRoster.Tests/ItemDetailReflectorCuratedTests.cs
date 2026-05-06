@@ -176,8 +176,110 @@ public class ItemDetailReflectorCuratedTests
         curated.ShouldContain(x => x.Label == "가격" && x.Value == "12800");
     }
 
-    // ===== Unsupported categories =====
-    private sealed class FakeHorseItem { public int type = 6; }
+    // ===== Horse (type=6) — spike: equiped + 4 stats × (base, Add) + maxWeightAdd + favorRate =====
+    private sealed class FakeHorseData
+    {
+        public bool equiped = true;
+        public float speed = 100f, speedAdd = 0f;
+        public float power = 50f, powerAdd = 0f;
+        public float sprint = 80f, sprintAdd = 0f;
+        public float resist = 70f, resistAdd = 0f;
+        public float maxWeightAdd = 0f;
+        public float favorRate = 1f;
+        // 동적 필드 (raw 위임) — fake 는 시그니처만
+        public float nowPower = 100f;
+        public float sprintTimeLeft = 0f;
+        public float sprintTimeCd = 0f;
+    }
+    private sealed class FakeHorseItem
+    {
+        public string name = "神凫马";
+        public int type = 6;
+        public int subType = 0;
+        public int itemLv = 5;
+        public int rareLv = 5;
+        public float weight = 24.0f;
+        public int value = 100000;
+        public FakeHorseData? horseData = new();
+    }
+
+    [Fact]
+    public void GetCuratedFields_Horse_BasicEquipped()
+    {
+        var item = new FakeHorseItem();
+        var curated = ItemDetailReflector.GetCuratedFields(item);
+        curated.ShouldContain(x => x.Label == "착용중" && x.Value == "예");
+        curated.ShouldContain(x => x.Label == "속도" && x.Value == "100");
+        curated.ShouldContain(x => x.Label == "힘" && x.Value == "50");
+        curated.ShouldContain(x => x.Label == "스프린트" && x.Value == "80");
+        curated.ShouldContain(x => x.Label == "인내" && x.Value == "70");
+        curated.ShouldNotContain(x => x.Label == "최대무게 추가");   // maxWeightAdd=0 → 미표시
+        curated.ShouldNotContain(x => x.Label == "호감 율");          // favorRate=1 → 미표시
+        curated.ShouldContain(x => x.Label == "무게" && x.Value == "24.0 kg");
+        curated.ShouldContain(x => x.Label == "가격" && x.Value == "100000");
+    }
+
+    [Fact]
+    public void GetCuratedFields_Horse_WithAdd_ShowsCombined()
+    {
+        var item = new FakeHorseItem
+        {
+            horseData = new FakeHorseData { speed = 100f, speedAdd = 10f, power = 50f, powerAdd = 5f }
+        };
+        var curated = ItemDetailReflector.GetCuratedFields(item);
+        curated.ShouldContain(x => x.Label == "속도" && x.Value == "100 (+10)");
+        curated.ShouldContain(x => x.Label == "힘" && x.Value == "50 (+5)");
+    }
+
+    [Fact]
+    public void GetCuratedFields_Horse_NotEquipped()
+    {
+        var item = new FakeHorseItem { horseData = new FakeHorseData { equiped = false } };
+        var curated = ItemDetailReflector.GetCuratedFields(item);
+        curated.ShouldContain(x => x.Label == "착용중" && x.Value == "아니오");
+    }
+
+    [Fact]
+    public void GetCuratedFields_Horse_FavorRateNonDefault_ShowsRow()
+    {
+        var item = new FakeHorseItem { horseData = new FakeHorseData { favorRate = 1.5f } };
+        var curated = ItemDetailReflector.GetCuratedFields(item);
+        curated.ShouldContain(x => x.Label == "호감 율" && x.Value == "1.50");
+    }
+
+    [Fact]
+    public void GetCuratedFields_Horse_FavorRateDefault_OmitsRow()
+    {
+        var item = new FakeHorseItem { horseData = new FakeHorseData { favorRate = 1f } };
+        var curated = ItemDetailReflector.GetCuratedFields(item);
+        curated.ShouldNotContain(x => x.Label == "호감 율");
+    }
+
+    [Fact]
+    public void GetCuratedFields_Horse_MaxWeightAdd_ShowsRow()
+    {
+        var item = new FakeHorseItem { horseData = new FakeHorseData { maxWeightAdd = 20f } };
+        var curated = ItemDetailReflector.GetCuratedFields(item);
+        curated.ShouldContain(x => x.Label == "최대무게 추가" && x.Value == "+20");
+    }
+
+    [Fact]
+    public void GetCuratedFields_Horse_MaxWeightAddZero_OmitsRow()
+    {
+        var item = new FakeHorseItem { horseData = new FakeHorseData { maxWeightAdd = 0f } };
+        var curated = ItemDetailReflector.GetCuratedFields(item);
+        curated.ShouldNotContain(x => x.Label == "최대무게 추가");
+    }
+
+    [Fact]
+    public void GetCuratedFields_Horse_NullWrapper_ReturnsTwoFields()
+    {
+        var item = new FakeHorseItem { horseData = null };
+        var curated = ItemDetailReflector.GetCuratedFields(item);
+        curated.Count.ShouldBe(2);
+        curated.ShouldContain(x => x.Label == "무게");
+        curated.ShouldContain(x => x.Label == "가격");
+    }
 
     [Fact]
     public void GetCuratedFields_NullItem_ReturnsEmpty()

@@ -41,7 +41,8 @@ public static class ItemDetailReflector
             3 => GetBookDetails(item),
             4 => GetTreasureDetails(item),
             5 => GetMaterialDetails(item),
-            _ => new(),   // type=6 + unknown
+            6 => GetHorseDetails(item),
+            _ => new(),   // unknown
         };
     }
 
@@ -117,6 +118,37 @@ public static class ItemDetailReflector
         result.Add(("무게", $"{ReadFloat(item, "weight"):F1} kg"));
         result.Add(("가격", ReadInt(item, "value").ToString()));
         return result;
+    }
+
+    private static List<(string, string)> GetHorseDetails(object item)
+    {
+        var result = new List<(string, string)>();
+        var hd = ReadFieldOrProperty(item.GetType(), item, "horseData");
+        if (hd != null)
+        {
+            result.Add(("착용중", ReadBool(hd, "equiped") ? "예" : "아니오"));
+            AddBaseAdd(result, hd, "속도", "speed", "speedAdd");
+            AddBaseAdd(result, hd, "힘", "power", "powerAdd");
+            AddBaseAdd(result, hd, "스프린트", "sprint", "sprintAdd");
+            AddBaseAdd(result, hd, "인내", "resist", "resistAdd");
+            float mwa = ReadFloat(hd, "maxWeightAdd");
+            if (mwa > 0f) result.Add(("최대무게 추가", $"+{mwa:F0}"));
+            float favor = ReadFloat(hd, "favorRate");
+            if (Math.Abs(favor - 1f) > 0.01f) result.Add(("호감 율", $"{favor:F2}"));
+        }
+        // 동적 필드 (nowPower / sprintTimeLeft / sprintTimeCd) 는 raw 섹션 위임
+        result.Add(("무게", $"{ReadFloat(item, "weight"):F1} kg"));
+        result.Add(("가격", ReadInt(item, "value").ToString()));
+        return result;
+    }
+
+    // 말 4 stat 의 base + Add 합산 표시 — Add=0 시 bare value, Add>0 시 "{base} (+{add})"
+    private static void AddBaseAdd(List<(string, string)> result, object obj, string label, string baseField, string addField)
+    {
+        float baseVal = ReadFloat(obj, baseField);
+        float addVal = ReadFloat(obj, addField);
+        string val = addVal > 0f ? $"{baseVal:F0} (+{addVal:F0})" : $"{baseVal:F0}";
+        result.Add((label, val));
     }
 
     private static int ReadInt(object obj, string name)
