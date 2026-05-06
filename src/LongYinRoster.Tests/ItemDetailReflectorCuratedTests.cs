@@ -153,15 +153,31 @@ public class ItemDetailReflectorCuratedTests
         curated.ShouldContain(x => x.Label == "가격");
     }
 
-    // ===== Unsupported categories =====
-    private sealed class FakeMaterialItem { public int type = 5; }
-    private sealed class FakeHorseItem { public int type = 6; }
+    // ===== Material (type=5) — extraAddData 는 nested 객체 raw 위임 =====
+    private sealed class FakeMaterialItem
+    {
+        public string name = "절세食材";
+        public int type = 5;
+        public int subType = 0;
+        public int itemLv = 5;
+        public int rareLv = 5;
+        public float weight = 6.0f;
+        public int value = 12800;
+        public object? extraAddData = null;   // raw 위임이라 fake 시그니처만
+    }
 
     [Fact]
-    public void GetCuratedFields_Material_ReturnsEmpty()
+    public void GetCuratedFields_Material_Standard_ReturnsTwoFields()
     {
-        ItemDetailReflector.GetCuratedFields(new FakeMaterialItem()).ShouldBeEmpty();
+        var item = new FakeMaterialItem();
+        var curated = ItemDetailReflector.GetCuratedFields(item);
+        curated.Count.ShouldBe(2);
+        curated.ShouldContain(x => x.Label == "무게" && x.Value == "6.0 kg");
+        curated.ShouldContain(x => x.Label == "가격" && x.Value == "12800");
     }
+
+    // ===== Unsupported categories =====
+    private sealed class FakeHorseItem { public int type = 6; }
 
     [Fact]
     public void GetCuratedFields_NullItem_ReturnsEmpty()
