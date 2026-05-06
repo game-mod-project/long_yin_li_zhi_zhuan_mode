@@ -47,7 +47,7 @@ v0.7.6 설정 panel           hotkey / 컨테이너 정원 / 창 크기 / 검색
 
 ## 2. 각 단계 1-pager
 
-### 2.1 v0.7.4.x patch (확정 sub-project)
+### 2.1 v0.7.4.x patch ✅ 완료 (v0.7.4.1, 2026-05-05)
 
 | 항목 | 내용 |
 |---|---|
@@ -55,6 +55,14 @@ v0.7.6 설정 panel           hotkey / 컨테이너 정원 / 창 크기 / 검색
 | **입력 자산** | `dumps/2026-05-03-v0.7.4-subdata-spike.md` (sub-data wrapper 인벤토리), `dumps/2026-05-05-v075-cheat-feature-reference.md` Section 2 (`ItemGenerator.GenerateHorseData/GenerateTreasure/GenerateMaterial` 시그니처 + `CategoryNames[12]` 한글 라벨) |
 | **출력** | 1 spec + 1 plan + 1 release tag (v0.7.4.1 등). switch 3 case 추가 + 각 카테고리 unit test (curated 필드 매칭) |
 | **결정 게이트** | 단일 patch (말+보물+재료 한꺼번에) vs 분할 (말 우선 별도 patch). HorseItemData 가 가장 풍부 → 분할이 안전한지 단계 진입 시 재평가. 기본 추정: 단일 patch |
+
+**Result** (2026-05-05):
+- Release: [v0.7.4.1](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.7.4.1)
+- Spec: [2026-05-05-longyin-roster-mod-v0.7.4.1-design.md](2026-05-05-longyin-roster-mod-v0.7.4.1-design.md)
+- Plan: [2026-05-05-longyin-roster-mod-v0.7.4.1-plan.md](../plans/2026-05-05-longyin-roster-mod-v0.7.4.1-plan.md)
+- Smoke: [2026-05-05-v0.7.4.1-smoke-results.md](../dumps/2026-05-05-v0.7.4.1-smoke-results.md)
+- Tests: 182 → 193 PASS, 인게임 smoke 12/12 PASS.
+- Patch 단위: (i) 단일 v0.7.4.1, Curated 분량: (A) Minimal — 말 12 / 보물 4 / 재료 2.
 
 ### 2.2 v0.7.5 D-4 Item 한글화 (확정 sub-project)
 
@@ -212,9 +220,10 @@ v0.7.6 설정 panel           hotkey / 컨테이너 정원 / 창 크기 / 검색
 
 ## 6. 다음 액션
 
-1. **본 메타 spec review**: 사용자 확인 후 git commit
-2. **v0.7.4.x sub-project brainstorm 진입**: 메타의 §2.1 1-pager + `dumps/2026-05-03-v0.7.4-subdata-spike.md` + `dumps/2026-05-05-v075-cheat-feature-reference.md` Section 2 를 design input 으로 정식 brainstorm cycle 시작 (`writing-plans` skill 호출 전제)
-3. **이후 cycle**: §5.1 의 6단계를 v0.7.4.x → v0.7.5 → v0.7.6 → G1 순으로 반복
+1. ✅ **본 메타 spec review**: 사용자 확인 후 git commit (2026-05-05 commit `0ff3e00`)
+2. ✅ **v0.7.4.x sub-project**: v0.7.4.1 release 완료 (2026-05-05) — §2.1 Result 섹션 참조
+3. **v0.7.5 D-4 Item 한글화 sub-project brainstorm 진입** (다음 작업): 메타의 §2.2 1-pager + `dumps/2026-05-05-v075-hangul-hook-guide.md` (Hybrid 자체사전+ModFix reflection fallback) 를 design input 으로 정식 brainstorm cycle 시작
+4. **이후 cycle**: §5.1 의 6단계를 v0.7.5 → v0.7.6 → G1 순으로 반복
 
 ---
 

@@ -79,6 +79,20 @@
 
 색상 매핑은 게임 본 UI 의 아이콘 표시 (등급 = 아이콘 배경, 품질 = 아이콘 상단 마름모) 와 일치합니다.
 
+### v0.7.4.1 — 나머지 3 카테고리 curated (말 / 보물 / 재료)
+
+ItemDetailPanel curated 섹션이 7 카테고리 모두 cover. 신규 case 3종:
+
+- **말** (`horseData`) — 착용중 / 속도·힘·스프린트·인내 (각 base+Add 합산 `100 (+10)`) / 최대무게 추가 (>0 일 때) / 호감 율 (≠1.0 일 때) + 무게/가격 공통. 동적 필드 (nowPower / sprintTimeLeft / sprintTimeCd) 는 raw 섹션 위임.
+- **보물** (`treasureData`) — 완전 감정 (예/아니오) / 감정 필요 지식 (>0 일 때) + 무게/가격 공통. List 들 (treasureLv / identifyDifficulty / identified / playerGuessTreasureLv) 은 raw 섹션 위임.
+- **재료** (`materialData`) — 무게/가격 공통만 (extraAddData HeroSpeAddData nested 객체는 raw 섹션 위임).
+
+신규 `AddBaseAdd` private helper — 말 4 stat 의 base+Add 합산 표시 (Add=0 시 bare value).
+
+193/193 unit tests PASS (Curated 17, +8 Horse +4 Treasure +1 Material -2 obsolete). 인게임 smoke 12/12 PASS (신규 6 + 회귀 6).
+
+**제외**: nested 객체 (HeroSpeAddData / ChangeHeroStateData / EquipPoisonData) 1-depth 표시 → v0.7.7 Item editor 후보. 음식·단약 (subType=0 vs ≥1) 분리 → v0.7.5 한글화 sub-project. 컨테이너 area (외부 디스크) curated → JSON path 데이터 미지원.
+
 ### v0.7.4 — Item 상세 panel
 
 ContainerPanel 의 row 좌측 cell 을 클릭하면 single-focus 됩니다 (cyan 외곽선). toolbar 의 ⓘ 상세 버튼으로 별도 ItemDetailPanel window 가 열려서 선택 item 의 상세 정보를 표시합니다.
@@ -109,6 +123,7 @@ ContainerPanel X 버튼 닫기 시 ItemDetailPanel 도 같이 닫힙니다. posi
 | v0.7.2 | 컨테이너 검색·정렬 — 글로벌 toolbar + 등급 6단계 색상 + itemLv/rareLv reflection |
 | v0.7.3 | 컨테이너 Item 시각 표시 풍부화 — 24×24 placeholder cell (등급 배경 + 품질 마름모 + 카테고리 한자 + 강화 `+N` + 착용 `착`) |
 | v0.7.4 | Item 상세 panel — cell 클릭 single-focus + ⓘ toolbar → ItemDetailPanel (curated 한글 라벨 + raw reflection dump, view-only) |
+| v0.7.4.1 | Item 상세 panel 7 카테고리 cover — 말 / 보물 / 재료 curated 추가 (기존 장비/비급/단약 회귀 없음) |
 
 ## 요구 사항
 

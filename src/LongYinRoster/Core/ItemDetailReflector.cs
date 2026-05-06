@@ -26,8 +26,8 @@ public static class ItemDetailReflector
 
     /// <summary>
     /// 카테고리별 의미 있는 필드 → (한글 라벨, 표시 값) tuple list.
-    /// 우선 cover: type=0 장비 / type=2 단약·음식 / type=3 비급.
-    /// 미지원 카테고리 (treasure/material/horse) 는 빈 list — caller 가 raw fallback.
+    /// Cover: type=0 장비 / type=2 단약·음식 / type=3 비급 / type=4 보물 / type=5 재료 / type=6 말 (v0.7.4.1).
+    /// 미지원 카테고리 (unknown type) 는 빈 list — caller 가 raw fallback.
     /// 필드명은 v0.7.4 D-1 spike 결과 (docs/superpowers/dumps/2026-05-03-v0.7.4-subdata-spike.md) 기반.
     /// </summary>
     public static List<(string Label, string Value)> GetCuratedFields(object? item)
@@ -142,7 +142,8 @@ public static class ItemDetailReflector
         return result;
     }
 
-    // 말 4 stat 의 base + Add 합산 표시 — Add=0 시 bare value, Add>0 시 "{base} (+{add})"
+    // 말 4 stat 의 base + Add 합산 표시 — Add=0 시 bare value, Add>0 시 "{base} (+{add})".
+    // 게임 데이터는 *Add ≥ 0 / maxWeightAdd ≥ 0 보장 (v0.7.4 spike 검증) — 음수 시 bare value 로 폴백.
     private static void AddBaseAdd(List<(string, string)> result, object obj, string label, string baseField, string addField)
     {
         float baseVal = ReadFloat(obj, baseField);

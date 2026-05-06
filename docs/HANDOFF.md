@@ -1,7 +1,7 @@
 # LongYin Roster Mod — 작업 핸드오프 문서
 
-**일시 중지**: 2026-05-03
-**진행 상태**: **v0.7.4 release** — D-1 Item 상세 panel (view-only, hybrid curated+raw). ContainerPanel cell 클릭 single-focus + ⓘ toolbar 버튼 → 별도 ItemDetailPanel window. Curated 섹션 = 장비/비급/단약 카테고리별 한글 라벨 우선 cover (보물·재료·말 후속 patch). Raw fields 섹션 = reflection dump 접이식 (IL2CPP meta 필터). 컨테이너 area 는 JSON path 라 데이터 미지원 (focus outline 만). 182/182 tests PASS + 인게임 smoke 6/6 PASS (4-iteration UX fix).
+**일시 중지**: 2026-05-05
+**진행 상태**: **v0.7.4.1 release** — Item 상세 panel 나머지 3 카테고리 curated (말 / 보물 / 재료). ItemDetailPanel curated 섹션이 7 카테고리 모두 cover (장비/비급/단약 + 말/보물/재료). 신규 `ItemDetailReflector.GetCuratedFields` switch case 3종 (4=Treasure, 5=Material, 6=Horse) + `AddBaseAdd` private helper (말 4 stat base+Add 합산). 193/193 tests PASS + 인게임 smoke 12/12 PASS (신규 6 + 회귀 6).
 **저장소**: https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode (`main` 브랜치)
 **프로젝트 루트**: `E:/Games/龙胤立志传.v1.0.0f8.2/LongYinLiZhiZhuan/Save/_PlayerExport/`
 **Releases**:
@@ -26,6 +26,7 @@
 - [v0.7.2](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.7.2) — D-3 컨테이너 검색·정렬: 글로벌 toolbar (검색 box + 카테고리/이름/등급/품질 4 sort key + ▲/▼) 1줄 + 3-area cache. Item itemLv/rareLv (등급/품질) reflection. Row text 등급 6단계 색상 (열악 회색 → 절세 빨강). 인게임 smoke 통과 + 2 bug fix (color JSON path itemLv 우선 / dropdown lazy load).
 - [v0.7.3](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.7.3) — D-2 컨테이너 Item 시각 표시 풍부화 (placeholder cell): row 마다 24×24 cell prefix (등급 배경 6단계 + 우상단 품질 마름모 6단계 + 중앙 카테고리 한자 装/书/药/食/宝/材/马 + 우하단 강화 `+N` + 좌하단 착용 `착`). 신규 `CategoryGlyph` + `ItemCellRenderer` (Draw + GradeColor/QualityColor 단일 source). v0.7.2 검색·정렬 자산 100% 보존. IL2CPP IMGUI strip 회귀 2회 (Box 류 + GUILayoutUtility.GetLastRect) 발견 → `GUILayoutUtility.GetRect` 1-call 로 fallback. 진짜 game sprite 도입은 v0.8+ 별도 sub-project 후보.
 - [v0.7.4](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.7.4) — D-1 Item 상세 panel (view-only, hybrid curated+raw): ContainerPanel row 좌측 cell 클릭 single-focus (cyan 외곽선) + toolbar `ⓘ 상세` 버튼으로 별도 ItemDetailPanel window. **Curated 섹션** = 카테고리별 한글 라벨 (장비: 강화/착용/특수 강화/무게 경감/무게/가격, 비급: 무공 ID/무게/가격, 단약·음식: 강화/추가 보정/무게/가격) — 보물·재료·말 은 후속 v0.7.4.x patch. **Raw fields 섹션** (접이식) = 모든 reflection 필드 dump (IL2CPP meta 필터). **컨테이너 area** (외부 디스크) 는 JSON path 라 ItemDetailPanel 데이터 미지원 — focus outline 만 표시. **Cell vs Toggle 분리**: cell 클릭 = single-select + focus, toggle 라벨 클릭 = multi-check (이동·복사 워크플로우, focus 해제). ContainerPanel X 닫기 시 ItemDetailPanel 도 sync close. 신규 `ItemDetailReflector` (GetRawFields + GetCuratedFields with sub-data wrapper unwrap) + `ItemDetailPanel` window. v0.7.2 검색·정렬 / v0.7.3 cell renderer 자산 100% 보존. 182/182 tests PASS + 인게임 smoke 6/6 PASS (4-iteration UX fix: ref equality / SetFocus call / single-select / Toggle clear + container focus). Sub-data wrapper inventory dump: `docs/superpowers/dumps/2026-05-03-v0.7.4-subdata-spike.md`. Item editor (수정 기능) 는 v0.7.7 후보 별도 sub-project.
+- [v0.7.4.1](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.7.4.1) — Item 상세 panel 나머지 3 카테고리 curated (말 / 보물 / 재료). 7 카테고리 cover. 193 tests + smoke 12/12.
 
 ## v0.7.1 Known Limitations
 - **무공 list만 단독 Apply 시 active 장착 정보 손실** (의도된 동작 — 무공 active 도 같이 체크 권장).
@@ -39,11 +40,11 @@
 ## 1. 한 줄 요약
 
 BepInEx 6 IL2CPP 환경에서 플레이어 캐릭터 스냅샷을 20슬롯에 저장 / 관리하는 모드 + 컨테이너 (인벤/창고 ↔ 외부 디스크) 관리.
-**현재 main baseline = v0.7.4** (D-1 Item 상세 panel — view-only hybrid curated+raw, ContainerPanel cell 클릭 single-focus + ⓘ toolbar 버튼 → 별도 ItemDetailPanel window. 장비/비급/단약 우선 cover. 컨테이너 area 는 JSON path 데이터 미지원. 182/182 tests PASS + 인게임 smoke 6/6 PASS — 4-iteration UX fix).
+**현재 main baseline = v0.7.4.1** (Item 상세 panel 나머지 3 카테고리 curated — 말 / 보물 / 재료. 7 카테고리 모두 cover. 193/193 tests PASS + 인게임 smoke 12/12 PASS — 신규 6 + 회귀 6).
 
 **다음 세션 후속 sub-project**:
-- v0.7.4.x patch (후보): 나머지 3 카테고리 curated — 말 우선 (HorseItemData 의 fightSpeed/normalSpeed/maxHp 등), 그 다음 보물 / 재료
-- v0.7.5: D-4 Item 한글화 — 한글 패치 mod 사전 hook 또는 자체 itemID→한글 사전. ContainerPanel + ItemDetailPanel item 이름이 현재 중국어 한자 노출
+- ✅ ~~v0.7.4.x patch: 나머지 3 카테고리 curated — 말 / 보물 / 재료~~ (v0.7.4.1 release 완료, 2026-05-05)
+- **v0.7.5 (다음 sub-project): D-4 Item 한글화** — 한글 패치 mod 사전 hook 또는 자체 itemID→한글 사전. ContainerPanel + ItemDetailPanel item 이름이 현재 중국어 한자 노출. Hybrid 자체사전 + ModFix reflection fallback 패턴 (`docs/superpowers/dumps/2026-05-05-v075-hangul-hook-guide.md` design input)
 - v0.7.6: 설정 panel — hotkey 변경 / 컨테이너 정원 / 창 크기 조정
 - **v0.7.7 (후보)**: Item editor — ItemDetailPanel 의 view-only 필드를 edit-able 로 확장 (강화 lv 직접 변경, equipUseSpeAddValue 같은 sub-data 직접 수정). game-self method 우선 + reflection setter fallback. v0.7.4 의 ItemFieldExtractor 자산 baseline
 - v0.7.8: Apply 부분 미리보기 — 선택한 카테고리 적용 시 전후 비교
