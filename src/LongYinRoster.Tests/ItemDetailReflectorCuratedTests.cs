@@ -96,16 +96,66 @@ public class ItemDetailReflectorCuratedTests
         curated.ShouldContain(x => x.Label == "가격");
     }
 
-    // ===== Unsupported categories =====
-    private sealed class FakeTreasureItem { public int type = 4; }
-    private sealed class FakeMaterialItem { public int type = 5; }
-    private sealed class FakeHorseItem { public int type = 6; }
+    // ===== Treasure (type=4) — spike: fullIdentified / identifyKnowledgeNeed (List 들은 raw 위임) =====
+    private sealed class FakeTreasureData
+    {
+        public bool fullIdentified = true;
+        public float identifyKnowledgeNeed = 120f;
+    }
+    private sealed class FakeTreasureItem
+    {
+        public string name = "紫檀琵琶";
+        public int type = 4;
+        public int subType = 0;
+        public int itemLv = 5;
+        public int rareLv = 5;
+        public float weight = 12.0f;
+        public int value = 80000;
+        public FakeTreasureData? treasureData = new();
+    }
 
     [Fact]
-    public void GetCuratedFields_Treasure_ReturnsEmpty()
+    public void GetCuratedFields_Treasure_FullIdentified()
     {
-        ItemDetailReflector.GetCuratedFields(new FakeTreasureItem()).ShouldBeEmpty();
+        var item = new FakeTreasureItem();
+        var curated = ItemDetailReflector.GetCuratedFields(item);
+        curated.ShouldContain(x => x.Label == "완전 감정" && x.Value == "예");
+        curated.ShouldContain(x => x.Label == "감정 필요 지식" && x.Value == "120");
+        curated.ShouldContain(x => x.Label == "무게" && x.Value == "12.0 kg");
+        curated.ShouldContain(x => x.Label == "가격" && x.Value == "80000");
     }
+
+    [Fact]
+    public void GetCuratedFields_Treasure_NotIdentified()
+    {
+        var item = new FakeTreasureItem { treasureData = new FakeTreasureData { fullIdentified = false, identifyKnowledgeNeed = 80f } };
+        var curated = ItemDetailReflector.GetCuratedFields(item);
+        curated.ShouldContain(x => x.Label == "완전 감정" && x.Value == "아니오");
+        curated.ShouldContain(x => x.Label == "감정 필요 지식" && x.Value == "80");
+    }
+
+    [Fact]
+    public void GetCuratedFields_Treasure_IknZero_OmitsRow()
+    {
+        var item = new FakeTreasureItem { treasureData = new FakeTreasureData { fullIdentified = true, identifyKnowledgeNeed = 0f } };
+        var curated = ItemDetailReflector.GetCuratedFields(item);
+        curated.ShouldContain(x => x.Label == "완전 감정");
+        curated.ShouldNotContain(x => x.Label == "감정 필요 지식");
+    }
+
+    [Fact]
+    public void GetCuratedFields_Treasure_NullWrapper_ReturnsTwoFields()
+    {
+        var item = new FakeTreasureItem { treasureData = null };
+        var curated = ItemDetailReflector.GetCuratedFields(item);
+        curated.Count.ShouldBe(2);
+        curated.ShouldContain(x => x.Label == "무게");
+        curated.ShouldContain(x => x.Label == "가격");
+    }
+
+    // ===== Unsupported categories =====
+    private sealed class FakeMaterialItem { public int type = 5; }
+    private sealed class FakeHorseItem { public int type = 6; }
 
     [Fact]
     public void GetCuratedFields_Material_ReturnsEmpty()

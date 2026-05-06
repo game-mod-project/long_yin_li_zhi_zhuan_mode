@@ -39,7 +39,8 @@ public static class ItemDetailReflector
             0 => GetEquipmentDetails(item),
             2 => GetMedFoodDetails(item),
             3 => GetBookDetails(item),
-            _ => new(),   // type=4/5/6 + unknown
+            4 => GetTreasureDetails(item),
+            _ => new(),   // type=5/6 + unknown
         };
     }
 
@@ -87,6 +88,21 @@ public static class ItemDetailReflector
             int randAdd = ReadInt(mf, "randomSpeAddValue");
             if (randAdd > 0) result.Add(("추가 보정", randAdd.ToString()));
             // changeHeroState / extraAddData 는 nested 객체 — v0.7.4.x 후속
+        }
+        result.Add(("무게", $"{ReadFloat(item, "weight"):F1} kg"));
+        result.Add(("가격", ReadInt(item, "value").ToString()));
+        return result;
+    }
+
+    private static List<(string, string)> GetTreasureDetails(object item)
+    {
+        var result = new List<(string, string)>();
+        var td = ReadFieldOrProperty(item.GetType(), item, "treasureData");
+        if (td != null)
+        {
+            result.Add(("완전 감정", ReadBool(td, "fullIdentified") ? "예" : "아니오"));
+            float ikn = ReadFloat(td, "identifyKnowledgeNeed");
+            if (ikn > 0f) result.Add(("감정 필요 지식", $"{ikn:F0}"));
         }
         result.Add(("무게", $"{ReadFloat(item, "weight"):F1} kg"));
         result.Add(("가격", ReadInt(item, "value").ToString()));
