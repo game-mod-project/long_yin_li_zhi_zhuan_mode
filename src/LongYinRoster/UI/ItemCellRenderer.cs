@@ -83,8 +83,8 @@ public static class ItemCellRenderer
 
         // 3. 중앙 카테고리 한글 라벨 (v0.7.5.2 — 한자 1자 → 장비/단약/음식/비급/보물/재료/말)
         // GUIStyle 미사용 (test stub 호환) — label rect 를 cell 가운데 narrow 영역에 잡아 centering 효과.
-        // 라벨 영역 width = cell width - 16 (양쪽 8px padding) — 한글 2자 fit. left-align default.
-        GUI.Label(new Rect(rect.xMin + 8, rect.yMin + 4, rect.width - 16, rect.height - 8),
+        // 라벨 영역 — 양쪽 8px padding, full height (한글 글자 하단 잘림 방지). left-align default.
+        GUI.Label(new Rect(rect.xMin + 8, rect.yMin, rect.width - 16, rect.height),
             CategoryGlyph.For(r.Type, r.SubType));
 
         // 4. 우상단 품질 마름모 (8×8 colored block, alpha 1.0)
@@ -94,16 +94,8 @@ public static class ItemCellRenderer
             GUI.DrawTexture(new Rect(rect.xMax - 9, rect.yMin + 1, 8, 8), Texture2D.whiteTexture);
             GUI.color = prevColor;
         }
-
-        // 5. 우하단 강화 (있을 때만)
-        var badge = BadgeText(r.EnhanceLv);
-        if (!string.IsNullOrEmpty(badge))
-            GUI.Label(new Rect(rect.xMax - 18, rect.yMax - 14, 18, 14), badge);
-
-        // 6. 좌하단 착용중 (있을 때만)
-        var marker = EquippedMarker(r.Equipped);
-        if (!string.IsNullOrEmpty(marker))
-            GUI.Label(new Rect(rect.xMin + 1, rect.yMax - 14, 14, 14), marker);
+        // v0.7.5.2 — 강화 +N / 착 마커는 row text 에 이미 표시되어 cell 에서는 제거
+        // (BadgeText / EquippedMarker helper 자체는 유지 — BuildLabel 에서 호출).
     }
 
     /// <summary>
@@ -122,8 +114,8 @@ public static class ItemCellRenderer
         GUI.color = prevColor;
 
         // 중앙 카테고리 한글 라벨 (v0.7.5.2 — narrow rect 가운데 정렬 효과)
-        // 라벨 영역 width = cell width - 16 (양쪽 8px padding) — 한글 2자 fit. left-align default.
-        GUI.Label(new Rect(rect.xMin + 8, rect.yMin + 4, rect.width - 16, rect.height - 8),
+        // 라벨 영역 — 양쪽 8px padding, full height (한글 글자 하단 잘림 방지). left-align default.
+        GUI.Label(new Rect(rect.xMin + 8, rect.yMin, rect.width - 16, rect.height),
             CategoryGlyph.For(r.Type, r.SubType));
 
         // 우상단 품질 마름모
@@ -133,16 +125,7 @@ public static class ItemCellRenderer
             GUI.DrawTexture(new Rect(rect.xMax - 9, rect.yMin + 1, 8, 8), Texture2D.whiteTexture);
             GUI.color = prevColor;
         }
-
-        // 우하단 강화
-        var badge = BadgeText(r.EnhanceLv);
-        if (!string.IsNullOrEmpty(badge))
-            GUI.Label(new Rect(rect.xMax - 18, rect.yMax - 14, 18, 14), badge);
-
-        // 좌하단 착용중
-        var marker = EquippedMarker(r.Equipped);
-        if (!string.IsNullOrEmpty(marker))
-            GUI.Label(new Rect(rect.xMin + 1, rect.yMax - 14, 14, 14), marker);
+        // v0.7.5.2 — 강화 +N / 착 마커는 row text 에 이미 표시되어 cell 에서는 제거
     }
 
     private static Color GradeBackground(int grade)
