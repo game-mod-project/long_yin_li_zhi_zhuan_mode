@@ -472,7 +472,8 @@ public sealed class ContainerPanel
 
             // v0.7.4 D-1 — cell = GetRect 자리잡기 + DrawAtRect overlay + Event.current 클릭 감지
             // (v0.7.3 strip lesson: GetLastRect 는 strip 됨 → Button+GetLastRect 패턴 회피)
-            var cellRect = GUILayoutUtility.GetRect(24, 24, GUILayout.Width(24), GUILayout.Height(24));
+            // v0.7.5.2 — cell 가로 직사각형 48×24 (한글 라벨: 장비/단약/음식/비급/보물/재료/말).
+            var cellRect = GUILayoutUtility.GetRect(48, 24, GUILayout.Width(48), GUILayout.Height(24));
             ItemCellRenderer.DrawAtRect(r, cellRect);
             if (_focus.HasValue && _focus.Value.Area == area && _focus.Value.Index == r.Index)
                 DrawFocusOutline(cellRect);
