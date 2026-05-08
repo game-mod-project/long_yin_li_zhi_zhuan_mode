@@ -19,14 +19,15 @@ namespace LongYinRoster.Core;
 /// Translate 자체는 lock-free (dict read).
 ///
 /// 테스트 헬퍼 (`SetSelfDictForTests` / `SetModFixDictForTests` / `SetSiriusDictForTests` / `ResetForTests` /
-/// `LoadCsvLinesForTests`) 는 internal — InternalsVisibleTo("LongYinRoster.Tests") 로 접근.
+/// `LoadCsvLinesForTests`) 는 internal — 테스트 프로젝트가 partial-source `&lt;Compile Include&gt;` 으로 직접 컴파일.
 /// </summary>
 public static class HangulDict
 {
     private static Dictionary<string, string>? _modfixDict;
     private static Dictionary<string, string>? _siriusDict;
     private static Dictionary<string, string>? _selfDict;
-    private static bool _initialized;
+    // volatile — DCL 의 happens-before 보장 (특히 IL2CPP ARM target).
+    private static volatile bool _initialized;
     private static readonly object _lock = new();
 
     public static int LoadedCount => _selfDict?.Count ?? 0;

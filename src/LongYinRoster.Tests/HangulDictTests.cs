@@ -6,6 +6,11 @@ using Xunit;
 
 namespace LongYinRoster.Tests;
 
+// 정적 HangulDict 상태를 만지는 모든 test class 가 join — xUnit class-level 병렬 race 차단.
+[CollectionDefinition("HangulDict")]
+public class HangulDictTestCollection { }
+
+[Collection("HangulDict")]
 public class HangulDictTests
 {
     public HangulDictTests() => HangulDict.ResetForTests();
