@@ -30,9 +30,10 @@ public sealed class ContainerPanel
         public int     QualityOrder { get; init; } = -1;
 
         // v0.7.5 D-4 — translated display name (HangulDict.Translate cached at row build time).
-        // null/empty = NameRaw fallback. Eager cache: IMGUI re-renders every frame, display-time
-        // Translate() per row would waste CPU. Trade-off: dict reload won't reach existing rows
-        // until next Set*Rows — acceptable since dicts are static after init.
+        // 사전 hit 시 한글, miss 시 raw 한자 그대로 (== NameRaw). null 은 build 안 거친 ItemRow 만 (안전상
+        // string? 유지). 따라서 caller 는 일반적으로 NameKr 만 사용하면 됨; ?? NameRaw 가드는 방어적.
+        // Eager cache: IMGUI re-renders every frame, display-time Translate() per row 가 CPU 낭비.
+        // Trade-off: dict reload 는 next Set*Rows 까지 기존 row 미반영 — dict 가 init 후 static 이라 OK.
         public string? NameKr      { get; init; }
     }
 
