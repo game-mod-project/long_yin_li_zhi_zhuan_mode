@@ -64,7 +64,7 @@ v0.7.6 설정 panel           hotkey / 컨테이너 정원 / 창 크기 / 검색
 - Tests: 182 → 193 PASS, 인게임 smoke 12/12 PASS.
 - Patch 단위: (i) 단일 v0.7.4.1, Curated 분량: (A) Minimal — 말 12 / 보물 4 / 재료 2.
 
-### 2.2 v0.7.5 D-4 Item 한글화 (확정 sub-project)
+### 2.2 v0.7.5 D-4 Item 한글화 ✅ 완료 (v0.7.5, 2026-05-06)
 
 | 항목 | 내용 |
 |---|---|
@@ -72,6 +72,14 @@ v0.7.6 설정 panel           hotkey / 컨테이너 정원 / 창 크기 / 검색
 | **입력 자산** | `dumps/2026-05-05-v075-hangul-hook-guide.md` (203 LOC 이 사실상 design input — Hybrid 자체사전+ModFix reflection fallback 패턴), `dumps/2026-05-05-hangul-mod-stack-analysis.md`, `dumps/2026-05-05-hangul-modpack-bundle-analysis.md` |
 | **출력** | 1 spec + 1 plan + 1 release tag. 신규 `HangulDict` static class + ItemDetailPanel/ContainerPanel 표시 직전 변환 + unit test (사전 미스 fallback 검증) + 자체 사전 fallback 통팩 단독 환경 검증 |
 | **결정 게이트** | hook 전략 — Hybrid (추천) vs ModFix reflection only vs 자체사전 only. 통팩 사용자가 ModFix 없이 Sirius mod 만 사용할 수 있어서 fallback 이 robust. 기본 추정: Hybrid |
+
+**Result** (2026-05-06):
+- Release: [v0.7.5](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.7.5)
+- Spec: [2026-05-06-longyin-roster-mod-v0.7.5-design.md](2026-05-06-longyin-roster-mod-v0.7.5-design.md)
+- Plan: [2026-05-06-longyin-roster-mod-v0.7.5-plan.md](../plans/2026-05-06-longyin-roster-mod-v0.7.5-plan.md)
+- Smoke: [2026-05-06-v0.7.5-smoke-results.md](../dumps/2026-05-06-v0.7.5-smoke-results.md)
+- Tests: 193 → 212 PASS, 인게임 smoke 14/14 PASS.
+- Hook 전략: (A) Hybrid — ModFix reflection > Sirius reflection > 자체 CSV > LTLocalization.
 
 ### 2.3 v0.7.6 설정 panel (확정 sub-project)
 

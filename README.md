@@ -79,6 +79,19 @@
 
 색상 매핑은 게임 본 UI 의 아이콘 표시 (등급 = 아이콘 배경, 품질 = 아이콘 상단 마름모) 와 일치합니다.
 
+### v0.7.5 — Item 한글화
+
+ContainerPanel + ItemDetailPanel IMGUI 라벨에서 한자 노출 제거. 신규 `HangulDict` static class 가 4단계 사전 fallback 제공:
+
+1. **LongYinModFix** (`TranslationData.transDict`) — 통팩 + ModFix 환경
+2. **LongYinLiZhiZhuan_Mod** (`ModPatch.translateData`) — Sirius 본체
+3. **자체 CSV** (`BepInEx/plugins/Data/patched/{Localization,Sirius_UIText,Sirius_etc,Sirius_Mail,Sirius_SceneText}.csv`) — ModFix 미설치 환경 robust
+4. **`LTLocalization.GetText`** — 게임 자체 사전 (ModFix injected 항목 포함)
+
+`ItemRow.NameKr` field 신규. 검색은 bilingual (한글 OR 한자), 정렬은 한국어 자모순.
+
+212/212 unit tests PASS (HangulDict 15 + ContainerView 4 신규). 인게임 smoke 14/14 PASS (신규 8 + 회귀 6).
+
 ### v0.7.4.1 — 나머지 3 카테고리 curated (말 / 보물 / 재료)
 
 ItemDetailPanel curated 섹션이 7 카테고리 모두 cover. 신규 case 3종:
@@ -123,6 +136,7 @@ ContainerPanel X 버튼 닫기 시 ItemDetailPanel 도 같이 닫힙니다. posi
 | v0.7.2 | 컨테이너 검색·정렬 — 글로벌 toolbar + 등급 6단계 색상 + itemLv/rareLv reflection |
 | v0.7.3 | 컨테이너 Item 시각 표시 풍부화 — 24×24 placeholder cell (등급 배경 + 품질 마름모 + 카테고리 한자 + 강화 `+N` + 착용 `착`) |
 | v0.7.4 | Item 상세 panel — cell 클릭 single-focus + ⓘ toolbar → ItemDetailPanel (curated 한글 라벨 + raw reflection dump, view-only) |
+| v0.7.5 | Item 한글화 — Hybrid 사전 (ModFix reflection + 자체 CSV + LTLocalization fallback). ContainerPanel/ItemDetailPanel 한자 노출 제거. bilingual 검색 + Korean 정렬. |
 | v0.7.4.1 | Item 상세 panel 7 카테고리 cover — 말 / 보물 / 재료 curated 추가 (기존 장비/비급/단약 회귀 없음) |
 
 ## 요구 사항

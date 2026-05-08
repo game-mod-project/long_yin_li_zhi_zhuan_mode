@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using LongYinRoster.UI;
 
@@ -12,6 +13,11 @@ namespace LongYinRoster.Containers;
 /// </summary>
 public sealed class ContainerView
 {
+    // v0.7.5 — 명시적 ko-KR 정렬: 사용자 환경 (CurrentCulture) 변동에 무관하게 한국어 자모순.
+    // 테스트 결정성 + production 자연스러운 순서 양립.
+    private static readonly StringComparer KoreanComparer =
+        StringComparer.Create(new CultureInfo("ko-KR"), ignoreCase: false);
+
     private object?                       _lastRawRef;   // reference identity
     private SearchSortState?              _lastState;
     private List<ContainerPanel.ItemRow>? _cached;
@@ -37,7 +43,7 @@ public sealed class ContainerView
         q = state.Key switch
         {
             SortKey.Category => q.OrderBy(r => r.CategoryKey ?? "").ThenBy(r => r.Index),
-            SortKey.Name     => q.OrderBy(r => r.NameKr ?? r.NameRaw ?? "").ThenBy(r => r.Index),
+            SortKey.Name     => q.OrderBy(r => r.NameKr ?? r.NameRaw ?? "", KoreanComparer).ThenBy(r => r.Index),
             SortKey.Grade    => q.OrderBy(r => r.GradeOrder).ThenBy(r => r.Index),
             SortKey.Quality  => q.OrderBy(r => r.QualityOrder).ThenBy(r => r.Index),
             _                => q.OrderBy(r => r.Index),

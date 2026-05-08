@@ -16,6 +16,8 @@ public sealed class ContainerPanel
     public sealed class ItemRow
     {
         public int     Index     { get; init; }
+        // TODO(v0.7.6+): legacy field — write-only since v0.7.5 (writers: ContainerRowBuilder; readers: none in src/ + tests).
+        // 외부 reflection 접근 가능성 (game-self / 다른 mod) 검증 후 제거 — v0.7.5 hotfix scope 제외.
         public string  Name      { get; init; } = "";
         public int     Type      { get; init; }
         public int     SubType   { get; init; }
