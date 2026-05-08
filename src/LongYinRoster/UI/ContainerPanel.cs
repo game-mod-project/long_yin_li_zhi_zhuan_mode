@@ -527,7 +527,7 @@ public sealed class ContainerPanel
         string cat = ItemCategoryFilter.KoreanLabel(ItemCategoryFilter.Classify(r.Type, r.SubType));
         string enh = r.EnhanceLv > 0 ? $"/강화{r.EnhanceLv}" : "";
         string equipped = r.Equipped ? " [착용중]" : "";
-        return $"{r.Name} ({cat}{enh}/{r.Weight:F1}kg){equipped}";
+        return $"{r.NameKr ?? r.NameRaw ?? ""} ({cat}{enh}/{r.Weight:F1}kg){equipped}";
     }
 
     /// <summary>

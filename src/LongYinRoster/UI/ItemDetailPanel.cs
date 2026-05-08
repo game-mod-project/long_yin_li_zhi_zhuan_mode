@@ -79,7 +79,7 @@ public sealed class ItemDetailPanel
     private void DrawDetails(object raw)
     {
         // 1. header — focused item 의 이름 + 등급 색상
-        string name = ItemReflector.GetNameRaw(raw);
+        string name = HangulDict.Translate(ItemReflector.GetNameRaw(raw));
         int grade = ItemReflector.GetGradeOrder(raw);
         var prevColor = GUI.color;
         GUI.color = ItemCellRenderer.GradeColor(grade);
@@ -95,7 +95,7 @@ public sealed class ItemDetailPanel
         {
             GUILayout.Label("== 정보 ==");
             foreach (var (label, value) in curated)
-                GUILayout.Label($"  {label}: {value}");
+                GUILayout.Label($"  {label}: {HangulDict.Translate(value)}");
             GUILayout.Space(8);
         }
 
@@ -107,7 +107,7 @@ public sealed class ItemDetailPanel
         if (_rawExpanded)
         {
             foreach (var (fname, value) in rawFields)
-                GUILayout.Label($"  {fname}: {value}");
+                GUILayout.Label($"  {fname}: {HangulDict.Translate(value)}");
         }
 
         GUILayout.EndScrollView();
