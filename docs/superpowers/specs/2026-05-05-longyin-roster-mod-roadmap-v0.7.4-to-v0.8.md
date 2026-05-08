@@ -83,6 +83,8 @@ v0.7.6 설정 panel           hotkey / 컨테이너 정원 / 창 크기 / 검색
 
 **Patch v0.7.5.1** (2026-05-06): HangulDict stage 4 — ModFix TranslationEngine.Translate reflection 추가. 합성어 부분 한글화 (절세长矛 → 절세장검). [Spec](2026-05-06-longyin-roster-mod-v0.7.5.1-design.md) / [Smoke](../dumps/2026-05-06-v0.7.5.1-smoke-results.md) / [Release](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.7.5.1).
 
+**Patch v0.7.5.2** (2026-05-06): Cell 24×24 정사각형 + 한자 → 48×24 가로 직사각형 + 한글 라벨 (장비/단약/음식/비급/보물/재료/말). cell 내부 강화/착 마커 제거 (row text 정보 유지). 216 tests + smoke 11/11. [Spec](2026-05-06-longyin-roster-mod-v0.7.5.2-design.md) / [Smoke](../dumps/2026-05-06-v0.7.5.2-smoke-results.md) / [Release](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.7.5.2).
+
 ### 2.3 v0.7.6 설정 panel (확정 sub-project)
 
 | 항목 | 내용 |
