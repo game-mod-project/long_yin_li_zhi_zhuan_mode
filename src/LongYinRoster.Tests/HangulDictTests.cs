@@ -143,4 +143,38 @@ public class HangulDictTests
         HangulDict.SetSelfDictForTests(fake);
         HangulDict.LoadedCount.ShouldBe(2);
     }
+
+    // ===== v0.7.5.1 — ModFix TranslationEngine fn fallback =====
+
+    [Fact]
+    public void Translate_ModFixEngineFn_HandlesCompositeKey_AfterDictMiss()
+    {
+        // 모든 dict 가 miss 인데 engine fn 이 합성어 한글화 ("절세长矛" → "절세장모")
+        HangulDict.SetModFixEngineFnForTests(cn => cn == "절세长矛" ? "절세장모" : null);
+        HangulDict.Translate("절세长矛").ShouldBe("절세장모");
+    }
+
+    [Fact]
+    public void Translate_ModFixEngineFn_NullResult_FallsThroughToRaw()
+    {
+        HangulDict.SetModFixEngineFnForTests(_ => null);
+        HangulDict.Translate("미스").ShouldBe("미스");
+    }
+
+    [Fact]
+    public void Translate_ModFixEngineFn_SameAsInput_FallsThroughToRaw()
+    {
+        // engine fn 이 입력 그대로 반환 (변환 안 됨) → raw fallback
+        HangulDict.SetModFixEngineFnForTests(cn => cn);
+        HangulDict.Translate("미스").ShouldBe("미스");
+    }
+
+    [Fact]
+    public void Translate_DictHitWins_OverModFixEngineFn()
+    {
+        // dict hit 이면 engine fn 호출 안 함 (stage 1-3 우선)
+        HangulDict.SetModFixDictForTests(new Dictionary<string, string> { { "测试", "딕셔너리" } });
+        HangulDict.SetModFixEngineFnForTests(_ => "엔진");
+        HangulDict.Translate("测试").ShouldBe("딕셔너리");
+    }
 }
