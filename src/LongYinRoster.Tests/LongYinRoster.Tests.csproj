@@ -35,6 +35,9 @@
     <Compile Include="../LongYinRoster/Core/PortabilityFilter.cs">
       <Link>Core/PortabilityFilter.cs</Link>
     </Compile>
+    <Compile Include="../LongYinRoster/Core/HangulDict.cs">
+      <Link>Core/HangulDict.cs</Link>
+    </Compile>
     <Compile Include="../LongYinRoster/Slots/SlotMetadata.cs">
       <Link>Slots/SlotMetadata.cs</Link>
     </Compile>
