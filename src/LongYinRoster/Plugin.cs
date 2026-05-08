@@ -29,5 +29,6 @@ public sealed class Plugin : BasePlugin
         Logger.Info($"Harmony: {harmony.GetPatchedMethods().Count()} method(s) patched");
 
         Logger.Info($"Loaded {NAME} v{VERSION}");
+        Logger.Info("[v0.7.5] HangulDict: lazy init on first Translate() call");
     }
 }
