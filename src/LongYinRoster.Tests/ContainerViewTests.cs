@@ -63,4 +63,56 @@ public class ContainerViewTests
         var second = view.ApplyView(raw, s);
         Assert.Same(first, second);   // cache hit — 같은 인스턴스
     }
+
+    // v0.7.5 — bilingual 검색 + Korean-aware 정렬
+    private static List<ContainerPanel.ItemRow> BilingualSample()
+    {
+        return new List<ContainerPanel.ItemRow>
+        {
+            new() { Index = 0, Name = "九阳神功", NameRaw = "九阳神功", NameKr = "구양신공", Type = 3, GradeOrder = 5, QualityOrder = 5, CategoryKey = "003.000" },
+            new() { Index = 1, Name = "古今图书", NameRaw = "古今图书", NameKr = "고금도서", Type = 3, GradeOrder = 4, QualityOrder = 5, CategoryKey = "003.000" },
+            new() { Index = 2, Name = "九转还魂丹", NameRaw = "九转还魂丹", NameKr = null, Type = 2, GradeOrder = 5, QualityOrder = 5, CategoryKey = "002.000" },
+        };
+    }
+
+    [Fact]
+    public void Search_KoreanKeyword_MatchesViaNameKr()
+    {
+        var view = new ContainerView();
+        var state = SearchSortState.Default.WithSearch("구양");
+        var result = view.ApplyView(BilingualSample(), state);
+        Assert.Single(result);
+        Assert.Equal("九阳神功", result[0].NameRaw);
+    }
+
+    [Fact]
+    public void Search_ChineseKeyword_MatchesViaNameRaw()
+    {
+        var view = new ContainerView();
+        var state = SearchSortState.Default.WithSearch("九阳");
+        var result = view.ApplyView(BilingualSample(), state);
+        Assert.Single(result);
+        Assert.Equal("구양신공", result[0].NameKr);
+    }
+
+    [Fact]
+    public void Search_NameKrNull_FallsBackToNameRaw()
+    {
+        var view = new ContainerView();
+        var state = SearchSortState.Default.WithSearch("九转");
+        var result = view.ApplyView(BilingualSample(), state);
+        Assert.Single(result);
+        Assert.Equal(2, result[0].Index);
+    }
+
+    [Fact]
+    public void Sort_NameKey_PrefersNameKr()
+    {
+        var view = new ContainerView();
+        var state = SearchSortState.Default.WithKey(SortKey.Name);   // ascending default
+        var result = view.ApplyView(BilingualSample(), state);
+        // Korean 자모순: "고금도서" < "구양신공" — NameKr 기준 정렬
+        Assert.Equal("고금도서", result[0].NameKr);
+        Assert.Equal("구양신공", result[1].NameKr);
+    }
 }

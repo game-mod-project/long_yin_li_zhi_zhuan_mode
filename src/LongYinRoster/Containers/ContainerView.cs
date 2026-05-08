@@ -29,13 +29,15 @@ public sealed class ContainerView
         if (!string.IsNullOrEmpty(state.Search))
         {
             string needle = state.Search;
-            q = q.Where(r => (r.NameRaw ?? "").IndexOf(needle, StringComparison.OrdinalIgnoreCase) >= 0);
+            q = q.Where(r =>
+                ((r.NameKr  ?? "").IndexOf(needle, StringComparison.OrdinalIgnoreCase) >= 0)
+             || ((r.NameRaw ?? "").IndexOf(needle, StringComparison.OrdinalIgnoreCase) >= 0));
         }
 
         q = state.Key switch
         {
             SortKey.Category => q.OrderBy(r => r.CategoryKey ?? "").ThenBy(r => r.Index),
-            SortKey.Name     => q.OrderBy(r => r.NameRaw ?? "").ThenBy(r => r.Index),
+            SortKey.Name     => q.OrderBy(r => r.NameKr ?? r.NameRaw ?? "").ThenBy(r => r.Index),
             SortKey.Grade    => q.OrderBy(r => r.GradeOrder).ThenBy(r => r.Index),
             SortKey.Quality  => q.OrderBy(r => r.QualityOrder).ThenBy(r => r.Index),
             _                => q.OrderBy(r => r.Index),
