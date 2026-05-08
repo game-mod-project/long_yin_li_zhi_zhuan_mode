@@ -1,7 +1,7 @@
 # LongYin Roster Mod — 작업 핸드오프 문서
 
 **일시 중지**: 2026-05-06
-**진행 상태**: **v0.7.5.1 release** — HangulDict stage 4 ModFix TranslationEngine fallback (hotfix). v0.7.5 인게임 합성어 부분 잔존 (절세长矛 / 보통长戟 / 절세重甲 / 절세斗笠 등) 발견 → 5단계 fallback 의 stage 4 에 ModFix `TranslationEngine.Translate(string)` reflection 호출 추가. ModFix 의 baseReplacerRegex (longest-match) + placeholder + char-prefix index pipeline 활용으로 합성어 부분 한글화. ModFix 미설치 환경은 stage 4 skip (기존 4단계 fallback 유지, regression 안전). 216/216 tests PASS (HangulDict 19 + ContainerView 4) + 인게임 smoke PASS (절세长矛 → 절세장검 / 비급 9종 변환 확인).
+**진행 상태**: **v0.7.5.2 release** — Cell 24×24 정사각형 + 한자 → 48×24 가로 직사각형 + 한글 라벨 (장비/단약/음식/비급/보물/재료/말). cell 내부 강화/착 마커 제거 (row text 정보 유지 — redundant). 카테고리 직관성 향상. 216/216 tests PASS (CategoryGlyphTests 갱신) + 인게임 smoke 11/11 PASS (3 iteration fix: label width / height / marker 제거).
 **저장소**: https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode (`main` 브랜치)
 **프로젝트 루트**: `E:/Games/龙胤立志传.v1.0.0f8.2/LongYinLiZhiZhuan/Save/_PlayerExport/`
 **Releases**:
@@ -27,6 +27,7 @@
 - [v0.7.3](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.7.3) — D-2 컨테이너 Item 시각 표시 풍부화 (placeholder cell): row 마다 24×24 cell prefix (등급 배경 6단계 + 우상단 품질 마름모 6단계 + 중앙 카테고리 한자 装/书/药/食/宝/材/马 + 우하단 강화 `+N` + 좌하단 착용 `착`). 신규 `CategoryGlyph` + `ItemCellRenderer` (Draw + GradeColor/QualityColor 단일 source). v0.7.2 검색·정렬 자산 100% 보존. IL2CPP IMGUI strip 회귀 2회 (Box 류 + GUILayoutUtility.GetLastRect) 발견 → `GUILayoutUtility.GetRect` 1-call 로 fallback. 진짜 game sprite 도입은 v0.8+ 별도 sub-project 후보.
 - [v0.7.4](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.7.4) — D-1 Item 상세 panel (view-only, hybrid curated+raw): ContainerPanel row 좌측 cell 클릭 single-focus (cyan 외곽선) + toolbar `ⓘ 상세` 버튼으로 별도 ItemDetailPanel window. **Curated 섹션** = 카테고리별 한글 라벨 (장비: 강화/착용/특수 강화/무게 경감/무게/가격, 비급: 무공 ID/무게/가격, 단약·음식: 강화/추가 보정/무게/가격) — 보물·재료·말 은 후속 v0.7.4.x patch. **Raw fields 섹션** (접이식) = 모든 reflection 필드 dump (IL2CPP meta 필터). **컨테이너 area** (외부 디스크) 는 JSON path 라 ItemDetailPanel 데이터 미지원 — focus outline 만 표시. **Cell vs Toggle 분리**: cell 클릭 = single-select + focus, toggle 라벨 클릭 = multi-check (이동·복사 워크플로우, focus 해제). ContainerPanel X 닫기 시 ItemDetailPanel 도 sync close. 신규 `ItemDetailReflector` (GetRawFields + GetCuratedFields with sub-data wrapper unwrap) + `ItemDetailPanel` window. v0.7.2 검색·정렬 / v0.7.3 cell renderer 자산 100% 보존. 182/182 tests PASS + 인게임 smoke 6/6 PASS (4-iteration UX fix: ref equality / SetFocus call / single-select / Toggle clear + container focus). Sub-data wrapper inventory dump: `docs/superpowers/dumps/2026-05-03-v0.7.4-subdata-spike.md`. Item editor (수정 기능) 는 v0.7.7 후보 별도 sub-project.
 - [v0.7.4.1](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.7.4.1) — Item 상세 panel 나머지 3 카테고리 curated (말 / 보물 / 재료). 7 카테고리 cover. 193 tests + smoke 12/12.
+- [v0.7.5.2](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.7.5.2) — Cell 24×24 정사각형 + 한자 → 48×24 가로 직사각형 + 한글 라벨 (장비/단약/음식/비급/보물/재료/말). cell 내부 강화/착 마커 제거. 216 tests + smoke 11/11.
 - [v0.7.5.1](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.7.5.1) — HangulDict stage 4 ModFix TranslationEngine fallback. 합성어 부분 한글화 (절세长矛 → 절세장검 등). 216/216 tests PASS, 인게임 smoke PASS.
 - [v0.7.5](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.7.5) — Item 한글화 — Hybrid 4단계 사전 (ModFix reflection > Sirius > 자체 CSV > LTLocalization). ContainerPanel/ItemDetailPanel 한자 노출 제거. bilingual 검색 + Korean 정렬. 212 tests + smoke 14/14.
 
@@ -42,13 +43,13 @@
 ## 1. 한 줄 요약
 
 BepInEx 6 IL2CPP 환경에서 플레이어 캐릭터 스냅샷을 20슬롯에 저장 / 관리하는 모드 + 컨테이너 (인벤/창고 ↔ 외부 디스크) 관리.
-**현재 main baseline = v0.7.5** (Item 한글화 — ContainerPanel + ItemDetailPanel 한자 노출 제거. Hybrid 4단계 사전 fallback. 212/212 tests PASS + 인게임 smoke 14/14 PASS — 신규 8 + 회귀 6).
+**현재 main baseline = v0.7.5.2** (Cell 가로 직사각형 + 한글 라벨 — 장비/단약/음식/비급/보물/재료/말. cell 내부 강화/착 마커 제거. 카테고리 직관성 향상. 216/216 tests PASS + 인게임 smoke 11/11 PASS).
 
 **다음 세션 후속 sub-project**:
 - ✅ ~~v0.7.4.x patch: 나머지 3 카테고리 curated — 말 / 보물 / 재료~~ (v0.7.4.1 release 완료, 2026-05-05)
 - ✅ ~~v0.7.5 D-4 Item 한글화~~ (v0.7.5 release 완료, 2026-05-06) — Hybrid 4단계 사전. ContainerPanel + ItemDetailPanel 한자 노출 제거. bilingual 검색 + Korean 정렬.
 - ✅ ~~v0.7.5.1 hotfix~~ (v0.7.5.1 release 완료, 2026-05-06) — HangulDict stage 4 ModFix TranslationEngine fallback. 합성어 부분 한글화 (절세长矛 → 절세장검 등). 216/216 tests + 인게임 smoke PASS.
-- **v0.7.5.2 (다음 sub-project): cell 모양 + 한글 라벨** — cell 글리프 한자 (装/书/药/食/宝/材/马) → 가로 직사각형 + 한글 라벨 (장비/단약/음식/비급/보물/재료/말). v0.7.6 설정 panel 보다 우선 처리.
+- ✅ ~~v0.7.5.2 (cell 모양 + 한글 라벨)~~ (v0.7.5.2 release 완료, 2026-05-06) — Cell 24×24 정사각형 + 한자 → 48×24 가로 직사각형 + 한글 라벨. cell 내부 강화/착 마커 제거. 216 tests + smoke 11/11 PASS.
 - **v0.7.6 (후속 sub-project): 설정 panel** — hotkey 변경 / 컨테이너 정원 / 창 크기 / 검색·정렬 영속화 옵션. 자체 IMGUI panel vs sinai BepInExConfigManager 위임 vs Hybrid 결정 게이트.
 - **v0.7.7 (후보)**: Item editor — ItemDetailPanel 의 view-only 필드를 edit-able 로 확장 (강화 lv 직접 변경, equipUseSpeAddValue 같은 sub-data 직접 수정). game-self method 우선 + reflection setter fallback. v0.7.4 의 ItemFieldExtractor 자산 baseline
 - v0.7.8: Apply 부분 미리보기 — 선택한 카테고리 적용 시 전후 비교

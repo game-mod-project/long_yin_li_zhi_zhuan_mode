@@ -70,14 +70,22 @@
 
 ### v0.7.3 — Item 시각 표시 (placeholder cell)
 
-각 item row 좌측에 24×24 placeholder cell 이 표시됩니다 (real game sprite 는 v0.8+ 도입 예정):
+각 item row 좌측에 placeholder cell 이 표시됩니다 (real game sprite 는 v0.8+ 도입 예정):
 - **배경 색상** = 등급 6단계 (열악 회색 → 보통 녹 → 우수 하늘 → 정량 보라 → 완벽 오렌지 → 절세 빨강)
 - **우상단 작은 마름모** = 품질 6단계 (잔품 회색 → 극품 빨강 — 등급과 같은 팔레트)
-- **중앙 한자 1자** = 카테고리 (装=장비, 书=비급, 药=단약, 食=음식, 宝=보물, 材=재료, 马=말)
-- **우하단 `+N`** = 강화 lv (있을 때만)
-- **좌하단 `착`** = 착용중 (있을 때만)
+- **중앙 한글 라벨** = 카테고리 (장비/단약/음식/비급/보물/재료/말). v0.7.5.2 부터 가로 직사각형 (48×24) + 한글. 이전: 24×24 + 한자 1자.
+
+(v0.7.5.2 이전: 우하단 +N 강화, 좌하단 착 마커 — row text 에 이미 표시되어 cell 마커는 v0.7.5.2 부터 제거)
 
 색상 매핑은 게임 본 UI 의 아이콘 표시 (등급 = 아이콘 배경, 품질 = 아이콘 상단 마름모) 와 일치합니다.
+
+### v0.7.5.2 — Cell 가로 직사각형 + 한글 라벨
+
+`ItemCellRenderer` cell 모양 24×24 정사각형 → **48×24 가로 직사각형**. `CategoryGlyph.For()` 가 한자 1자 (装/书/药/食/宝/材/马) → **한글 2자 라벨** (장비/단약/음식/비급/보물/재료/말). 카테고리 직관성 향상.
+
+cell 내부 강화/착 마커는 row text 에 이미 정보 표시되어 redundant — cell 에서 제거. cell = 등급 색상 배경 + 한글 라벨 (가운데) + 우상단 품질 마름모.
+
+216/216 unit tests PASS (CategoryGlyphTests 갱신). 인게임 smoke 11/11 PASS (3 iteration fix: label width / height / marker 제거).
 
 ### v0.7.5.1 — HangulDict ModFix TranslationEngine fallback
 
@@ -144,6 +152,7 @@ ContainerPanel X 버튼 닫기 시 ItemDetailPanel 도 같이 닫힙니다. posi
 | v0.7.2 | 컨테이너 검색·정렬 — 글로벌 toolbar + 등급 6단계 색상 + itemLv/rareLv reflection |
 | v0.7.3 | 컨테이너 Item 시각 표시 풍부화 — 24×24 placeholder cell (등급 배경 + 품질 마름모 + 카테고리 한자 + 강화 `+N` + 착용 `착`) |
 | v0.7.4 | Item 상세 panel — cell 클릭 single-focus + ⓘ toolbar → ItemDetailPanel (curated 한글 라벨 + raw reflection dump, view-only) |
+| v0.7.5.2 | Cell 24×24 정사각형 + 한자 → 48×24 가로 직사각형 + 한글 라벨 (장비/단약/음식/비급/보물/재료/말). cell 내부 강화/착 마커 제거 (row text 정보 유지). |
 | v0.7.5.1 | HangulDict stage 4 — ModFix TranslationEngine.Translate reflection. 합성어 부분 잔존 fix (절세长矛 → 절세장검 등). |
 | v0.7.5 | Item 한글화 — Hybrid 사전 (ModFix reflection + 자체 CSV + LTLocalization fallback). ContainerPanel/ItemDetailPanel 한자 노출 제거. bilingual 검색 + Korean 정렬. |
 | v0.7.4.1 | Item 상세 panel 7 카테고리 cover — 말 / 보물 / 재료 curated 추가 (기존 장비/비급/단약 회귀 없음) |
