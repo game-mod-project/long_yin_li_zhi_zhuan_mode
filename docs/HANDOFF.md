@@ -396,35 +396,40 @@ v0.7.3 출시 완료 (2026-05-03). D-2 컨테이너 Item 시각 표시 풍부화
 
 **다음 세션 첫 메시지에 붙여넣을 요약**:
 
-> LongYin Roster Mod — **main baseline = v0.7.4** (2026-05-03 release). D 계열 세 번째 sub-project (D-1 Item 상세 panel — view-only, hybrid curated+raw) 완료. 182/182 unit tests + 인게임 smoke 6/6 PASS (4-iteration UX fix).
+> LongYin Roster Mod — **main baseline = v0.7.5.2** (2026-05-06 release). v0.7.5.x 시리즈 (Item 한글화 + cell UI 한글화) 완료. 216/216 unit tests + 인게임 smoke PASS.
 > 프로젝트 루트: `E:/Games/龙胤立志传.v1.0.0f8.2/LongYinLiZhiZhuan/Save/_PlayerExport/`.
-> 핸드오프: `docs/HANDOFF.md`. v0.7.4 spec: `docs/superpowers/specs/2026-05-03-longyin-roster-mod-v0.7.4-design.md`. plan: `docs/superpowers/plans/2026-05-03-longyin-roster-mod-v0.7.4-plan.md`.
-> v0.7.4 smoke: `docs/superpowers/dumps/2026-05-03-v0.7.4-smoke-results.md`. v0.7.4 sub-data spike: `docs/superpowers/dumps/2026-05-03-v0.7.4-subdata-spike.md`.
+> 핸드오프: `docs/HANDOFF.md`. 메타 로드맵: `docs/superpowers/specs/2026-05-05-longyin-roster-mod-roadmap-v0.7.4-to-v0.8.md`.
 >
-> **v0.7.4 결과**: ContainerPanel row 좌측 cell 클릭 → single-focus (cyan 외곽선, area 별 단일 selection). toolbar `ⓘ 상세` 버튼 → 별도 ItemDetailPanel window 가 열려서 selected item 의 상세 정보 표시. 신규 `ItemFieldExtractor.GetRawFields(item)` (모든 reflection 필드 dump, IL2CPP meta 필터) + `GetCuratedFields(item)` (카테고리별 한글 라벨 + sub-data wrapper unwrap — 장비/비급/단약 우선 cover). 신규 `ItemDetailPanel` (window + curated 섹션 + raw 접이식 섹션). ContainerPanel X 닫기 시 ItemDetailPanel sync close. v0.7.2 검색·정렬 / v0.7.3 cell renderer 자산 100% 보존.
+> **v0.7.5.x 시리즈 결과**:
+> - **v0.7.5** (D-4 한글화) — 신규 `HangulDict` static class. Hybrid 4단계 사전 fallback: ModFix `TranslationData.transDict` reflection > Sirius `ModPatch.translateData` reflection > 자체 CSV (`BepInEx/plugins/Data/patched/{Localization,Sirius_UIText,Sirius_etc,Sirius_Mail,Sirius_SceneText}.csv`) > `LTLocalization.GetText`. ItemRow.NameKr eager cache, bilingual 검색 (한글 OR 한자), Korean 자모순 정렬 (ko-KR StringComparer). ContainerPanel BuildLabel + ItemDetailPanel header/curated/raw display-time 변환. 212 tests + smoke 14/14.
+> - **v0.7.5.1** (hotfix) — HangulDict stage 4 추가 — ModFix `TranslationEngine.Translate(string)` reflection. ModFix replacer regex (longest-match) + placeholder + char-prefix index pipeline 활용. 합성어 부분 한글화 — "절세长矛" → "절세장검" / "보통长戟" → "정량당도" / 비급 9종 (만독보전/만천화우/사신비도/...) 모두 cover. ModFix 미설치 환경은 stage 4 skip. 216 tests + smoke PASS.
+> - **v0.7.5.2** (UI patch) — Cell 24×24 정사각형 + 한자 1자 (装/书/药/食/宝/材/马) → **48×24 가로 직사각형 + 한글 2자** (장비/단약/음식/비급/보물/재료/말). cell 내부 강화/착 marker 제거 (row text 에 정보 유지 — redundant). cell = 등급 색상 배경 + 한글 라벨 + 우상단 품질 마름모만. 3 iteration fix (label width / height / marker). 216 tests + smoke 11/11.
 >
-> **v0.7.4 핵심 UX 결정** (smoke 4-iteration fix):
-> - **Cell 클릭** = single-select + focus (해당 row 만 체크 + cyan 외곽선)
-> - **Toggle 라벨 클릭** = multi-check (이동·복사 워크플로우, focus 해제)
-> - 1차: ref equality FAIL → IL2CPP wrapper 의 same-pointer 비교 issue, identity-based fallback 추가
-> - 2차: SetFocus call 누락 → cell 클릭 핸들러 명시 호출
-> - 3차: single-select UX 회귀 → cell 클릭이 다른 row 의 check 까지 끄도록 명시 동작
-> - 4차: container area focus + Toggle 클릭 시 focus clear
+> **v0.7.5.x 핵심 자산** (다음 sub-project 가 활용):
+> - `HangulDict.Translate(string)` — 5단계 fallback. ModFix dict / Sirius dict / 자체 CSV / ModFix engine fn / LTLocalization. lazy init thread-safe.
+> - `ContainerPanel.ItemRow.NameKr` (init-only `string?`) — eager cache. `NameKr ?? NameRaw` 패턴.
+> - `CategoryGlyph.For(type, subType)` — 한글 라벨 (장비/단약/음식/비급/보물/재료/말/기타).
+> - `ItemCellRenderer.Draw / DrawAtRect` — 48×24 cell. label rect padding 8 양쪽, full height, GUIStyle 미사용 (test stub 호환).
 >
-> **v0.7.4 scope cover**:
-> - 장비 (EquipmentData): 강화 / 착용 / 특수 강화 / 무게 경감 / 무게 / 가격
-> - 비급 (BookData): 무공 ID / 무게 / 가격
-> - 단약·음식 (UseItemData): 강화 / 추가 보정 / 무게 / 가격
-> - **미지원**: 보물 / 재료 / 말 → v0.7.4.x patch 후보 (말 우선 — HorseItemData)
-> - **컨테이너 area** (외부 디스크) JSON path 라 데이터 미지원 — focus outline 만 표시
+> **외부 mod 분석 자산**:
+> - `dumps/2026-05-05-longyincheat-dll-analysis.md` — LongYinCheat v1.4.7 곰딴지 (cheat plugin, F10).
+> - `dumps/2026-05-05-hangul-mod-stack-analysis.md` — Sirius LongYinLiZhiZhuan_Mod v0.7.6 + 곰딴지 LongYinModFix v3.2.0.
+> - `dumps/2026-05-05-hangul-modpack-bundle-analysis.md` — 통팩 단독 vs ModFix 환경 차이.
+> - `dumps/2026-05-05-v075-cheat-feature-reference.md` — v0.7.7 Item editor 가 차용할 자산 (ItemGenerator, StatEditor, CharacterFeature 등).
+> - `dumps/2026-05-05-v075-hangul-hook-guide.md` — v0.7.5 design input.
+> - `dumps/2026-05-05-bepinexconfigmanager-analysis.md` — sinai BepInExConfigManager (v0.7.6 결정 게이트 reference).
 >
-> **다음 단계 후보**:
-> - **v0.7.4.x patch** — 나머지 3 카테고리 curated 추가 (말 우선). `ItemFieldExtractor.GetCuratedFields` switch 확장만 (단순 patch)
-> - **v0.7.5 D-4 Item 한글화** — 한글 패치 mod 사전 hook 또는 자체 사전. ContainerPanel + ItemDetailPanel item 이름 모두 한자 노출
-> - **v0.7.6 설정 panel** — hotkey / 컨테이너 정원 / 창 크기 / 검색·정렬 영속화 옵션
-> - **v0.7.7 (후보) Item editor** — ItemDetailPanel view-only 필드를 edit-able 로 확장. v0.7.4 `ItemFieldExtractor` 자산 baseline
-> - **v0.8 (후보) 진짜 sprite 도입** — `ItemCellRenderer` placeholder block 만 sprite blit 으로 교체. IL2CPP sprite asset 접근 + IMGUI texture caching
-> - **maintenance 모드** — 게임 patch 대응 대기
+> **다음 sub-project = v0.7.6 설정 panel** (메타 §2.3, cursor):
+> - **목표**: F11 메뉴 또는 별도 panel 에서 사용자 직접 편집 — hotkey 변경 / 컨테이너 정원 / 창 크기 / 검색·정렬 상태 영속화
+> - **결정 게이트**: 자체 IMGUI panel vs sinai BepInExConfigManager 위임 vs Hybrid (단순 항목은 ConfigManager, 검색·정렬 같은 stateful 항목만 자체 panel). 기본 추정: Hybrid.
+> - **입력 자산**: 기존 BepInEx ConfigEntry (v0.7.1 의 InventoryMaxWeight / StorageMaxWeight), `dumps/2026-05-05-v075-cheat-feature-reference.md` Section 7 IMGUI 윈도우 패턴 + Section 11 CheatProfiles 영속화 패턴, `dumps/2026-05-05-bepinexconfigmanager-analysis.md` (sinai mod scope).
+>
+> **그 다음 후속 sub-project (메타 §3 G1 결정 게이트)**:
+> - **v0.7.7 (후보)** Item editor — ItemDetailPanel view-only → edit-able. game-self method 우선 + reflection setter fallback. v0.7.4 ItemDetailReflector + v0.7.4.1 curated 매트릭스 baseline.
+> - **v0.8 (후보)** 진짜 sprite 도입 — ItemCellRenderer placeholder 글리프 → sprite blit. IL2CPP sprite asset spike PASS 시 GO.
+> - **maintenance 모드** — 게임 patch / 통팩 한글모드 release 대응 대기.
+>
+> **시작 명령**: 첫 메시지에서 "v0.7.6 sub-project brainstorm cycle 진입" 라고 하면 됩니다. Auto mode 활성 권장 (continuous execution).
 
 ---
 
