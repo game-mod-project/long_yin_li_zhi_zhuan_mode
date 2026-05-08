@@ -81,6 +81,8 @@ v0.7.6 설정 panel           hotkey / 컨테이너 정원 / 창 크기 / 검색
 - Tests: 193 → 212 PASS, 인게임 smoke 14/14 PASS.
 - Hook 전략: (A) Hybrid — ModFix reflection > Sirius reflection > 자체 CSV > LTLocalization.
 
+**Patch v0.7.5.1** (2026-05-06): HangulDict stage 4 — ModFix TranslationEngine.Translate reflection 추가. 합성어 부분 한글화 (절세长矛 → 절세장검). [Spec](2026-05-06-longyin-roster-mod-v0.7.5.1-design.md) / [Smoke](../dumps/2026-05-06-v0.7.5.1-smoke-results.md) / [Release](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.7.5.1).
+
 ### 2.3 v0.7.6 설정 panel (확정 sub-project)
 
 | 항목 | 내용 |

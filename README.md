@@ -79,6 +79,14 @@
 
 색상 매핑은 게임 본 UI 의 아이콘 표시 (등급 = 아이콘 배경, 품질 = 아이콘 상단 마름모) 와 일치합니다.
 
+### v0.7.5.1 — HangulDict ModFix TranslationEngine fallback
+
+v0.7.5 인게임 스크린샷에서 합성어 부분 잔존 발견 (예: "절세长矛" / "보통长戟" / "절세重甲" / "절세斗笠"). exact key dict lookup 만이라 등급 prefix + 종류 명사 합성어가 미스. 5단계 fallback 의 stage 4 에 ModFix `TranslationEngine.Translate(string)` reflection 호출 추가하여 ModFix 의 baseReplacerRegex (longest-match) + placeholder + char-prefix index pipeline 활용.
+
+ModFix 미설치 환경 (`_modfixEngineFn == null`) 은 stage 4 skip — 기존 4단계 fallback 그대로 유지.
+
+216/216 unit tests PASS (HangulDict 19 + ContainerView 4). 인게임 smoke PASS — "절세长矛" → "절세장검" / 비급 9종 (만독보전/만천화우/사신비도/무법무천보/치우귀강/천인감응보/취몽어룡무/무고전차/선아절매) 모두 한글 변환 확인.
+
 ### v0.7.5 — Item 한글화
 
 ContainerPanel + ItemDetailPanel IMGUI 라벨에서 한자 노출 제거. 신규 `HangulDict` static class 가 4단계 사전 fallback 제공:
@@ -136,6 +144,7 @@ ContainerPanel X 버튼 닫기 시 ItemDetailPanel 도 같이 닫힙니다. posi
 | v0.7.2 | 컨테이너 검색·정렬 — 글로벌 toolbar + 등급 6단계 색상 + itemLv/rareLv reflection |
 | v0.7.3 | 컨테이너 Item 시각 표시 풍부화 — 24×24 placeholder cell (등급 배경 + 품질 마름모 + 카테고리 한자 + 강화 `+N` + 착용 `착`) |
 | v0.7.4 | Item 상세 panel — cell 클릭 single-focus + ⓘ toolbar → ItemDetailPanel (curated 한글 라벨 + raw reflection dump, view-only) |
+| v0.7.5.1 | HangulDict stage 4 — ModFix TranslationEngine.Translate reflection. 합성어 부분 잔존 fix (절세长矛 → 절세장검 등). |
 | v0.7.5 | Item 한글화 — Hybrid 사전 (ModFix reflection + 자체 CSV + LTLocalization fallback). ContainerPanel/ItemDetailPanel 한자 노출 제거. bilingual 검색 + Korean 정렬. |
 | v0.7.4.1 | Item 상세 panel 7 카테고리 cover — 말 / 보물 / 재료 curated 추가 (기존 장비/비급/단약 회귀 없음) |
 
