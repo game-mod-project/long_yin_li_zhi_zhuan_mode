@@ -83,7 +83,8 @@ public static class ItemCellRenderer
 
         // 3. 중앙 카테고리 한글 라벨 (v0.7.5.2 — 한자 1자 → 장비/단약/음식/비급/보물/재료/말)
         // GUIStyle 미사용 (test stub 호환) — label rect 를 cell 가운데 narrow 영역에 잡아 centering 효과.
-        GUI.Label(new Rect(rect.xMin + 12, rect.yMin + 4, rect.width - 24, rect.height - 8),
+        // 라벨 영역 width = cell width - 16 (양쪽 8px padding) — 한글 2자 fit. left-align default.
+        GUI.Label(new Rect(rect.xMin + 8, rect.yMin + 4, rect.width - 16, rect.height - 8),
             CategoryGlyph.For(r.Type, r.SubType));
 
         // 4. 우상단 품질 마름모 (8×8 colored block, alpha 1.0)
@@ -121,7 +122,8 @@ public static class ItemCellRenderer
         GUI.color = prevColor;
 
         // 중앙 카테고리 한글 라벨 (v0.7.5.2 — narrow rect 가운데 정렬 효과)
-        GUI.Label(new Rect(rect.xMin + 12, rect.yMin + 4, rect.width - 24, rect.height - 8),
+        // 라벨 영역 width = cell width - 16 (양쪽 8px padding) — 한글 2자 fit. left-align default.
+        GUI.Label(new Rect(rect.xMin + 8, rect.yMin + 4, rect.width - 16, rect.height - 8),
             CategoryGlyph.For(r.Type, r.SubType));
 
         // 우상단 품질 마름모
