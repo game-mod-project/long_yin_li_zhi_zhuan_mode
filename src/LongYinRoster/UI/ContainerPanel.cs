@@ -28,6 +28,12 @@ public sealed class ContainerPanel
         public string  NameRaw      { get; init; } = "";
         public int     GradeOrder   { get; init; } = -1;
         public int     QualityOrder { get; init; } = -1;
+
+        // v0.7.5 D-4 — translated display name (HangulDict.Translate cached at row build time).
+        // null/empty = NameRaw fallback. Eager cache: IMGUI re-renders every frame, display-time
+        // Translate() per row would waste CPU. Trade-off: dict reload won't reach existing rows
+        // until next Set*Rows — acceptable since dicts are static after init.
+        public string? NameKr      { get; init; }
     }
 
     public bool Visible { get; set; } = false;

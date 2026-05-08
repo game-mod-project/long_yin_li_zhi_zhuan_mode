@@ -43,6 +43,7 @@ public static class ContainerRowBuilder
                     Equipped     = false,
                     CategoryKey  = $"{type:D3}.{subType:D3}",
                     NameRaw      = name,
+                    NameKr       = HangulDict.Translate(name),   // v0.7.5 D-4 한글 캐시
                     GradeOrder   = grade,
                     QualityOrder = quality,
                 });
@@ -107,6 +108,7 @@ public static class ContainerRowBuilder
                 Equipped     = equipped,
                 CategoryKey  = $"{type:D3}.{subType:D3}",
                 NameRaw      = name,
+                NameKr       = HangulDict.Translate(name),   // v0.7.5 D-4 한글 캐시
                 GradeOrder   = LongYinRoster.Core.ItemReflector.GetGradeOrder(item),
                 QualityOrder = LongYinRoster.Core.ItemReflector.GetQualityOrder(item),
             });

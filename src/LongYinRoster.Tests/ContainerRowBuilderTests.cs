@@ -18,11 +18,13 @@ public class ContainerRowBuilderTests
 
         Assert.Equal("002.001", rows[0].CategoryKey);
         Assert.Equal("补血弹", rows[0].NameRaw);
+        Assert.NotNull(rows[0].NameKr);   // v0.7.5 — HangulDict.Translate 호출 보장 (miss 시 raw 그대로)
         Assert.Equal(3, rows[0].GradeOrder);
         Assert.Equal(4, rows[0].QualityOrder);
 
         Assert.Equal("001.000", rows[1].CategoryKey);
         Assert.Equal("无名刀", rows[1].NameRaw);
+        Assert.NotNull(rows[1].NameKr);   // v0.7.5 — HangulDict.Translate 호출 보장
         Assert.Equal(-1, rows[1].GradeOrder);
         Assert.Equal(-1, rows[1].QualityOrder);
     }
