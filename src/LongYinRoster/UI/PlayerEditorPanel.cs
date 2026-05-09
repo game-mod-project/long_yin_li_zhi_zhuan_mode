@@ -374,6 +374,12 @@ public sealed class PlayerEditorPanel
 
     // ───── Section 5: 천부 (heroTagData) — Phase 4 ─────
 
+    /// <summary>v0.7.10 Phase 1 — TextField buffer for LockedMaxTagNumValue input.</summary>
+    private string _lockValueBuffer = "";
+
+    /// <summary>v0.7.10 Phase 1 — true while user is editing _lockValueBuffer (prevents external sync overwrite).</summary>
+    private bool _isUserEditingLock;
+
     private int _tagPage = 0;
 
     private void DrawHeroTagDataSection(object player)
@@ -384,6 +390,30 @@ public sealed class PlayerEditorPanel
         DrawTagPointRow(player);
         DrawTagCountRow(player, entries.Count);
         GUILayout.Space(4);
+
+        // v0.7.10 Phase 1 — Lock max 보유수 토글 + 값
+        GUILayout.BeginHorizontal();
+        GUILayout.Space(8);
+        bool prevLock = Config.LockMaxTagNum.Value;
+        bool newLock  = GUILayout.Toggle(prevLock, "Lock max", GUILayout.Width(80));
+        if (newLock != prevLock) Config.LockMaxTagNum.Value = newLock;
+
+        // sync buffer with persisted ConfigEntry on first draw / external change
+        string persistedStr = Config.LockedMaxTagNumValue.Value.ToString();
+        if (string.IsNullOrEmpty(_lockValueBuffer) || (!_isUserEditingLock && _lockValueBuffer != persistedStr))
+            _lockValueBuffer = persistedStr;
+
+        string newBuf = GUILayout.TextField(_lockValueBuffer, GUILayout.Width(64));
+        if (newBuf != _lockValueBuffer)
+        {
+            _lockValueBuffer = newBuf;
+            _isUserEditingLock = true;
+            if (int.TryParse(newBuf, out int v) && v >= 1 && v <= 999999)
+                Config.LockedMaxTagNumValue.Value = v;
+        }
+        GUILayout.Label("(1~999999)", GUILayout.Width(80));
+        GUILayout.Space(8);  // strip-safe alternative to FlexibleSpace
+        GUILayout.EndHorizontal();
 
         // v0.7.8 사용자 피드백 — 신규 추가 row 를 보유 목록 위로 이동
         DrawTagAddRow(player);
