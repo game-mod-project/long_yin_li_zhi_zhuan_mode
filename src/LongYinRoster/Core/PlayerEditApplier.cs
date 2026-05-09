@@ -126,7 +126,7 @@ public static class PlayerEditApplier
         }
 
         // 5. RefreshMaxAttriAndSkill (v0.7.7 검증)
-        bool refreshed = TryInvokeRefreshMaxAttriAndSkill(player);
+        bool refreshed = RefreshMaxAttriAndSkill(player);
 
         return new()
         {
@@ -169,7 +169,7 @@ public static class PlayerEditApplier
             if (TryReflectionSetter(player, name, 0f) || TryReflectionSetter(player, name, 0))
                 any = true;
         }
-        if (any) TryInvokeRefreshMaxAttriAndSkill(player);
+        if (any) RefreshMaxAttriAndSkill(player);
         return any;
     }
 
@@ -252,7 +252,8 @@ public static class PlayerEditApplier
         return 0f;
     }
 
-    private static bool TryInvokeRefreshMaxAttriAndSkill(object player)
+    /// <summary>v0.7.10 Phase 2: 다른 editor (CharacterAttriEditor) 와 공유. v0.7.7 검증된 helper.</summary>
+    public static bool RefreshMaxAttriAndSkill(object player)
     {
         try
         {
