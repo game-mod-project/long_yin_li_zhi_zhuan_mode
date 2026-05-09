@@ -235,5 +235,8 @@
     <Compile Include="../LongYinRoster/Core/CharacterAttriEditor.cs">
       <Link>Core/CharacterAttriEditor.cs</Link>
     </Compile>
+    <Compile Include="../LongYinRoster/UI/AttriTabPanel.cs">
+      <Link>UI/AttriTabPanel.cs</Link>
+    </Compile>
   </ItemGroup>
 </Project>
