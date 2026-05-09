@@ -369,3 +369,27 @@ Next sub-project: **v0.7.10 (천부 max lock + 속성·무학·기예 editor)** 
 - Q9 = A — Lock 토글 즉시 적용 + ConfigEntry 자동 영속
 
 Spec: [2026-05-09-longyin-roster-mod-v0.7.10-design.md](2026-05-09-longyin-roster-mod-v0.7.10-design.md)
+
+### v0.7.10 Result (2026-05-09)
+
+- Release: [v0.7.10](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.7.10) (push 후 link active)
+- Spec: [2026-05-09-longyin-roster-mod-v0.7.10-design.md](2026-05-09-longyin-roster-mod-v0.7.10-design.md) — §13 Phase 3 addendum 포함
+- Plan: [2026-05-09-longyin-roster-mod-v0.7.10-plan.md](../plans/2026-05-09-longyin-roster-mod-v0.7.10-plan.md)
+- Smoke: smoke run 후 `docs/superpowers/dumps/2026-05-09-v0.7.10-smoke-results.md` 추가 (사용자 게이트)
+- Tests: 327 → **374 PASS** (+47). 인게임 smoke 18+ 항목 (Phase 1 4 + Phase 2 10 + Phase 3 4+ 회귀).
+- **Brainstorm 결과 (9 Q + post-Phase 2 사용자 피드백)**:
+  - G3=E (B+A 결합 ③) / Q1=A LockedMax scope / Q2=A Player only / Q3=A 천부 섹션 헤더 / Q4=β 분리 (v0.7.10+v0.7.11) / Q5=E secondary tab / Q6=B inline+일괄 / Q7=B [저장] gated / Q8=B 수치/자질값+buff/effective / Q9=A 즉시 적용
+  - **Phase 3 추가** (post-Phase 2 사용자 피드백): Phase 2 의 자질값 setter 가 게임 cap (120/120/100) 에 의해 silently overridden 되는 문제 발견 → cheat `LongYinCheat.MultiplierPatch` 의 4 Postfix 패턴 mirror 추가 (player heroID=0 only, ConfigEntry `EnableUncapMax` opt-in)
+- **신규 자산**: GetMaxTagNumPatch / GetMaxTagNumOverride / HeroAttriReflector / CharacterAttriEditor / AttriLabels / AttriTabPanel / AttriTabBuffer / **HeroDataCapBypassPatch** / **HeroDataCapBypassLogic**
+- **Phase 분리**: Phase 1 (LockedMax) commits 1-4 / Phase 2 (속성/무학/기예) commits 5-10 / Phase 3 (cap-bypass) commit 13 / docs commits 11/12/14
+
+### G4 Gate Pending (v0.7.10 release 직후, 2026-05-09)
+
+평가 대상:
+- **v0.7.11 NPC dropdown** (★★★ 가성비 가장 높음) — heroID switch + v0.7.10 자산 generalize. PlayerEditorPanel header 에 SelectorDialog 2단계 탭 (force/문파 + name search) 추가. **Phase 3 cap-bypass 의 player-only constraint 도 per-hero list 로 generalize** (HashSet&lt;int&gt; uncappedHeroIDs).
+- **v0.7.10.1 자질 grade marker** — derivation rule 또는 별도 field spike (신/하 등 enum)
+- **v0.8 진짜 sprite** — IL2CPP sprite asset spike. cheat IconHelper.cs 316 LOC 참조.
+- **v0.7.9 Slot diff preview** — Apply pipeline 변경 cycle.
+- **maintenance** — trigger 시 활성.
+
+G4 Decision 은 사용자 명시 선택 시점에 본 spec 에 append.
