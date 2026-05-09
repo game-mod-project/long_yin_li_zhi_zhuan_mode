@@ -139,6 +139,37 @@ ItemDetailPanel 은 view-only — item 수정 기능은 후속 sub-project (v0.7
 
 ContainerPanel X 버튼 닫기 시 ItemDetailPanel 도 같이 닫힙니다. position 영속.
 
+### v0.7.8 — 플레이어 편집 기본 UI
+
+PlayerEditorPanel (F11+4) 신규 추가. 플레이어 캐릭터 스탯 편집 UI:
+
+- **6 섹션** — Resource (HP/Mana/Power) / SpeAddData × 3 (추가 보정) / 천부 (보유 태그) / 무공 (학습 무공) / Breakthrough (돌파)
+- **각 섹션 read-only 표시** — 현재 플레이어 스탯 snapshot 반영
+- **9-카테고리 체크박스** (Apply 할 범주 선택) — v0.4 자산 재사용
+- **TryInvokeRefreshMaxAttriAndSkill** — 게임 자체 method invoke (dirty 상태 복구)
+
+327/327 unit tests PASS. 인게임 smoke 12/12 PASS (스냅샷 read / UI paint / window state persistence).
+
+### v0.7.10 — 천부 max lock + 속성·무학·기예 editor
+
+**Phase 1 — 천부 max 보유수 lock**:
+- PlayerEditorPanel 천부 섹션 헤더에 `[☐ Lock max] [ 999 ]` 토글 추가
+- 체크 ON 시 `HeroData.GetMaxTagNum()` Postfix 가 LockedMaxTagNumValue 로 override (Player heroID=0 only)
+- BepInEx ConfigEntry 자동 영속 (`LockMaxTagNum` / `LockedMaxTagNumValue`)
+
+**Phase 2 — 속성·무학·기예 editor**:
+- PlayerEditorPanel 헤더에 `[기본 / 속성]` secondary tab 추가
+- [속성] 탭 = 3 column: 속성 6 (근력·민첩·지력·의지·체질·경맥) / 무학 9 (내공·경공·절기·권장·검법·도법·장병·기문·사술) / 기예 9 (의술·독술·학식·언변·채벌·목식·단조·제약·요리)
+- 각 row = `[라벨] [수치 input] / [자질값 input] +buff → effective` (read-only)
+- 일괄 button × 3 (`[전체 속성 자질]` / `[전체 무학 자질]` / `[전체 기예 자질]`)
+- [저장] gated apply — cheat `ChangeAttri/FightSkill/LivingSkill(hero, idx, val)` × N → `RefreshMaxAttriAndSkill()` 1회
+- [되돌리기] → originals 복원
+- Clamp [0, 999999]
+
+367/367 unit tests PASS (+40 from v0.7.8). 인게임 smoke = 18 항목 매트릭스 (Phase 1 4 + Phase 2 10 + 회귀 4) PASS.
+
+호환성: v0.7.8 사용자 설정 (sort/filter/last/rect/window/hotkey) 변경 없음 — append-only. 게임 patch 없음 (1.0.0f8.2 그대로).
+
 ### Releases
 
 | Version | Highlights |
@@ -156,6 +187,8 @@ ContainerPanel X 버튼 닫기 시 ItemDetailPanel 도 같이 닫힙니다. posi
 | v0.7.5.1 | HangulDict stage 4 — ModFix TranslationEngine.Translate reflection. 합성어 부분 잔존 fix (절세长矛 → 절세장검 등). |
 | v0.7.5 | Item 한글화 — Hybrid 사전 (ModFix reflection + 자체 CSV + LTLocalization fallback). ContainerPanel/ItemDetailPanel 한자 노출 제거. bilingual 검색 + Korean 정렬. |
 | v0.7.4.1 | Item 상세 panel 7 카테고리 cover — 말 / 보물 / 재료 curated 추가 (기존 장비/비급/단약 회귀 없음) |
+| v0.7.8 | 플레이어 편집 기본 UI — PlayerEditorPanel (F11+4) 신규. 6 섹션 (Resource / SpeAddData × 3 / 천부 / 무공 / Breakthrough) read-only 표시. 9-카테고리 체크박스. |
+| v0.7.10 | 천부 max lock + 속성·무학·기예 editor — Phase 1: 천부 `[☐ Lock max]` toggle (heroID=0 only). Phase 2: `[기본 / 속성]` tab (속성 6 / 무학 9 / 기예 9, 각 row inline edit + 일괄 button + [저장] gated apply). |
 
 ## 요구 사항
 
