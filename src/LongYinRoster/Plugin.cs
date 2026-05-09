@@ -27,6 +27,7 @@ public sealed class Plugin : BasePlugin
         harmony.PatchAll(typeof(InputBlockerPatch));
         Core.RestKeepHeroTagPatch.Register(harmony);
         Core.GetMaxTagNumPatch.Register(harmony);
+        Core.HeroDataCapBypassPatch.Register(harmony);
         Logger.Info($"Harmony: {harmony.GetPatchedMethods().Count()} method(s) patched");
 
         Logger.Info($"Loaded {NAME} v{VERSION}");
@@ -35,5 +36,6 @@ public sealed class Plugin : BasePlugin
         Logger.Info("[v0.7.7] Item editor ready — ItemDetailPanel [편집] 토글 + SelectorDialog (등급/품질/속성) + HeroSpeAddData (134 type)");
         Logger.Info("[v0.7.8] Player editor ready (F11+4) — Resource/Quick/HeroSpeAddData × 3 / 천부 (heroTagData) / 무공 (kungfuSkills) / 돌파속성 dialog");
         Logger.Info("[v0.7.10] GetMaxTagNumPatch registered + AttriTabPanel ready ([기본]/[속성] tab)");
+        Logger.Info("[v0.7.10 Phase 3] HeroDataCapBypassPatch registered (자질값 cap 돌파, opt-in via Config.EnableUncapMax)");
     }
 }

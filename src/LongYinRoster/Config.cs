@@ -48,6 +48,12 @@ public static class Config
     public static ConfigEntry<bool>    LockMaxTagNum         = null!;
     public static ConfigEntry<int>     LockedMaxTagNumValue  = null!;
 
+    // v0.7.10 Phase 3 — Cap bypass (자질값 max 돌파, cheat MultiplierPatch.EnableUncapMax mirror)
+    public static ConfigEntry<bool>    EnableUncapMax        = null!;
+    public static ConfigEntry<int>     UncapMaxAttri         = null!;
+    public static ConfigEntry<int>     UncapMaxFightSkill    = null!;
+    public static ConfigEntry<int>     UncapMaxLivingSkill   = null!;
+
     // v0.7.6 — ContainerPanel rect 영속화 (ItemDetailPanel mirror)
     public static ConfigEntry<float>   ContainerPanelX = null!;
     public static ConfigEntry<float>   ContainerPanelY = null!;
@@ -125,6 +131,22 @@ public static class Config
                                          new ConfigDescription(
                                              "LockMaxTagNum=true 시 적용할 천부 max 값 (1~999999)",
                                              new AcceptableValueRange<int>(1, 999999)));
+
+        // v0.7.10 Phase 3 — Cap bypass
+        EnableUncapMax        = cfg.Bind("Hero", "EnableUncapMax", false,
+                                         "자질값 cap 해제 — true 시 GetMaxAttri/FightSkill/LivingSkill Postfix 가 UncapMax* 값으로 override (Player heroID=0 only). 현재 자질값(baseAttri/...)이 game cap 120/120/100 보다 큰 값으로 설정 가능해짐. v0.7.11 에서 per-hero 확장 예정.");
+        UncapMaxAttri         = cfg.Bind("Hero", "UncapMaxAttri", 999,
+                                         new ConfigDescription(
+                                             "자질값 max override (속성). 게임 cap 120 → 본 값. range [120, 999999]",
+                                             new AcceptableValueRange<int>(120, 999999)));
+        UncapMaxFightSkill    = cfg.Bind("Hero", "UncapMaxFightSkill", 999,
+                                         new ConfigDescription(
+                                             "자질값 max override (무학). 게임 cap 120 → 본 값. range [120, 999999]",
+                                             new AcceptableValueRange<int>(120, 999999)));
+        UncapMaxLivingSkill   = cfg.Bind("Hero", "UncapMaxLivingSkill", 999,
+                                         new ConfigDescription(
+                                             "자질값 max override (기예). 게임 cap 100 → 본 값. range [100, 999999]",
+                                             new AcceptableValueRange<int>(100, 999999)));
 
         // v0.7.6 — ContainerPanel rect 영속화
         ContainerPanelX = cfg.Bind("UI", "ContainerPanelX", 150f, "컨테이너 panel X 좌표");
