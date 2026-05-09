@@ -52,6 +52,14 @@ public sealed class ModWindow : MonoBehaviour
             if (_instance._containerPanel.Visible    && _instance._containerPanel.WindowRect.Contains(pos)) return true;
             // v0.7.4 D-1 final review HIGH — ItemDetailPanel 영역 mouse 차단 (game input pass-through 회피)
             if (_instance._itemDetailPanel.Visible    && _instance._itemDetailPanel.WindowRect.Contains(pos)) return true;
+            // v0.7.7 — ItemDetailPanel 의 SelectorDialog popup 영역도 차단
+            if (_instance._itemDetailPanel.Selector.Visible && _instance._itemDetailPanel.Selector.WindowRect.Contains(pos)) return true;
+            // v0.7.6 — SettingsPanel 영역 mouse 차단
+            if (_instance._settingsPanel.Visible      && _instance._settingsPanel.WindowRect.Contains(pos)) return true;
+            // v0.7.8 — PlayerEditorPanel 영역 + 그 selector + 돌파속성 dialog 도 차단
+            if (_instance._playerEditorPanel.Visible  && _instance._playerEditorPanel.WindowRect.Contains(pos)) return true;
+            if (_instance._playerEditorPanel.Selector.Visible && _instance._playerEditorPanel.Selector.WindowRect.Contains(pos)) return true;
+            if (_instance._playerEditorPanel.BreakthroughDialog.Visible && _instance._playerEditorPanel.BreakthroughDialog.WindowRect.Contains(pos)) return true;
 
             if (!_instance._visible) return false;
             if (_instance._confirm.IsVisible
@@ -78,6 +86,14 @@ public sealed class ModWindow : MonoBehaviour
 
     // v0.7.4 D-1 — item 상세 panel (ContainerPanel 의 ⓘ 토글로 visibility 제어)
     private readonly ItemDetailPanel  _itemDetailPanel = new();
+
+    // v0.7.6 — 설정 panel (ModeSelector "설정" 또는 F11+3)
+    private readonly SettingsPanel    _settingsPanel = new();
+    private bool                      _lastSettingsVisible = false;
+
+    // v0.7.8 — 플레이어 편집 panel (ModeSelector "플레이어 편집" 또는 F11+4)
+    private readonly PlayerEditorPanel _playerEditorPanel = new();
+    private bool                       _lastPlayerEditorVisible = false;
 
     private void Awake()
     {
@@ -144,6 +160,31 @@ public sealed class ModWindow : MonoBehaviour
         _itemDetailPanel.Visible = Config.ItemDetailPanelOpen.Value;
         _containerPanel.OnToggleItemDetailPanel = () => _itemDetailPanel.Visible = !_itemDetailPanel.Visible;
         _containerPanel.IsItemDetailPanelVisible = () => _itemDetailPanel.Visible;
+        // v0.7.7 — Item edit Apply 후 ContainerPanel row 갱신 + HeroLocator decouple
+        _itemDetailPanel.OnAppliedRefreshRequest = RefreshAllContainerRows;
+        _itemDetailPanel.GetPlayer = Core.HeroLocator.GetPlayer;
+
+        // v0.7.6 — HotkeyMap.Bind (Config.Bind 는 Plugin.Load 에서 이미 호출됨), SettingsPanel wire-up
+        HotkeyMap.Bind();
+        _settingsPanel.OnSaved = () =>
+        {
+            HotkeyMap.Bind();
+            _containerPanel.SetRect(
+                Config.ContainerPanelX.Value, Config.ContainerPanelY.Value,
+                Config.ContainerPanelW.Value, Config.ContainerPanelH.Value);
+        };
+        // v0.7.8 — PlayerEditorPanel wire-up
+        _playerEditorPanel.Init(
+            Config.PlayerEditorPanelX.Value,
+            Config.PlayerEditorPanelY.Value,
+            Config.PlayerEditorPanelW.Value,
+            Config.PlayerEditorPanelH.Value);
+        _playerEditorPanel.Visible = Config.PlayerEditorPanelOpen.Value;
+        _playerEditorPanel.GetPlayer = Core.HeroLocator.GetPlayer;
+        // v0.7.8 — Player edit 는 인벤·창고 영향 없음 → ContainerPanel refresh 불필요 (로그 폭주 회피)
+        _playerEditorPanel.OnAppliedRefreshRequest = null;
+        // ContainerPanel 영속화 hydrate (containerList 가 SetRepository 안에서 채워졌으므로 그 후 안전)
+        _containerPanel.HydrateFromConfig();
 
         Logger.Info($"ModWindow Awake (slots dir: {slotDir}, containers dir: {containerDir})");
     }
@@ -707,7 +748,7 @@ public sealed class ModWindow : MonoBehaviour
 
     private void Update()
     {
-        // v0.7.0 — F11 단독: 모드 선택 메뉴 / F11+1: 캐릭터 / F11+2: 컨테이너
+        // v0.7.0 — F11 단독: 모드 선택 메뉴 / F11+1: 캐릭터 / F11+2: 컨테이너 / v0.7.6 F11+3: 설정
         if (HotkeyMap.MainKeyPressedAlone()) _modeSelector.Toggle();
         if (HotkeyMap.CharacterShortcut())
         {
@@ -718,6 +759,14 @@ public sealed class ModWindow : MonoBehaviour
         {
             _modeSelector.SetMode(ModeSelector.Mode.Container);
         }
+        if (HotkeyMap.SettingsShortcut())
+        {
+            _modeSelector.SetMode(ModeSelector.Mode.Settings);
+        }
+        if (HotkeyMap.PlayerEditorShortcut())
+        {
+            _modeSelector.SetMode(ModeSelector.Mode.Player);
+        }
 
         // ModeSelector 의 mode 변경을 transition 으로 처리 — 매 프레임 polling 안 함.
         if (_modeSelector.CurrentMode != _lastSeenMode)
@@ -727,12 +776,29 @@ public sealed class ModWindow : MonoBehaviour
             {
                 if (!_visible) Toggle();
                 _containerPanel.Visible = false;
+                _settingsPanel.Visible = false;
             }
             else if (_modeSelector.CurrentMode == ModeSelector.Mode.Container)
             {
                 _containerPanel.Visible = true;
                 if (_visible) Toggle();
+                _settingsPanel.Visible = false;
                 RefreshAllContainerRows();
+            }
+            else if (_modeSelector.CurrentMode == ModeSelector.Mode.Settings)
+            {
+                _settingsPanel.Visible = true;
+                _settingsPanel.Hydrate();
+                if (_visible) Toggle();
+                _containerPanel.Visible = false;
+                _playerEditorPanel.Visible = false;
+            }
+            else if (_modeSelector.CurrentMode == ModeSelector.Mode.Player)
+            {
+                _playerEditorPanel.Visible = true;
+                if (_visible) Toggle();
+                _containerPanel.Visible = false;
+                _settingsPanel.Visible = false;
             }
         }
 
@@ -749,11 +815,28 @@ public sealed class ModWindow : MonoBehaviour
             // v0.7.4 D-1 — ContainerPanel close (F11/X) 와 함께 ItemDetailPanel 도 sync close
             _itemDetailPanel.Visible = false;
         }
+        // v0.7.6 — SettingsPanel X 닫기 시 mode reset
+        if (_lastSettingsVisible && !_settingsPanel.Visible)
+        {
+            _modeSelector.SetMode(ModeSelector.Mode.None);
+            _lastSeenMode = ModeSelector.Mode.None;
+        }
+        // v0.7.8 — PlayerEditorPanel X 닫기 시 mode reset
+        if (_lastPlayerEditorVisible && !_playerEditorPanel.Visible)
+        {
+            _modeSelector.SetMode(ModeSelector.Mode.None);
+            _lastSeenMode = ModeSelector.Mode.None;
+        }
         _lastVisible = _visible;
         _lastContainerVisible = _containerPanel.Visible;
+        _lastSettingsVisible = _settingsPanel.Visible;
+        _lastPlayerEditorVisible = _playerEditorPanel.Visible;
 
         // v0.5.3 Spike — F12 trigger, mod 창 visible 동안 1-3 으로 Mode 직접 설정 (release 전 cleanup)
         if (Input.GetKeyDown(KeyCode.F12)) Core.Probes.ProbeRunner.Trigger();
+
+
+
         if (_visible)
         {
             if (Input.GetKeyDown(KeyCode.Alpha1) || Input.GetKeyDown(KeyCode.Keypad1))
@@ -788,12 +871,27 @@ public sealed class ModWindow : MonoBehaviour
         _containerPanel.OnGUI();
         // v0.7.4 D-1 — ItemDetailPanel (Visible 일 때만 그림 — Visible 체크는 panel 내부)
         _itemDetailPanel.OnGUI();
+        // v0.7.6 — SettingsPanel (Visible 체크는 panel 내부)
+        _settingsPanel.OnGUI();
+        // v0.7.8 — PlayerEditorPanel (Visible 체크는 panel 내부)
+        _playerEditorPanel.OnGUI();
         // ItemDetailPanel 위치/크기/visibility 영속화
         Config.ItemDetailPanelX.Value      = _itemDetailPanel.WindowRect.x;
         Config.ItemDetailPanelY.Value      = _itemDetailPanel.WindowRect.y;
         Config.ItemDetailPanelWidth.Value  = _itemDetailPanel.WindowRect.width;
         Config.ItemDetailPanelHeight.Value = _itemDetailPanel.WindowRect.height;
         Config.ItemDetailPanelOpen.Value   = _itemDetailPanel.Visible;
+        // v0.7.6 — ContainerPanel rect 영속화 (ItemDetailPanel mirror)
+        Config.ContainerPanelX.Value = _containerPanel.WindowRect.x;
+        Config.ContainerPanelY.Value = _containerPanel.WindowRect.y;
+        Config.ContainerPanelW.Value = _containerPanel.WindowRect.width;
+        Config.ContainerPanelH.Value = _containerPanel.WindowRect.height;
+        // v0.7.8 — PlayerEditorPanel rect/visibility 영속화
+        Config.PlayerEditorPanelX.Value    = _playerEditorPanel.WindowRect.x;
+        Config.PlayerEditorPanelY.Value    = _playerEditorPanel.WindowRect.y;
+        Config.PlayerEditorPanelW.Value    = _playerEditorPanel.WindowRect.width;
+        Config.PlayerEditorPanelH.Value    = _playerEditorPanel.WindowRect.height;
+        Config.PlayerEditorPanelOpen.Value = _playerEditorPanel.Visible;
 
         if (!_visible) return;
 
@@ -839,4 +937,220 @@ public sealed class ModWindow : MonoBehaviour
         // DragWindow 영역 — 헤더 전체 (X 버튼 제외)
         GUI.DragWindow(new Rect(0, 0, _rect.width - 32, DialogStyle.HeaderHeight));
     }
+
+    // ───── v0.7.8 Spike v3 — HeroTagDataBase 카테고리/단계 field 검색 ─────
+    private void RunV078SpikeV3()
+    {
+        try
+        {
+            var gdcType = System.Type.GetType("GameDataController, Assembly-CSharp");
+            if (gdcType == null) return;
+            var instProp = gdcType.GetProperty("Instance",
+                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.FlattenHierarchy);
+            object? gdc = instProp?.GetValue(null);
+            if (gdc == null) return;
+            var dbProp = gdc.GetType().GetProperty("heroTagDataBase", F);
+            object? db = dbProp?.GetValue(gdc);
+            if (db == null) { Logger.Info("[v0.7.8 SpikeV3] heroTagDataBase null"); return; }
+
+            var countProp = db.GetType().GetProperty("Count", F);
+            int n = countProp != null ? System.Convert.ToInt32(countProp.GetValue(db)) : 0;
+            Logger.Info($"[v0.7.8 SpikeV3] heroTagDataBase.Count = {n}");
+            var indexer = db.GetType().GetMethod("get_Item", F);
+            if (indexer == null) return;
+
+            // 첫 5 entry 의 모든 field/property dump
+            int dumpCount = System.Math.Min(5, n);
+            for (int i = 0; i < dumpCount; i++)
+            {
+                var entry = indexer.Invoke(db, new object[] { i });
+                if (entry == null) continue;
+                Logger.Info($"[v0.7.8 SpikeV3] entry[{i}] type = {entry.GetType().Name}");
+                foreach (var fld in entry.GetType().GetFields(F))
+                {
+                    if (fld.Name == "isWrapped" || fld.Name == "pooledPtr") continue;
+                    string val;
+                    try { val = fld.GetValue(entry)?.ToString() ?? "null"; }
+                    catch { val = "<unreadable>"; }
+                    Logger.Info($"[v0.7.8 SpikeV3]   field: {fld.Name} ({fld.FieldType.Name}) = {val}");
+                }
+                foreach (var prop in entry.GetType().GetProperties(F))
+                {
+                    if (prop.GetIndexParameters().Length > 0) continue;
+                    if (prop.Name == "Pointer" || prop.Name == "ObjectClass" || prop.Name == "WasCollected") continue;
+                    string val;
+                    try { val = prop.GetValue(entry)?.ToString() ?? "null"; }
+                    catch { val = "<unreadable>"; }
+                    Logger.Info($"[v0.7.8 SpikeV3]   prop: {prop.Name} ({prop.PropertyType.Name}) = {val}");
+                }
+                Logger.Info("");
+            }
+        }
+        catch (System.Exception ex)
+        {
+            Logger.Warn($"[v0.7.8 SpikeV3] threw: {ex.GetType().Name}: {ex.Message}");
+        }
+    }
+
+    // ───── v0.7.8 Task 0 Spike (제거) — Phase 4/5 결과 반영 완료 ─────
+    /*
+    private void RunV078Spike_REMOVED()
+    {
+        try
+        {
+            var p = Core.HeroLocator.GetPlayer();
+            if (p == null) { Logger.Info("[v0.7.8 Spike] player null — game 진입 후 F8"); return; }
+
+            Logger.Info($"[v0.7.8 Spike] player type = {p.GetType().FullName}");
+
+            // ─── 0.1: 부상 stat 필드명 dump ───
+            Logger.Info("[v0.7.8 Spike] (0.1) injury fields/properties:");
+            foreach (var fld in p.GetType().GetFields(F))
+            {
+                if (fld.Name.ToLower().Contains("injury") || fld.Name.ToLower().Contains("poison"))
+                {
+                    string val;
+                    try { val = fld.GetValue(p)?.ToString() ?? "null"; }
+                    catch { val = "<unreadable>"; }
+                    Logger.Info($"[v0.7.8 Spike]   field: {fld.Name} ({fld.FieldType.Name}) = {val}");
+                }
+            }
+            foreach (var prop in p.GetType().GetProperties(F))
+            {
+                if (prop.GetIndexParameters().Length > 0) continue;
+                if (prop.Name.ToLower().Contains("injury") || prop.Name.ToLower().Contains("poison"))
+                {
+                    string val;
+                    try { val = prop.GetValue(p)?.ToString() ?? "null"; }
+                    catch { val = "<unreadable>"; }
+                    Logger.Info($"[v0.7.8 Spike]   prop: {prop.Name} ({prop.PropertyType.Name}) = {val}");
+                }
+            }
+            Logger.Info("[v0.7.8 Spike] (0.1) Cure/Heal/Restore methods:");
+            foreach (var m in p.GetType().GetMethods(F))
+            {
+                if (m.IsSpecialName) continue;
+                if (m.Name.StartsWith("Cure") || m.Name.StartsWith("Heal") || m.Name.StartsWith("Restore"))
+                {
+                    var ps = m.GetParameters();
+                    string sig = string.Join(",", System.Linq.Enumerable.Select(ps, x => x.ParameterType.Name));
+                    Logger.Info($"[v0.7.8 Spike]   method: {m.Name}({sig}) → {m.ReturnType.Name}");
+                }
+            }
+
+            // ─── 0.2: heroTagData schema dump ───
+            Logger.Info("[v0.7.8 Spike] (0.2) heroTagData:");
+            var tagList = ReadFieldOrProperty(p, "heroTagData");
+            if (tagList != null)
+            {
+                Logger.Info($"[v0.7.8 Spike]   heroTagData type = {tagList.GetType().FullName}");
+                var countProp = tagList.GetType().GetProperty("Count", F);
+                int tagCount = 0;
+                if (countProp != null)
+                {
+                    try { tagCount = System.Convert.ToInt32(countProp.GetValue(tagList)); } catch { }
+                    Logger.Info($"[v0.7.8 Spike]   heroTagData.Count = {tagCount}");
+                }
+                if (tagCount > 0)
+                {
+                    var indexer = tagList.GetType().GetMethod("get_Item", F);
+                    if (indexer != null)
+                    {
+                        var firstTag = indexer.Invoke(tagList, new object[] { 0 });
+                        if (firstTag != null)
+                        {
+                            Logger.Info($"[v0.7.8 Spike]   first tag type = {firstTag.GetType().Name}");
+                            foreach (var fld in firstTag.GetType().GetFields(F))
+                            {
+                                string val;
+                                try { val = fld.GetValue(firstTag)?.ToString() ?? "null"; }
+                                catch { val = "<unreadable>"; }
+                                Logger.Info($"[v0.7.8 Spike]     {firstTag.GetType().Name}.{fld.Name} ({fld.FieldType.Name}) = {val}");
+                            }
+                            foreach (var prop in firstTag.GetType().GetProperties(F))
+                            {
+                                if (prop.GetIndexParameters().Length > 0) continue;
+                                string val;
+                                try { val = prop.GetValue(firstTag)?.ToString() ?? "null"; }
+                                catch { val = "<unreadable>"; }
+                                Logger.Info($"[v0.7.8 Spike]     {firstTag.GetType().Name}.{prop.Name} ({prop.PropertyType.Name}, prop) = {val}");
+                            }
+                        }
+                    }
+                }
+            }
+            else { Logger.Info("[v0.7.8 Spike]   heroTagData null"); }
+
+            Logger.Info("[v0.7.8 Spike] (0.2) Tag methods:");
+            foreach (var m in p.GetType().GetMethods(F))
+            {
+                if (m.IsSpecialName) continue;
+                if (m.Name.Contains("Tag"))
+                {
+                    var ps = m.GetParameters();
+                    string sig = string.Join(",", System.Linq.Enumerable.Select(ps, x => x.ParameterType.Name));
+                    Logger.Info($"[v0.7.8 Spike]   {m.Name}({sig}) → {m.ReturnType.Name}");
+                }
+            }
+
+            // ─── 0.3: kungfuSkills single remove + lv setter ───
+            Logger.Info("[v0.7.8 Spike] (0.3) kungfuSkills:");
+            var skillList = ReadFieldOrProperty(p, "kungfuSkills");
+            if (skillList != null)
+            {
+                var countProp = skillList.GetType().GetProperty("Count", F);
+                int skillCount = 0;
+                if (countProp != null)
+                {
+                    try { skillCount = System.Convert.ToInt32(countProp.GetValue(skillList)); } catch { }
+                    Logger.Info($"[v0.7.8 Spike]   kungfuSkills.Count = {skillCount}");
+                }
+                if (skillCount > 0)
+                {
+                    var indexer = skillList.GetType().GetMethod("get_Item", F);
+                    if (indexer != null)
+                    {
+                        var firstSkill = indexer.Invoke(skillList, new object[] { 0 });
+                        if (firstSkill != null)
+                        {
+                            Logger.Info($"[v0.7.8 Spike]   first skill type = {firstSkill.GetType().Name}");
+                            foreach (string name in new[] { "level", "fightExp", "bookExp", "skillID", "equiped" })
+                            {
+                                var prop = firstSkill.GetType().GetProperty(name, F);
+                                var fld = firstSkill.GetType().GetField(name, F);
+                                bool propWrite = prop != null && prop.CanWrite;
+                                bool fieldExists = fld != null;
+                                string val = "?";
+                                try
+                                {
+                                    if (prop != null) val = prop.GetValue(firstSkill)?.ToString() ?? "null";
+                                    else if (fld != null) val = fld.GetValue(firstSkill)?.ToString() ?? "null";
+                                }
+                                catch { val = "<unreadable>"; }
+                                Logger.Info($"[v0.7.8 Spike]   KungfuSkillLvData.{name} = {val} (field={fieldExists}, propWrite={propWrite})");
+                            }
+                        }
+                    }
+                }
+            }
+
+            Logger.Info("[v0.7.8 Spike] (0.3) Skill methods (Lose/Remove/Forget/Get):");
+            foreach (var m in p.GetType().GetMethods(F))
+            {
+                if (m.IsSpecialName) continue;
+                if ((m.Name.StartsWith("Lose") || m.Name.StartsWith("Remove") || m.Name.StartsWith("Forget") || m.Name.StartsWith("Get"))
+                    && (m.Name.Contains("Skill") || m.Name.Contains("Kungfu")))
+                {
+                    var ps = m.GetParameters();
+                    string sig = string.Join(",", System.Linq.Enumerable.Select(ps, x => x.ParameterType.Name));
+                    Logger.Info($"[v0.7.8 Spike]   {m.Name}({sig}) → {m.ReturnType.Name}");
+                }
+            }
+        }
+        catch (System.Exception ex)
+        {
+            Logger.Warn($"[v0.7.8 Spike] threw at top-level: {ex.GetType().Name}: {ex.Message}");
+        }
+    }
+    */
 }

@@ -14,7 +14,7 @@ public sealed class Plugin : BasePlugin
 {
     public const string GUID    = "com.deepe.longyinroster";
     public const string NAME    = "LongYin Roster Mod";
-    public const string VERSION = "0.7.5.2";
+    public const string VERSION = "0.7.8";
 
     public override void Load()
     {
@@ -30,5 +30,8 @@ public sealed class Plugin : BasePlugin
 
         Logger.Info($"Loaded {NAME} v{VERSION}");
         Logger.Info("[v0.7.5] HangulDict: lazy init on first Translate() call");
+        Logger.Info("[v0.7.6] SettingsPanel ready (F11+3) — hotkey rebind / ContainerPanel rect / 영속화");
+        Logger.Info("[v0.7.7] Item editor ready — ItemDetailPanel [편집] 토글 + SelectorDialog (등급/품질/속성) + HeroSpeAddData (134 type)");
+        Logger.Info("[v0.7.8] Player editor ready (F11+4) — Resource/Quick/HeroSpeAddData × 3 / 천부 (heroTagData) / 무공 (kungfuSkills) / 돌파속성 dialog");
     }
 }

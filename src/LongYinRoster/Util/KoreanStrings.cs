@@ -4,6 +4,51 @@ namespace LongYinRoster.Util;
 public static class KoreanStrings
 {
     public const string AppTitle              = "Roster Mod";
+
+    // v0.7.7 — Item editor
+    public const string EditModeBtn                  = "편집";
+    public const string EditApplyBtn                 = "적용";
+    public const string EditDisclaimer               = "⚠ 편집한 값은 게임 save 후 영속. Apply/Restore 흐름과 별개.";
+    public const string EditModeContainerOnly        = "외부 컨테이너 편집 안 됨 (인벤·창고만)";
+    public const string EditFieldParseError          = "{0}: {1}";
+    public const string EditApplyOk                  = "✔ {0} = {1} 적용";
+    public const string EditApplyFailed              = "✘ 변경 실패: {0} ({1})";
+    public const string EditFieldNotFoundForCategory = "이 카테고리에 편집 가능한 필드 없음";
+
+    // v0.7.7 — Stat editor (HeroSpeAddData)
+    public const string StatEditSection_Base    = "기본 속성 (baseAddData)";
+    public const string StatEditSection_Extra   = "추가 속성 (extraAddData)";
+    public const string StatEditEditBtn         = "수정";
+    public const string StatEditDeleteBtn       = "삭제";
+    public const string StatEditAddBtn          = "추가";
+    public const string StatEditAddRowLabel     = "추가:";
+    public const string StatEditTypeIdxHint     = "※ 0=근력, 1=민첩, 2=지력, 3=의지, 4=체질, 6=내공, 7=경공, 24=의술, 32=요리 ...";
+    public const string StatEditApplyOk         = "✔ {0} = {1} 적용";
+    public const string StatEditDeleteOk        = "✔ {0} 삭제";
+    public const string StatEditAddOk           = "✔ {0} = {1} 추가";
+    public const string StatEditFailed          = "✘ {0} 실패";
+    public const string StatEditTypeIdxInvalid  = "type idx 범위 0~99";
+    public const string StatEditValueInvalid    = "값 형식 잘못됨 (소수)";
+
+    // v0.7.8 — Player editor
+    public const string PlayerEditorTitle         = "플레이어 편집";
+    public const string PlayerEditorSection_Resource = "▼ 자원 / 최대값";
+    public const string PlayerEditorSection_BaseAdd  = "▼ 기본 보정 (baseAddData)";
+    public const string PlayerEditorSection_HeroBuff = "▼ 임시 buff (heroBuff)";
+    public const string PlayerEditorSection_TotalAdd = "▼ 합산 (totalAddData) ⚠ derived";
+    public const string PlayerEditorSection_Tag      = "▼ 천부 (heroTagData)";
+    public const string PlayerEditorSection_Kungfu   = "▼ 무공 (kungfuSkills)";
+    public const string PlayerEditorQuickFullHeal    = "전체 회복";   // v0.7.8 통합 — 생명·체력·내력 모두
+    public const string PlayerEditorQuickRestoreEnergy = "내력/체력 채움 (deprecated, 통합)";
+    public const string PlayerEditorQuickCureInjuries = "부상 치료";
+    public const string PlayerEditorTotalAddWarn     = "⚠ totalAddData 는 derived — RefreshMaxAttriAndSkill 호출 시 재계산되어 변경 사라질 수 있음";
+    public const string PlayerEditorApplyOk          = "✔ {0} = {1} 적용";
+    public const string PlayerEditorApplyFailed      = "✘ 변경 실패: {0} ({1})";
+    public const string PlayerEditorQuickOk          = "✔ {0} 적용";
+    public const string PlayerEditorQuickFailed      = "✘ {0} 실패";
+    public const string PlayerEditorTagPending       = "▶ 천부 list editor — Phase 4 (spike 결과 후 활성)";
+    public const string PlayerEditorKungfuPending    = "▶ 무공 list editor — Phase 5 (spike 결과 후 활성)";
+
     public const string HotkeyHint            = "F11 to close";
     public const string SaveCurrentBtn        = "[+] 현재 캐릭터 저장";
     public const string ImportFromFileBtn     = "[F] 파일에서";

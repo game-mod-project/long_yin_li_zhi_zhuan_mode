@@ -30,6 +30,32 @@ public static class Config
     public static ConfigEntry<float>   ItemDetailPanelHeight = null!;
     public static ConfigEntry<bool>    ItemDetailPanelOpen   = null!;
 
+    // v0.7.6 — Hotkey rebind (MainKey 는 기존 ToggleHotkey 재사용 — 마이그레이션 부담 회피)
+    public static ConfigEntry<KeyCode> HotkeyCharacterMode    = null!;
+    public static ConfigEntry<KeyCode> HotkeyContainerMode    = null!;
+    public static ConfigEntry<KeyCode> HotkeySettingsMode     = null!;
+    // v0.7.8 — Player editor hotkey
+    public static ConfigEntry<KeyCode> HotkeyPlayerEditorMode = null!;
+
+    // v0.7.8 — PlayerEditorPanel rect 영속화
+    public static ConfigEntry<float>   PlayerEditorPanelX = null!;
+    public static ConfigEntry<float>   PlayerEditorPanelY = null!;
+    public static ConfigEntry<float>   PlayerEditorPanelW = null!;
+    public static ConfigEntry<float>   PlayerEditorPanelH = null!;
+    public static ConfigEntry<bool>    PlayerEditorPanelOpen = null!;
+
+    // v0.7.6 — ContainerPanel rect 영속화 (ItemDetailPanel mirror)
+    public static ConfigEntry<float>   ContainerPanelX = null!;
+    public static ConfigEntry<float>   ContainerPanelY = null!;
+    public static ConfigEntry<float>   ContainerPanelW = null!;
+    public static ConfigEntry<float>   ContainerPanelH = null!;
+
+    // v0.7.6 — 자동 영속화 (ContainerPanel 사용 중 immediate ConfigEntry write)
+    public static ConfigEntry<string>  ContainerSortKey        = null!;
+    public static ConfigEntry<bool>    ContainerSortAscending  = null!;
+    public static ConfigEntry<string>  ContainerFilterCategory = null!;
+    public static ConfigEntry<int>     ContainerLastIndex      = null!;
+
     public static void Bind(ConfigFile cfg)
     {
         ToggleHotkey       = cfg.Bind("General", "ToggleHotkey",       KeyCode.F11,
@@ -70,8 +96,40 @@ public static class Config
         // v0.7.4 D-1 — ItemDetailPanel 영속화
         ItemDetailPanelX      = cfg.Bind("UI", "ItemDetailPanelX",      970f,  "item 상세 panel X 좌표");
         ItemDetailPanelY      = cfg.Bind("UI", "ItemDetailPanelY",      100f,  "item 상세 panel Y 좌표");
-        ItemDetailPanelWidth  = cfg.Bind("UI", "ItemDetailPanelWidth",  380f,  "item 상세 panel 폭");
-        ItemDetailPanelHeight = cfg.Bind("UI", "ItemDetailPanelHeight", 500f,  "item 상세 panel 높이");
+        ItemDetailPanelWidth  = cfg.Bind("UI", "ItemDetailPanelWidth",  480f,  "item 상세 panel 폭 (v0.7.7 stat editor 위해 380→480)");
+        ItemDetailPanelHeight = cfg.Bind("UI", "ItemDetailPanelHeight", 640f,  "item 상세 panel 높이 (v0.7.7 stat editor 위해 500→640)");
         ItemDetailPanelOpen   = cfg.Bind("UI", "ItemDetailPanelOpen",   false, "item 상세 panel 디폴트 visibility (F11+2 진입 시 시작 상태)");
+
+        // v0.7.6 — Hotkey rebind (3 신규, MainKey 는 기존 ToggleHotkey 재사용)
+        HotkeyCharacterMode    = cfg.Bind("Hotkey", "CharacterMode",    KeyCode.Alpha1, "캐릭터 관리 단축키 (F11+이 키)");
+        HotkeyContainerMode    = cfg.Bind("Hotkey", "ContainerMode",    KeyCode.Alpha2, "컨테이너 관리 단축키 (F11+이 키)");
+        HotkeySettingsMode     = cfg.Bind("Hotkey", "SettingsMode",     KeyCode.Alpha3, "설정 panel 단축키 (F11+이 키)");
+        // v0.7.8 — Player editor hotkey
+        HotkeyPlayerEditorMode = cfg.Bind("Hotkey", "PlayerEditorMode", KeyCode.Alpha4, "플레이어 편집 단축키 (F11+이 키)");
+
+        // v0.7.8 — PlayerEditorPanel rect 영속화 (ItemDetailPanel mirror)
+        PlayerEditorPanelX    = cfg.Bind("UI", "PlayerEditorPanelX",    200f,  "플레이어 편집 panel X 좌표");
+        PlayerEditorPanelY    = cfg.Bind("UI", "PlayerEditorPanelY",    120f,  "플레이어 편집 panel Y 좌표");
+        PlayerEditorPanelW    = cfg.Bind("UI", "PlayerEditorPanelW",    720f,  "플레이어 편집 panel 폭 (v0.7.8: 480→720)");
+        PlayerEditorPanelH    = cfg.Bind("UI", "PlayerEditorPanelH",    720f,  "플레이어 편집 panel 높이");
+        PlayerEditorPanelOpen = cfg.Bind("UI", "PlayerEditorPanelOpen", false, "플레이어 편집 panel 디폴트 visibility");
+
+        // v0.7.6 — ContainerPanel rect 영속화
+        ContainerPanelX = cfg.Bind("UI", "ContainerPanelX", 150f, "컨테이너 panel X 좌표");
+        ContainerPanelY = cfg.Bind("UI", "ContainerPanelY", 100f, "컨테이너 panel Y 좌표");
+        ContainerPanelW = cfg.Bind("UI", "ContainerPanelW", 800f, "컨테이너 panel 폭");
+        ContainerPanelH = cfg.Bind("UI", "ContainerPanelH", 760f, "컨테이너 panel 높이");
+
+        // v0.7.6 — 자동 영속화 (ContainerPanel 사용 중 immediate write)
+        ContainerSortKey        = cfg.Bind("Container", "SortKey",        "Category",
+                                           "정렬 키 (Category|Name|Grade|Quality)");
+        ContainerSortAscending  = cfg.Bind("Container", "SortAscending",  true,
+                                           "정렬 방향 (true=▲ 오름)");
+        ContainerFilterCategory = cfg.Bind("Container", "FilterCategory", "All",
+                                           "카테고리 필터 (All|Equipment|Medicine|Food|Book|Treasure|Material|Horse)");
+        ContainerLastIndex      = cfg.Bind("Container", "LastIndex",      -1,
+                                           new ConfigDescription(
+                                               "마지막 선택 컨테이너 idx (-1=미선택)",
+                                               new AcceptableValueRange<int>(-1, 9999)));
     }
 }

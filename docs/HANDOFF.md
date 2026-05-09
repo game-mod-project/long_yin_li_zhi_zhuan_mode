@@ -1,7 +1,7 @@
 # LongYin Roster Mod — 작업 핸드오프 문서
 
-**일시 중지**: 2026-05-06
-**진행 상태**: **v0.7.5.2 release** — Cell 24×24 정사각형 + 한자 → 48×24 가로 직사각형 + 한글 라벨 (장비/단약/음식/비급/보물/재료/말). cell 내부 강화/착 마커 제거 (row text 정보 유지 — redundant). 카테고리 직관성 향상. 216/216 tests PASS (CategoryGlyphTests 갱신) + 인게임 smoke 11/11 PASS (3 iteration fix: label width / height / marker 제거).
+**일시 중지**: 2026-05-09
+**진행 상태**: **v0.7.8 release** — Player editor (F11+4, 720×720 PlayerEditorPanel). 6 섹션 — Resource stats (Hybrid pipeline: ChangeXxx delta + reflection fallback + realMax sync + RefreshMaxAttriAndSkill) + Quick actions (전체 회복 / 부상 치료) + HeroSpeAddData × 3 wrapper (baseAddData/heroBuff/totalAddData ⚠) + 천부 list (heroTagData, 카테고리 7 + sameMeaning 그룹 progression) + 무공 list (kungfuSkills 168, 9 카테고리 + 6 등급 + 문파 표시) + SkillBreakthroughDialog (sub-data 5 편집). SelectorDialog 2단계 탭 + 이미 보유 marker. v0.7.7 자산 (HeroSpeAddDataReflector + SpeAddTypeNames + SelectorDialog + PostMutationRefresh) 90% 재사용. 327/327 tests PASS + 사용자 11 iteration 검증 PASS.
 **저장소**: https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode (`main` 브랜치)
 **프로젝트 루트**: `E:/Games/龙胤立志传.v1.0.0f8.2/LongYinLiZhiZhuan/Save/_PlayerExport/`
 **Releases**:
@@ -27,6 +27,9 @@
 - [v0.7.3](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.7.3) — D-2 컨테이너 Item 시각 표시 풍부화 (placeholder cell): row 마다 24×24 cell prefix (등급 배경 6단계 + 우상단 품질 마름모 6단계 + 중앙 카테고리 한자 装/书/药/食/宝/材/马 + 우하단 강화 `+N` + 좌하단 착용 `착`). 신규 `CategoryGlyph` + `ItemCellRenderer` (Draw + GradeColor/QualityColor 단일 source). v0.7.2 검색·정렬 자산 100% 보존. IL2CPP IMGUI strip 회귀 2회 (Box 류 + GUILayoutUtility.GetLastRect) 발견 → `GUILayoutUtility.GetRect` 1-call 로 fallback. 진짜 game sprite 도입은 v0.8+ 별도 sub-project 후보.
 - [v0.7.4](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.7.4) — D-1 Item 상세 panel (view-only, hybrid curated+raw): ContainerPanel row 좌측 cell 클릭 single-focus (cyan 외곽선) + toolbar `ⓘ 상세` 버튼으로 별도 ItemDetailPanel window. **Curated 섹션** = 카테고리별 한글 라벨 (장비: 강화/착용/특수 강화/무게 경감/무게/가격, 비급: 무공 ID/무게/가격, 단약·음식: 강화/추가 보정/무게/가격) — 보물·재료·말 은 후속 v0.7.4.x patch. **Raw fields 섹션** (접이식) = 모든 reflection 필드 dump (IL2CPP meta 필터). **컨테이너 area** (외부 디스크) 는 JSON path 라 ItemDetailPanel 데이터 미지원 — focus outline 만 표시. **Cell vs Toggle 분리**: cell 클릭 = single-select + focus, toggle 라벨 클릭 = multi-check (이동·복사 워크플로우, focus 해제). ContainerPanel X 닫기 시 ItemDetailPanel 도 sync close. 신규 `ItemDetailReflector` (GetRawFields + GetCuratedFields with sub-data wrapper unwrap) + `ItemDetailPanel` window. v0.7.2 검색·정렬 / v0.7.3 cell renderer 자산 100% 보존. 182/182 tests PASS + 인게임 smoke 6/6 PASS (4-iteration UX fix: ref equality / SetFocus call / single-select / Toggle clear + container focus). Sub-data wrapper inventory dump: `docs/superpowers/dumps/2026-05-03-v0.7.4-subdata-spike.md`. Item editor (수정 기능) 는 v0.7.7 후보 별도 sub-project.
 - [v0.7.4.1](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.7.4.1) — Item 상세 panel 나머지 3 카테고리 curated (말 / 보물 / 재료). 7 카테고리 cover. 193 tests + smoke 12/12.
+- [v0.7.8](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.7.8) — Player editor (F11+4). 720×720 PlayerEditorPanel — Resource stats (Hybrid + Quick actions) / HeroSpeAddData × 3 (baseAddData/heroBuff/totalAddData) / 천부 list (카테고리 7 + sameMeaning 그룹 progression with auto-remove + ✓ 보유 marker) / 무공 list (168, 9 카테고리 + 6 등급 secondary tab + 문파 표시 + 페이징 10/page + ✓ marker) / SkillBreakthroughDialog (sub-data 5 편집). HeroLocator + 모든 reflector/UI panel Logger.Info/Warn → InfoOnce/WarnOnce (16만줄 → 정상). 327 tests + 사용자 11 iteration.
+- [v0.7.7](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.7.7) — Item editor. ItemDetailPanel view-only → edit-able. `[편집]` 토글 + ItemEditFieldMatrix (15 distinct field) + Hybrid Apply pipeline (reflection setter + read-back + CountValueAndWeight + RefreshMaxAttriAndSkill, IsEquipped 시). HeroSpeAddData stat editor (baseAddData/extraAddData entry add/edit/delete, 134 type 풀 매핑). SelectorDialog modal popup (검색+scrollable) — 등급(열악~절세)/품질(잔품~극품)/속성(134 type) 선택. Panel 480×640 + 기존 cfg auto-bump. 304 tests + 사용자 5 iteration 검증 PASS.
+- [v0.7.6](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.7.6) — 설정 panel (Hybrid stateful-only). 신규 SettingsPanel (F11+3) — hotkey rebind 4 (MainKey + Character/Container/Settings) + ContainerPanel rect 4 buffer 편집 + [저장]·[기본값 복원]·[취소]. 자동 영속화 6 (정렬 key/방향 / 카테고리 필터 / 마지막 컨테이너 idx / ContainerPanel rect) — ContainerPanel 사용 중 immediate ConfigEntry write. EventType.KeyDown + Event.current.keyCode strip-safe 검증 (spike PASS). HotkeyMap.Bind/NumpadFor 자동 derive (Alpha↔Keypad). 238 tests + smoke 28/28.
 - [v0.7.5.2](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.7.5.2) — Cell 24×24 정사각형 + 한자 → 48×24 가로 직사각형 + 한글 라벨 (장비/단약/음식/비급/보물/재료/말). cell 내부 강화/착 마커 제거. 216 tests + smoke 11/11.
 - [v0.7.5.1](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.7.5.1) — HangulDict stage 4 ModFix TranslationEngine fallback. 합성어 부분 한글화 (절세长矛 → 절세장검 등). 216/216 tests PASS, 인게임 smoke PASS.
 - [v0.7.5](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.7.5) — Item 한글화 — Hybrid 4단계 사전 (ModFix reflection > Sirius > 자체 CSV > LTLocalization). ContainerPanel/ItemDetailPanel 한자 노출 제거. bilingual 검색 + Korean 정렬. 212 tests + smoke 14/14.
@@ -42,15 +45,19 @@
 
 ## 1. 한 줄 요약
 
-BepInEx 6 IL2CPP 환경에서 플레이어 캐릭터 스냅샷을 20슬롯에 저장 / 관리하는 모드 + 컨테이너 (인벤/창고 ↔ 외부 디스크) 관리.
-**현재 main baseline = v0.7.5.2** (Cell 가로 직사각형 + 한글 라벨 — 장비/단약/음식/비급/보물/재료/말. cell 내부 강화/착 마커 제거. 카테고리 직관성 향상. 216/216 tests PASS + 인게임 smoke 11/11 PASS).
+BepInEx 6 IL2CPP 환경에서 플레이어 캐릭터 스냅샷을 20슬롯에 저장 / 관리하는 모드 + 컨테이너 (인벤/창고 ↔ 외부 디스크) 관리 + 사용자 설정 panel + Item editor + Player editor.
+**현재 main baseline = v0.7.8** (Player editor — F11+4 PlayerEditorPanel 6 섹션. Resource Hybrid pipeline + HeroSpeAddData × 3 + 천부 list (sameMeaning 그룹 progression) + 무공 list (168, 9 카테고리 + 등급 secondary + 문파) + SkillBreakthroughDialog. 327/327 tests PASS + 사용자 11 iteration 검증 PASS).
 
 **다음 세션 후속 sub-project**:
-- ✅ ~~v0.7.4.x patch: 나머지 3 카테고리 curated — 말 / 보물 / 재료~~ (v0.7.4.1 release 완료, 2026-05-05)
-- ✅ ~~v0.7.5 D-4 Item 한글화~~ (v0.7.5 release 완료, 2026-05-06) — Hybrid 4단계 사전. ContainerPanel + ItemDetailPanel 한자 노출 제거. bilingual 검색 + Korean 정렬.
-- ✅ ~~v0.7.5.1 hotfix~~ (v0.7.5.1 release 완료, 2026-05-06) — HangulDict stage 4 ModFix TranslationEngine fallback. 합성어 부분 한글화 (절세长矛 → 절세장검 등). 216/216 tests + 인게임 smoke PASS.
-- ✅ ~~v0.7.5.2 (cell 모양 + 한글 라벨)~~ (v0.7.5.2 release 완료, 2026-05-06) — Cell 24×24 정사각형 + 한자 → 48×24 가로 직사각형 + 한글 라벨. cell 내부 강화/착 마커 제거. 216 tests + smoke 11/11 PASS.
-- **v0.7.6 (후속 sub-project): 설정 panel** — hotkey 변경 / 컨테이너 정원 / 창 크기 / 검색·정렬 영속화 옵션. 자체 IMGUI panel vs sinai BepInExConfigManager 위임 vs Hybrid 결정 게이트.
+- ✅ ~~v0.7.4.x ~ v0.7.5.2~~ (Container 시리즈)
+- ✅ ~~v0.7.6 설정 panel~~ (2026-05-08)
+- ✅ ~~v0.7.7 Item editor~~ (2026-05-09)
+- ✅ ~~v0.7.8 Player editor~~ (v0.7.8 release 완료, 2026-05-09) — PlayerEditorPanel + Resource Hybrid + HeroSpeAddData × 3 + 천부/무공 list + 돌파속성 dialog. 천부 sameMeaning 그룹 progression 메커니즘 반영. SelectorDialog 2단계 탭 + ✓ 보유 marker.
+- **G3 결정 게이트 진입** — v0.8 / 신규 후보 / maintenance 평가:
+  - **v0.8 (후보)** 진짜 sprite — ItemCellRenderer placeholder 글리프 → sprite blit. IL2CPP sprite asset spike 필요. cheat IconHelper.cs 316 LOC 참조.
+  - **신규 후보 v0.7.8.1** — 천부 max 보유수 lock pattern (cheat StatEditor 의 LockedMax 매 frame 패턴) + 또는 NPC editor (heroID dropdown, v0.7.8 자산 100% 재사용)
+  - **신규 후보** v0.7.9 Slot diff preview / v0.7.10 NPC 지원 (heroID=0 외 캐릭터, v0.7.8 자산 100% 재사용)
+  - **maintenance** — 게임 patch / 통팩 한글모드 release / BepInEx 호환성 변경 시 활성화 (사용자 명시 trigger).
 - **v0.7.7 (후보)**: Item editor — ItemDetailPanel 의 view-only 필드를 edit-able 로 확장 (강화 lv 직접 변경, equipUseSpeAddValue 같은 sub-data 직접 수정). game-self method 우선 + reflection setter fallback. v0.7.4 의 ItemFieldExtractor 자산 baseline
 - v0.7.8: Apply 부분 미리보기 — 선택한 카테고리 적용 시 전후 비교
 - v0.7.9: Slot diff preview — Apply 전 어떤 필드가 바뀔지 미리보기 (스탯/장비/무공 차이 시각화)

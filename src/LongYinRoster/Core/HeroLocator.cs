@@ -66,34 +66,34 @@ public static class HeroLocator
             var ctrlType = FindTypeByName("GameDataController");
             if (ctrlType == null)
             {
-                Logger.Warn("HeroLocator: GameDataController type not found in any loaded assembly");
+                Logger.WarnOnce("HeroLocator", "HeroLocator: GameDataController type not found in any loaded assembly");
                 return null;
             }
-            Logger.Info($"HeroLocator: GameDataController = {ctrlType.AssemblyQualifiedName}");
+            Logger.InfoOnce("HeroLocator", $"HeroLocator: GameDataController = {ctrlType.AssemblyQualifiedName}");
 
             var inst = ReadStaticMember(ctrlType, "Instance");
             if (inst == null)
             {
-                Logger.Warn("HeroLocator: GameDataController.Instance is null (game not started or different singleton accessor)");
+                Logger.WarnOnce("HeroLocator", "HeroLocator: GameDataController.Instance is null (game not started or different singleton accessor)");
                 return null;
             }
-            Logger.Info($"HeroLocator: Instance runtime type = {inst.GetType().FullName}");
+            Logger.InfoOnce("HeroLocator", $"HeroLocator: Instance runtime type = {inst.GetType().FullName}");
 
             var saveData = ReadInstanceMember(inst, "gameSaveData");
             if (saveData == null)
             {
-                Logger.Warn("HeroLocator: gameSaveData member returned null (member missing or value is null)");
+                Logger.WarnOnce("HeroLocator", "HeroLocator: gameSaveData member returned null (member missing or value is null)");
                 return null;
             }
-            Logger.Info($"HeroLocator: gameSaveData runtime type = {saveData.GetType().FullName}");
+            Logger.InfoOnce("HeroLocator", $"HeroLocator: gameSaveData runtime type = {saveData.GetType().FullName}");
 
             var heroList = ReadInstanceMember(saveData, "HeroList");
             if (heroList == null)
             {
-                Logger.Warn("HeroLocator: HeroList member returned null");
+                Logger.WarnOnce("HeroLocator", "HeroLocator: HeroList member returned null");
                 return null;
             }
-            Logger.Info($"HeroLocator: HeroList runtime type = {heroList.GetType().FullName}");
+            Logger.InfoOnce("HeroLocator", $"HeroLocator: HeroList runtime type = {heroList.GetType().FullName}");
 
             // Il2CppSystem.Collections.Generic.List<T> 는 .NET IEnumerable 미구현.
             // Count + indexer (Item property 또는 get_Item(int) 메서드) reflection 으로 순회.
@@ -101,17 +101,17 @@ public static class HeroLocator
             var countProp = listType.GetProperty("Count", InstanceFlags);
             if (countProp == null)
             {
-                Logger.Warn($"HeroLocator: HeroList type {listType.FullName} has no Count property");
+                Logger.WarnOnce("HeroLocator", $"HeroLocator: HeroList type {listType.FullName} has no Count property");
                 return null;
             }
             int n = Convert.ToInt32(countProp.GetValue(heroList));
-            Logger.Info($"HeroLocator: HeroList Count = {n}");
+            Logger.InfoOnce("HeroLocator", $"HeroLocator: HeroList Count = {n}");
 
             var itemProp      = listType.GetProperty("Item", InstanceFlags);
             var getItemMethod = listType.GetMethod("get_Item", InstanceFlags, null, new[] { typeof(int) }, null);
             if (itemProp == null && getItemMethod == null)
             {
-                Logger.Warn($"HeroLocator: HeroList type {listType.FullName} has no indexer (Item / get_Item(int))");
+                Logger.WarnOnce("HeroLocator", $"HeroLocator: HeroList type {listType.FullName} has no indexer (Item / get_Item(int))");
                 return null;
             }
 
@@ -127,16 +127,16 @@ public static class HeroLocator
                     validIds++;
                     if (id == 0)
                     {
-                        Logger.Info($"HeroLocator: matched heroID=0 at index {i}");
+                        Logger.InfoOnce("HeroLocator", $"HeroLocator: matched heroID=0 at index {i}");
                         return h;
                     }
                 }
             }
-            Logger.Warn($"HeroLocator: iterated {n} entries ({validIds} with readable heroID), no heroID==0 found");
+            Logger.WarnOnce("HeroLocator", $"HeroLocator: iterated {n} entries ({validIds} with readable heroID), no heroID==0 found");
         }
         catch (Exception ex)
         {
-            Logger.Warn($"HeroLocator manager path threw: {ex.GetType().Name}: {ex.Message}");
+            Logger.WarnOnce("HeroLocator", $"HeroLocator manager path threw: {ex.GetType().Name}: {ex.Message}");
         }
         return null;
     }
@@ -160,9 +160,9 @@ public static class HeroLocator
         foreach (var alt in new[] { "instance", "_instance", "s_Instance", "s_instance" })
         {
             var pa = t.GetProperty(alt, StaticFlags);
-            if (pa != null) { Logger.Info($"HeroLocator: static fallback hit property '{alt}' on {t.Name}"); return pa.GetValue(null); }
+            if (pa != null) { Logger.InfoOnce("HeroLocator", $"HeroLocator: static fallback hit property '{alt}' on {t.Name}"); return pa.GetValue(null); }
             var fa = t.GetField(alt, StaticFlags);
-            if (fa != null) { Logger.Info($"HeroLocator: static fallback hit field '{alt}' on {t.Name}"); return fa.GetValue(null); }
+            if (fa != null) { Logger.InfoOnce("HeroLocator", $"HeroLocator: static fallback hit field '{alt}' on {t.Name}"); return fa.GetValue(null); }
         }
         return null;
     }

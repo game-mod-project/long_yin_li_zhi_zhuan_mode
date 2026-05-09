@@ -85,7 +85,7 @@ v0.7.6 설정 panel           hotkey / 컨테이너 정원 / 창 크기 / 검색
 
 **Patch v0.7.5.2** (2026-05-06): Cell 24×24 정사각형 + 한자 → 48×24 가로 직사각형 + 한글 라벨 (장비/단약/음식/비급/보물/재료/말). cell 내부 강화/착 마커 제거 (row text 정보 유지). 216 tests + smoke 11/11. [Spec](2026-05-06-longyin-roster-mod-v0.7.5.2-design.md) / [Smoke](../dumps/2026-05-06-v0.7.5.2-smoke-results.md) / [Release](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.7.5.2).
 
-### 2.3 v0.7.6 설정 panel (확정 sub-project)
+### 2.3 v0.7.6 설정 panel ✅ 완료 (v0.7.6, 2026-05-08)
 
 | 항목 | 내용 |
 |---|---|
@@ -94,7 +94,20 @@ v0.7.6 설정 panel           hotkey / 컨테이너 정원 / 창 크기 / 검색
 | **출력** | 1 spec + 1 plan + 1 release tag. SettingsPanel 신규 IMGUI window + ConfigEntry 추가 + 검색·정렬 상태 BepInEx config 영속화 (현재 메모리만) |
 | **결정 게이트** | 자체 IMGUI panel vs sinai BepInExConfigManager 위임 vs Hybrid (단순 항목은 ConfigManager 에 노출, 검색·정렬 같은 stateful 항목만 자체 panel). 기본 추정: Hybrid |
 
-### 2.4 v0.7.7 (후보) Item editor
+**Result** (2026-05-08):
+- Release: [v0.7.6](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.7.6)
+- Spec: [2026-05-08-longyin-roster-mod-v0.7.6-design.md](2026-05-08-longyin-roster-mod-v0.7.6-design.md)
+- Plan: [2026-05-08-longyin-roster-mod-v0.7.6-plan.md](../plans/2026-05-08-longyin-roster-mod-v0.7.6-plan.md)
+- Smoke: [2026-05-08-v0.7.6-smoke-results.md](../dumps/2026-05-08-v0.7.6-smoke-results.md)
+- Tests: 216 → 238 PASS (+22), 인게임 smoke 28/28 PASS.
+- Decision Gate: **B** Hybrid stateful-only — 자체 SettingsPanel 은 hotkey rebind 4 + ContainerPanel rect buffer 편집 + 영속화 정보 read-only 표시. ConfigEntry 16개는 sinai BepInExConfigManager F5 위임.
+- Q2 영속화 scope: 검색 textbox 휘발 / 정렬 key·방향·필터·last container·panel rect 5개 영속.
+- Q3-1 Hotkey 범위: B — 4 키 ConfigEntry (MainKey 재사용 + Character/Container/Settings 신규). Numpad 자동 derive (Alpha↔Keypad).
+- Q3-2 컨테이너 정원: A — Inventory/StorageMaxWeight 만 (외부 컨테이너 무제한 유지).
+- 자유 입력: F11 메뉴 항목 추가 / [저장] 버튼 명시 (buffer + dirty + can-save) / [기본값 복원] 버튼 + [영속화 정보 reset] 별도.
+- Spike: EventType.KeyDown + Event.current.keyCode strip-safe 검증 PASS — fallback 미필요.
+
+### 2.4 v0.7.7 Item editor ✅ 완료 (v0.7.7, 2026-05-09)
 
 | 항목 | 내용 |
 |---|---|
@@ -102,6 +115,27 @@ v0.7.6 설정 panel           hotkey / 컨테이너 정원 / 창 크기 / 검색
 | **입력 자산** | v0.7.4 ItemDetailReflector + v0.7.4.x curated 매트릭스 + `dumps/2026-05-05-v075-cheat-feature-reference.md` Section 2 (`ItemGenerator.AddCloneWithLv`, `SaveDataSanitizer`, `ItemData.CountValueAndWeight`) |
 | **출력** | 1 spec + 1 plan + 1 release tag (G1 에서 GO 결정 시) |
 | **결정 게이트** | G1 진입 시점에 Item editor scope 확정 (어떤 필드를 edit-able? 강화 lv 만? sub-data 까지?) |
+
+**Result** (2026-05-09):
+- Release: [v0.7.7](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.7.7)
+- Spec: [2026-05-08-longyin-roster-mod-v0.7.7-design.md](2026-05-08-longyin-roster-mod-v0.7.7-design.md)
+- Plan: [2026-05-08-longyin-roster-mod-v0.7.7-plan.md](../plans/2026-05-08-longyin-roster-mod-v0.7.7-plan.md)
+- Smoke: [2026-05-09-v0.7.7-smoke-results.md](../dumps/2026-05-09-v0.7.7-smoke-results.md)
+- Tests: 238 → 304 PASS (+66), 사용자 5 iteration 인게임 검증 PASS.
+- **Brainstorm 결과**: Q1=A 단일 Phase / Q2=C Hybrid (reflection + read-back + regenerate fallback placeholder) / Q3=D Aggressive sanitize (Range + CountValueAndWeight + RefreshMaxAttriAndSkill) / Q4=A `[편집]` 토글 / Q5=B Disclaimer + range matrix / Q6=A 인벤·창고만 edit.
+- **Spike 결과**:
+  - itemLv/rareLv/equipmentData.enhanceLv 모두 **Property setter** (Field 부재). reflection setter Field+Property 양쪽 시도.
+  - `RefreshSelfState` 부재 → 진짜 method = **`RefreshMaxAttriAndSkill()`**.
+  - **HeroSpeAddData 구조** 확정 = `Dictionary<int, float>` + `Get(int) → float`, `Set(int, float) → self`, `GetKeys() → List<int>`. Remove method 부재 → `heroSpeAddData.Remove(int)` Dictionary 직접 호출.
+  - LongYinCheat 디컴파일 cache 의 SpeAddTypeNames 풀 dump (134 entry, idx 0~207) 추출.
+- **사용자 5 iteration fix narrative**:
+  1. rareLv/itemLv row 안 보임 → ItemDetailReflector curated 무시 + ItemEditFieldMatrix 직접 렌더
+  2. 강화/특수 강화 단순 수치 무의미 → 매트릭스 제거 + HeroSpeAddData stat editor 도입
+  3. spike v1 부족 (Property 검색 안 함) → spike v2 보강
+  4. SpeAddType 55+ "기타" 표시 → 134 entry 풀 dump
+  5. Dropdown UI 작은 panel → SelectorDialog modal popup + 등급/품질도 selector + panel 480×640 + 라벨 swap fix (itemLv=등급, rareLv=품질)
+- **신규 strip-safe 검증**: 추가 IMGUI API 도입 없음 (v0.7.6 검증 그대로 사용).
+- **다음 자산 활용 가능**: HeroSpeAddDataReflector + SpeAddTypeNames + SelectorDialog + ItemEditApplier.PostMutationRefresh — v0.7.8 Player editor / NPC editor 등에서 mirror.
 
 ### 2.5 v0.8 (후보) 진짜 sprite 도입
 
@@ -241,4 +275,69 @@ v0.7.6 설정 panel           hotkey / 컨테이너 정원 / 창 크기 / 검색
 
 ## Decision Log (append-only, 게이트 진입 시 추가)
 
-(아직 결정 없음 — 첫 entry 는 v0.7.6 release 직후 G1 게이트)
+### G1 Decision (2026-05-08)
+
+v0.7.6 release 직후 G1 게이트 평가:
+
+- **v0.7.7 Item editor**: **GO** → rationale = ItemDetailPanel 의 view-only 자산 (v0.7.4 ItemDetailReflector + v0.7.4.1 7-카테고리 curated 매트릭스) 이 edit-able 로 자연스럽게 확장 가능. 사용자가 명시적으로 v0.7.7 진입 선택 (2026-05-08). game-self method 우선 + reflection setter fallback 패턴은 이미 v0.6.x Apply pipeline 에서 검증됨 (Apply/Restore 흐름과는 별개로 즉시 in-memory 수정). LongYinCheat dump (`dumps/2026-05-05-v075-cheat-feature-reference.md` §2/§9) 가 차용 가능 자산 풍부.
+- **v0.8 진짜 sprite**: **DEFER until G2** → rationale = G2 시점까지 보류. v0.7.7 Item editor 가 placeholder 글리프 위에 충분히 작동하면 sprite 시급도 낮음. IL2CPP sprite asset spike 비용 별도. v0.7.7 완료 후 사용자 피드백 보고 G2 에서 재평가.
+- **maintenance**: **WAIT** → rationale = 게임 patch / 통팩 한글모드 release / BepInEx breaking 변경 알림 없음. trigger 발생 시 사용자 명시적 선언으로 활성화.
+
+Next sub-project: **v0.7.7 (Item editor)** brainstorm cycle 시작 (메타 §5.3 후보 sub-project = 5~10 질문 cycle).
+
+### G2 Gate Pending (v0.7.7 release 직후, 2026-05-09)
+
+v0.7.7 release 완료 (304 tests + 사용자 5 iteration 검증 PASS). G2 게이트 진입 — 평가 대상:
+
+- **v0.8 진짜 sprite** — IL2CPP sprite asset spike 필요. ItemCellRenderer placeholder 글리프 → sprite blit. 평가: GO / DEFER / NO-GO.
+- **신규 후보 v0.7.8 Player editor** — HeroData 의 `baseAddData / totalAddData / heroBuff` (HeroSpeAddData) 편집. v0.7.7 자산 (HeroSpeAddDataReflector + SpeAddTypeNames + SelectorDialog + ItemEditApplier.PostMutationRefresh) **거의 100% 재사용 가능** — 가장 자연스러운 후속.
+- **신규 후보 v0.7.8 Apply 미리보기** / **v0.7.9 Slot diff** / **v0.7.10 NPC 지원** — HANDOFF 후보 list 보존.
+- **maintenance** — 게임 patch / 통팩 한글모드 release 알림 시 활성화.
+
+G2 Decision 은 사용자 명시 선택 시점에 본 spec 에 append.
+
+### G2 Decision (2026-05-09)
+
+v0.7.7 release 완료 직후 G2 게이트 평가:
+
+- **v0.7.8 Player editor**: **GO** → rationale = v0.7.7 자산 (HeroSpeAddDataReflector + SpeAddTypeNames + SelectorDialog + ItemEditApplier.PostMutationRefresh) 거의 100% 재사용. HeroData 의 baseAddData/totalAddData/heroBuff (HeroSpeAddData 인스턴스 3개) + resource stats (hp/maxhp/power/mana/weight) 편집. 사용자가 명시적으로 v0.7.8 Player editor 진입 선택 (2026-05-09).
+- **v0.8 진짜 sprite**: **DEFER until G3** → rationale = v0.7.8 후 재평가. IL2CPP sprite spike 비용 별도. placeholder 가 사용자 사용 흐름에 충분.
+- **v0.7.9 Slot diff / v0.7.10 NPC 지원**: **DEFER until G3** → rationale = v0.7.8 의 NPC 스코프 결정 후 자연스러운 후속 평가.
+- **maintenance**: **WAIT** → rationale = trigger 미발견.
+
+Next sub-project: **v0.7.8 (Player editor)** brainstorm cycle 시작 (메타 §5.3 후보 sub-project = 5~10 질문 cycle).
+
+### v0.7.8 Result (2026-05-09)
+
+- Release: [v0.7.8](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.7.8)
+- Spec: [2026-05-09-longyin-roster-mod-v0.7.8-design.md](2026-05-09-longyin-roster-mod-v0.7.8-design.md)
+- Plan: [2026-05-09-longyin-roster-mod-v0.7.8-plan.md](../plans/2026-05-09-longyin-roster-mod-v0.7.8-plan.md)
+- Smoke: [2026-05-09-v0.7.8-smoke-results.md](../dumps/2026-05-09-v0.7.8-smoke-results.md)
+- Tests: 304 → 327 PASS (+23 PlayerEditApplier + clamp). 사용자 **11 iteration** 검증 PASS.
+- **Brainstorm 결과**: Q1=B+자유입력 (Resource + HeroSpeAddData + 천부 + 무공) / Q2=C 3 wrapper / Q3=C Hybrid / Q4=A 별도 PlayerEditorPanel + F11+4 / Q5=B Quick actions / Q6=A heroID=0 only.
+- **Spike 3 결과**: 부상 stat = `externalInjury/internalInjury/poisonInjury` (Property). heroTagData = `List<HeroTagData>` 27, AddTag/RemoveTag/FindTag/HaveTag method ✓. kungfuSkills = `List<KungfuSkillLvData>` 168, **`lv` (NOT `level`) read-only**, propWrite=True for fightExp/bookExp/skillID/equiped, LoseSkill ✓ single remove, GetSkill 3-arg ✓.
+- **Spike v3 결과**: HeroTagDataBase fields = `name/value/category/sameMeaning/order` — 카테고리 (무학/고급/기예/천생/지향/취향/전법) + sameMeaning 그룹 progression 인식.
+- **사용자 11 iteration fix narrative**:
+  1. maxhp/Mana/Power camelCase + realMax sync (cheat StatEditor 패턴)
+  2. Quick 통합 (회복+채움) + max 표시 제거 + current value max clamp
+  3. 무공 lv → `lv` (cheat 검증)
+  4. SpeAddType 134 entry 풀 dump (idx 0~207)
+  5. SelectorDialog modal popup + 등급/품질 selector
+  6. 강화/특수강화 → 돌파속성 dialog (Iteration 6 = v0.7.7 사용자 피드백 with v0.7.7 release 직전)
+  7. PlayerEditorPanel 5 fixes (lv 표시 / 카테고리 9탭 / 페이징 / F-B 안내 / 등급 secondary tab)
+  8. 돌파속성 inline expand → SkillBreakthroughDialog 별도 popup
+  9. 로그 폭주 16만 lines fix → InfoOnce/WarnOnce + HeroLocator/모든 reflector/UI panel 적용
+  10. 천부 추가 인게임 메커니즘 (sameMeaning 그룹 progression with auto-remove + downgrade 거부)
+  11. 추가 버튼 삭제 + selector 즉시-add + 보유 marker (✓) + 줄바꿈 fix
+- **신규 자산**: PlayerEditApplier / HeroTagDataReflector / HeroTagNameCache / KungfuSkillEditor / SkillNameCache / ForceNameCache / SkillBreakthroughDialog / SelectorDialog 2단계 탭 + markedFn / Logger.InfoOnce-WarnOnce / ApplyTagAddSmart.
+
+### G3 Gate Pending (v0.7.8 release 직후, 2026-05-09)
+
+v0.7.8 release 완료 (327 tests + 사용자 11 iteration 검증 PASS). G3 게이트 진입 — 평가 대상:
+- **v0.8 진짜 sprite** — IL2CPP sprite asset spike → GO/DEFER/NO-GO. cheat IconHelper.cs 316 LOC 참조 가능.
+- **v0.7.8.1 Lock 시스템 / 천부 max 수정** — cheat StatEditor LockedMax 매 frame 패턴. v0.7.8 자산 그대로 차용.
+- **v0.7.10 NPC 지원** — heroID=0 외 캐릭터 (v0.7.8 자산 100% 재사용 — heroID dropdown 만 추가).
+- **v0.7.9 Slot diff preview** — Apply 흐름 변경 (별도 spike).
+- **maintenance** — trigger 발생 시 활성.
+
+G3 Decision 은 사용자 명시 선택 시점에 본 spec 에 append.

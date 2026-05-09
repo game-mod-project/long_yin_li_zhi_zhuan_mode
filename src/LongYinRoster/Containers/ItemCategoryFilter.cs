@@ -45,4 +45,19 @@ public static class ItemCategoryFilter
         ItemCategory.Other     => "기타",
         _ => "?",
     };
+
+    /// <summary>v0.7.6 — Config string ↔ enum parsing. invalid 값 → All fallback.</summary>
+    public static ItemCategory ParseOrDefault(string s) => s switch
+    {
+        "All"       => ItemCategory.All,
+        "Equipment" => ItemCategory.Equipment,
+        "Medicine"  => ItemCategory.Medicine,
+        "Food"      => ItemCategory.Food,
+        "Book"      => ItemCategory.Book,
+        "Treasure"  => ItemCategory.Treasure,
+        "Material"  => ItemCategory.Material,
+        "Horse"     => ItemCategory.Horse,
+        "Other"     => ItemCategory.Other,
+        _           => ItemCategory.All,
+    };
 }

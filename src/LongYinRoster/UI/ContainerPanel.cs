@@ -156,6 +156,36 @@ public sealed class ContainerPanel
         RefreshContainerList();
     }
 
+    /// <summary>
+    /// v0.7.6 — Config 의 영속화 항목 (sort/filter/lastIndex/rect) 을 hydrate.
+    /// SetRepository 다음 호출 — containerList 가 채워진 상태에서 lastIndex 검증 가능.
+    /// </summary>
+    public void HydrateFromConfig()
+    {
+        _filter = ItemCategoryFilter.ParseOrDefault(Config.ContainerFilterCategory.Value);
+        _globalState = new SearchSortState("",
+            SortKeyParser.ParseOrDefault(Config.ContainerSortKey.Value),
+            Config.ContainerSortAscending.Value);
+        _invView.Invalidate(); _stoView.Invalidate(); _conView.Invalidate();
+
+        var lastIdx = Config.ContainerLastIndex.Value;
+        if (lastIdx > 0 && _containerList.Exists(c => c.ContainerIndex == lastIdx))
+        {
+            _selectedContainerIdx = lastIdx;
+            _initialContainerLoadPending = true;
+        }
+        // 삭제된 컨테이너 가리킴 → RefreshContainerList 의 default (첫 컨테이너) 유지
+
+        _rect = new Rect(Config.ContainerPanelX.Value, Config.ContainerPanelY.Value,
+                         Config.ContainerPanelW.Value, Config.ContainerPanelH.Value);
+    }
+
+    /// <summary>v0.7.6 — SettingsPanel.OnSaved 에서 호출. ContainerPanel rect 갱신.</summary>
+    public void SetRect(float x, float y, float w, float h)
+    {
+        _rect = new Rect(x, y, w, h);
+    }
+
     public void SetInventoryRows(List<ItemRow> rows, List<object> rawItems, float maxWeight = 964f)
     {
         _inventoryRows = rows;
@@ -237,7 +267,7 @@ public sealed class ContainerPanel
         {
             _initialContainerLoadPending = false;
             try { OnContainerSelected.Invoke(_selectedContainerIdx); }
-            catch (System.Exception ex) { Util.Logger.Warn($"ContainerPanel initial container load: {ex.Message}"); }
+            catch (System.Exception ex) { Util.Logger.WarnOnce("ContainerPanel", $"ContainerPanel initial container load: {ex.Message}"); }
         }
         try
         {
@@ -246,7 +276,7 @@ public sealed class ContainerPanel
         catch (System.Exception ex)
         {
             // v0.7.0.1 fix — IMGUI frame 폐기 회피. 미래 strip 회귀 발견 시 진단 가능.
-            Util.Logger.Warn($"ContainerPanel.OnGUI threw: {ex.GetType().Name}: {ex.Message}");
+            Util.Logger.WarnOnce("ContainerPanel", $"ContainerPanel.OnGUI threw: {ex.GetType().Name}: {ex.Message}");
         }
     }
 
@@ -285,7 +315,7 @@ public sealed class ContainerPanel
         }
         catch (System.Exception ex)
         {
-            Util.Logger.Warn($"ContainerPanel.Draw threw: {ex.GetType().Name}: {ex.Message}");
+            Util.Logger.WarnOnce("ContainerPanel", $"ContainerPanel.Draw threw: {ex.GetType().Name}: {ex.Message}");
         }
     }
 
@@ -298,7 +328,10 @@ public sealed class ContainerPanel
             var prevColor = GUI.color;
             if (active) GUI.color = Color.cyan;
             if (GUILayout.Button(ItemCategoryFilter.KoreanLabel(cat), GUILayout.Width(70)))
+            {
                 _filter = cat;
+                Config.ContainerFilterCategory.Value = cat.ToString();   // v0.7.6 immediate write
+            }
             GUI.color = prevColor;
         }
         GUILayout.EndHorizontal();
@@ -363,6 +396,7 @@ public sealed class ContainerPanel
             {
                 _repo.Delete(_selectedContainerIdx);
                 _selectedContainerIdx = -1;
+                Config.ContainerLastIndex.Value = -1;   // v0.7.6 immediate write
                 RefreshContainerList();
                 OnContainerSelected?.Invoke(-1);
                 Toast("컨테이너 삭제됨");
@@ -377,6 +411,7 @@ public sealed class ContainerPanel
                 if (GUILayout.Button($"{m.ContainerIndex:D2}: {m.ContainerName}"))
                 {
                     _selectedContainerIdx = m.ContainerIndex;
+                    Config.ContainerLastIndex.Value = m.ContainerIndex;   // v0.7.6 immediate write
                     _dropdownOpen = false;
                     OnContainerSelected?.Invoke(m.ContainerIndex);
                 }
@@ -395,6 +430,7 @@ public sealed class ContainerPanel
                 _newMode = false;
                 RefreshContainerList();
                 _selectedContainerIdx = idx;
+                Config.ContainerLastIndex.Value = idx;   // v0.7.6 immediate write
                 OnContainerSelected?.Invoke(idx);
                 Toast($"신규 컨테이너 #{idx} 생성");
             }
@@ -444,6 +480,11 @@ public sealed class ContainerPanel
         if (!newState.Equals(_globalState))
         {
             _globalState = newState;
+            // v0.7.6 — sort key/방향 immediate ConfigEntry write (검색 textbox 는 영속화 안 함)
+            if (newState.Key.ToString() != Config.ContainerSortKey.Value)
+                Config.ContainerSortKey.Value = newState.Key.ToString();
+            if (newState.Ascending != Config.ContainerSortAscending.Value)
+                Config.ContainerSortAscending.Value = newState.Ascending;
             _invView.Invalidate();
             _stoView.Invalidate();
             _conView.Invalidate();

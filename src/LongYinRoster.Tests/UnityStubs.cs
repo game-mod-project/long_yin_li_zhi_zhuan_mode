@@ -31,6 +31,7 @@ namespace UnityEngine
     {
         public EventType type;
         public Vector2 mousePosition;
+        public KeyCode keyCode;   // v0.7.6 — SettingsPanel 키 캡처
         public void Use() { }
         public static Event current { get; } = new Event();
     }
@@ -119,5 +120,31 @@ namespace UnityEngine
     {
         public static int width  => 1920;
         public static int height => 1080;
+    }
+
+    // v0.7.6 — KeyCode subset (Config / HotkeyMap / SettingsPanel 에서 참조). Unity 실제 KeyCode 와
+    // 숫자값 일치하지 않아도 OK — production code 는 enum 비교만 사용. NumpadFor switch / ==/!= 만 신경 씀.
+    public enum KeyCode
+    {
+        None = 0,
+        Backspace = 8, Tab = 9, Return = 13, Escape = 27, Space = 32,
+        Alpha0 = 48, Alpha1, Alpha2, Alpha3, Alpha4, Alpha5, Alpha6, Alpha7, Alpha8, Alpha9,
+        A = 97, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z,
+        Keypad0 = 256, Keypad1, Keypad2, Keypad3, Keypad4, Keypad5, Keypad6, Keypad7, Keypad8, Keypad9,
+        F1 = 282, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12,
+        LeftShift = 304, RightShift, LeftControl, RightControl, LeftAlt, RightAlt,
+    }
+
+    // v0.7.6 — Input static stub. 모든 method false 반환 (test 는 Bind/NumpadFor/buffer logic 만 검증).
+    public static class Input
+    {
+        public static bool GetKey(KeyCode k) => false;
+        public static bool GetKeyDown(KeyCode k) => false;
+        public static bool GetKeyUp(KeyCode k) => false;
+        public static Vector2 mousePosition => default;
+        public static bool GetMouseButton(int button) => false;
+        public static bool GetMouseButtonDown(int button) => false;
+        public static bool GetMouseButtonUp(int button) => false;
+        public static float GetAxis(string axisName) => 0f;
     }
 }

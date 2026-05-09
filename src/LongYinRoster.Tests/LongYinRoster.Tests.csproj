@@ -161,5 +161,65 @@
     <Compile Include="../LongYinRoster/Containers/ContainerView.cs">
       <Link>Containers/ContainerView.cs</Link>
     </Compile>
+    <!-- v0.7.6 -->
+    <Compile Include="../LongYinRoster/Config.cs">
+      <Link>Config.cs</Link>
+    </Compile>
+    <Compile Include="../LongYinRoster/Util/HotkeyMap.cs">
+      <Link>Util/HotkeyMap.cs</Link>
+    </Compile>
+    <Compile Include="../LongYinRoster/UI/SettingsPanel.cs">
+      <Link>UI/SettingsPanel.cs</Link>
+    </Compile>
+    <!-- v0.7.7 -->
+    <Compile Include="../LongYinRoster/Core/ItemEditField.cs">
+      <Link>Core/ItemEditField.cs</Link>
+    </Compile>
+    <Compile Include="../LongYinRoster/Core/ItemEditApplier.cs">
+      <Link>Core/ItemEditApplier.cs</Link>
+    </Compile>
+    <Compile Include="../LongYinRoster/Core/SpeAddTypeNames.cs">
+      <Link>Core/SpeAddTypeNames.cs</Link>
+    </Compile>
+    <Compile Include="../LongYinRoster/Core/HeroSpeAddDataReflector.cs">
+      <Link>Core/HeroSpeAddDataReflector.cs</Link>
+    </Compile>
+    <Compile Include="../LongYinRoster/Core/ItemRareLvNames.cs">
+      <Link>Core/ItemRareLvNames.cs</Link>
+    </Compile>
+    <Compile Include="../LongYinRoster/UI/SelectorDialog.cs">
+      <Link>UI/SelectorDialog.cs</Link>
+    </Compile>
+    <!-- v0.7.8 -->
+    <Compile Include="../LongYinRoster/Core/PlayerEditApplier.cs">
+      <Link>Core/PlayerEditApplier.cs</Link>
+    </Compile>
+    <Compile Include="../LongYinRoster/UI/PlayerEditorPanel.cs">
+      <Link>UI/PlayerEditorPanel.cs</Link>
+    </Compile>
+    <Compile Include="../LongYinRoster/Core/HeroTagDataReflector.cs">
+      <Link>Core/HeroTagDataReflector.cs</Link>
+    </Compile>
+    <Compile Include="../LongYinRoster/Core/HeroTagNameCache.cs">
+      <Link>Core/HeroTagNameCache.cs</Link>
+    </Compile>
+    <Compile Include="../LongYinRoster/Core/SkillNameCache.cs">
+      <Link>Core/SkillNameCache.cs</Link>
+    </Compile>
+    <Compile Include="../LongYinRoster/Core/KungfuSkillEditor.cs">
+      <Link>Core/KungfuSkillEditor.cs</Link>
+    </Compile>
+    <Compile Include="../LongYinRoster/Core/ForceNameCache.cs">
+      <Link>Core/ForceNameCache.cs</Link>
+    </Compile>
+    <Compile Include="../LongYinRoster/UI/SkillBreakthroughDialog.cs">
+      <Link>UI/SkillBreakthroughDialog.cs</Link>
+    </Compile>
+    <Compile Include="../LongYinRoster/Core/TagPointColors.cs">
+      <Link>Core/TagPointColors.cs</Link>
+    </Compile>
+    <Compile Include="../LongYinRoster/Core/SkillRareLvColors.cs">
+      <Link>Core/SkillRareLvColors.cs</Link>
+    </Compile>
   </ItemGroup>
 </Project>
