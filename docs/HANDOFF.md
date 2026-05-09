@@ -403,9 +403,47 @@ v0.7.3 출시 완료 (2026-05-03). D-2 컨테이너 Item 시각 표시 풍부화
 
 **다음 세션 첫 메시지에 붙여넣을 요약**:
 
-> LongYin Roster Mod — **main baseline = v0.7.5.2** (2026-05-06 release). v0.7.5.x 시리즈 (Item 한글화 + cell UI 한글화) 완료. 216/216 unit tests + 인게임 smoke PASS.
+> LongYin Roster Mod — **main baseline = v0.7.8** (2026-05-09 release, commit 9664651). v0.7.6+v0.7.7+v0.7.8 통합 commit + 3 tags push 완료. 327/327 unit tests + 인게임 smoke PASS (사용자 11 iteration 검증).
 > 프로젝트 루트: `E:/Games/龙胤立志传.v1.0.0f8.2/LongYinLiZhiZhuan/Save/_PlayerExport/`.
 > 핸드오프: `docs/HANDOFF.md`. 메타 로드맵: `docs/superpowers/specs/2026-05-05-longyin-roster-mod-roadmap-v0.7.4-to-v0.8.md`.
+>
+> **v0.7.6+v0.7.7+v0.7.8 결과 요약**:
+> - **v0.7.6 SettingsPanel** (F11+3) — hotkey rebind 4종 + ContainerPanel rect 영속화 + 자동 영속화 6 (정렬/필터/last/rect/window). EventType.KeyDown spike PASS.
+> - **v0.7.7 Item editor** — ItemDetailPanel `[편집]` 토글 + ItemEditFieldMatrix (15 distinct field, itemLv=등급/rareLv=품질) + 8-step Hybrid pipeline + HeroSpeAddData stat editor (134 type) + SelectorDialog modal popup.
+> - **v0.7.8 Player editor** (F11+4, 720×720) — 6 섹션. Resource Hybrid + Quick actions + max clamp + realMax sync. HeroSpeAddData × 3 wrapper. 천부 list (sameMeaning 그룹 progression with auto-remove/downgrade 거부). 무공 list (168, 9 카테고리 + 6 등급 secondary tab + 문파 + 페이징 10/page). SkillBreakthroughDialog (sub-data 5). SelectorDialog 2단계 탭 + ✓ marker + colorFn. 천부 점수별/무공 등급별 색상. HeroLocator 매 frame Logger 폭주 fix → InfoOnce/WarnOnce.
+>
+> **v0.7.8 핵심 자산** (다음 sub-project 가 활용):
+> - `Logger.InfoOnce(key, msg)` / `Logger.WarnOnce(key, msg)` — 매 frame 호출 path 의 로그 폭주 회피.
+> - `PlayerEditApplier` — Resource Hybrid pipeline (delta + game-self method + reflection fallback + realMax sync + Quick actions). NPC editor (v0.7.10) 가 그대로 차용 가능.
+> - `HeroSpeAddDataReflector` (134 entry idx 0~207, item + player 공유) / `SpeAddTypeNames`.
+> - `HeroTagDataReflector` (AddTag/RemoveTag/FindTag/HaveTag/SetLeftTime/TagPoint/PermanentCount/MaxCount) / `HeroTagNameCache.TagMeta` (name/value/category/sameMeaning/order — sameMeaning 그룹 인식의 핵심).
+> - `KungfuSkillEditor` (단일 skill add/remove + sub-data wrapper accessor for 돌파속성) / `SkillNameCache` (134+ entry, type 0~8 / rareLv 0~5 / belongForceID + AllOrderedEnriched + BuildKungfuTabs/BuildRareLvTabs) / `ForceNameCache`.
+> - `SelectorDialog` 확장 — 2단계 탭 (primary + secondary) + `markedFn` (✓ 보유 marker) + `colorFn` (entry 색상) + customizable width/height. 다른 list selector 가 그대로 활용.
+> - `SkillBreakthroughDialog` — 무공 sub-data 별도 popup 패턴 (재사용 가능).
+> - `TagPointColors` (≤5녹/≤10파/≤15보/≤20주/>20적) / `SkillRareLvColors` (회/녹/파/보/주/적).
+> - `ApplyTagAddSmart` — sameMeaning 그룹 progression 인식 + 카테고리 == "고급" 분기 + downgrade 거부 + auto-remove + toast.
+> - `HeroTagNameCache.BuildCategoryTabs()` — 7 카테고리 (무학/고급/기예/천생/지향/취향/전법) 자동 빌드.
+>
+> **외부 mod 분석 자산** (v0.7.6+v0.7.7+v0.7.8 에서 차용):
+> - `dumps/2026-05-05-v075-cheat-feature-reference.md` — LongYinCheat (StatEditor / SkillManager / CharacterFeature).
+> - `dumps/2026-05-05-bepinexconfigmanager-analysis.md` — sinai BepInExConfigManager (v0.7.6 결정 게이트).
+> - LongYinCheat 디컴파일 cache: `C:/Users/deepe/AppData/Local/Temp/longyincheat_decomp/` (CharacterFeature.cs:94-230 SpeAddTypeNames 134 entry, SkillManager.cs:163 GetSkillTypeName, CheatPanels.cs:80-82 EquipLvNames/QualityNames, SkillManager.cs:1136 GetForceName).
+>
+> **모든 spike 검증 완료** — 추가 spike probe 없음. 인게임 1회 검증 + 사용자 보고 후 fix iteration.
+>
+> **G3 결정 게이트 진입 시점** — v0.7.8 release 직후 (2026-05-09). 평가 대상:
+> - **v0.8 (후보) 진짜 sprite** — IL2CPP sprite asset spike. cheat IconHelper.cs 316 LOC 참조. ItemCellRenderer placeholder 글리프 → sprite blit.
+> - **v0.7.10 NPC 지원** (★★★ 가성비) — heroID dropdown 추가 + PlayerEditorPanel 자산 100% 재사용. v0.7.8 의 PlayerEditApplier/HeroTagDataReflector/KungfuSkillEditor 가 player 인자 받으니 NPC 도 그대로 작동.
+> - **v0.7.8.1 후속 patch 후보** — (a) 천부 max 보유수 lock pattern (cheat StatEditor LockedMaxXxx 매 frame 패턴) — `GetMaxTagNum()` 은 method-only 라 LockedMax 만 가능. (b) 무공 추가 popup 등급/문파 secondary 필터 보강 — 현재 카테고리 + 등급 secondary 만, 문파 dropdown 가능.
+> - **v0.7.9 Slot diff preview** — Apply 흐름 변경 (별도 spike 큼).
+> - **maintenance** — 게임 patch / 통팩 release / BepInEx 변경 trigger 시 활성화.
+>
+> **시작 명령**: 첫 메시지에서 다음 옵션 중 선택:
+> - "G3 게이트 brainstorm" — v0.8 / v0.7.10 / v0.7.8.1 평가 cycle
+> - "v0.7.10 NPC 지원 진입" — 자산 100% 재사용 후속 (가장 자연스러운 다음 단계)
+> - "v0.8 진짜 sprite 진입" — IL2CPP sprite spike 시작
+> - "maintenance 모드 진입" — 게임/통팩 release 트리거 시
+> - 기타 자유 지시
 >
 > **v0.7.5.x 시리즈 결과**:
 > - **v0.7.5** (D-4 한글화) — 신규 `HangulDict` static class. Hybrid 4단계 사전 fallback: ModFix `TranslationData.transDict` reflection > Sirius `ModPatch.translateData` reflection > 자체 CSV (`BepInEx/plugins/Data/patched/{Localization,Sirius_UIText,Sirius_etc,Sirius_Mail,Sirius_SceneText}.csv`) > `LTLocalization.GetText`. ItemRow.NameKr eager cache, bilingual 검색 (한글 OR 한자), Korean 자모순 정렬 (ko-KR StringComparer). ContainerPanel BuildLabel + ItemDetailPanel header/curated/raw display-time 변환. 212 tests + smoke 14/14.
