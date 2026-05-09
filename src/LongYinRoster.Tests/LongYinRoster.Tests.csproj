@@ -229,5 +229,8 @@
     <Compile Include="../LongYinRoster/Util/AttriLabels.cs">
       <Link>Util/AttriLabels.cs</Link>
     </Compile>
+    <Compile Include="../LongYinRoster/Core/HeroAttriReflector.cs">
+      <Link>Core/HeroAttriReflector.cs</Link>
+    </Compile>
   </ItemGroup>
 </Project>
