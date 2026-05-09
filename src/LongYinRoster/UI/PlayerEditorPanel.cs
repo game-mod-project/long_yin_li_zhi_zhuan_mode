@@ -36,6 +36,11 @@ public sealed class PlayerEditorPanel
         { "kungfu",     false },
     };
 
+    /// <summary>v0.7.10 — secondary tab between [기본] (v0.7.8 6 섹션) and [속성] (신규 AttriTabPanel).</summary>
+    private enum Tab { Basic, Attri }
+    private Tab _activeTab = Tab.Basic;
+    private readonly AttriTabPanel _attriTabPanel = new();
+
     private readonly SelectorDialog _selector = new();
     public SelectorDialog Selector => _selector;
 
@@ -93,6 +98,21 @@ public sealed class PlayerEditorPanel
             // 헤더 — 이름 / heroID / 전투력 (있을 때)
             DrawPlayerHeader(player);
             GUILayout.Space(4);
+
+            // v0.7.10 — secondary tab
+            GUILayout.BeginHorizontal();
+            DrawTabButton("기본", Tab.Basic);
+            DrawTabButton("속성", Tab.Attri);
+            GUILayout.Space(8);
+            GUILayout.EndHorizontal();
+            GUILayout.Space(4);
+
+            if (_activeTab == Tab.Attri)
+            {
+                _attriTabPanel.Draw(player);
+                GUI.DragWindow(new Rect(0, 0, _rect.width - 32, DialogStyle.HeaderHeight));
+                return;
+            }
 
             _scroll = GUILayout.BeginScrollView(_scroll, GUILayout.Height(_rect.height - 100));
 
@@ -169,6 +189,16 @@ public sealed class PlayerEditorPanel
         {
             _sectionOpen[key] = !open;
         }
+    }
+
+    private void DrawTabButton(string label, Tab tab)
+    {
+        bool active = _activeTab == tab;
+        var prevColor = GUI.color;
+        if (active) GUI.color = new Color(0.7f, 0.9f, 1f);
+        if (GUILayout.Button(label, GUILayout.Width(80)))
+            _activeTab = tab;
+        GUI.color = prevColor;
     }
 
     // ───── Section 1: Resource ─────
