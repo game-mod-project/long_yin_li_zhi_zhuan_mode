@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using LongYinRoster.Core;
 using LongYinRoster.Util;
 using UnityEngine;
@@ -699,6 +700,8 @@ public sealed class PlayerEditorPanel
     private const int PAGE_SIZE = 10;
     private int _kungfuPage = 0;
     private int _kungfuFilterType = -1;   // -1 = 전체, 0~8 = 9 카테고리 (cheat 검증)
+    private int _kungfuFilterRareLv = -1; // -1 = 전체, 0~5 = 6 등급 (기초/진급/상승/비전/정극/절세)
+    private int _kungfuSortMode = 0;      // 0=기본, 1=등급↓, 2=등급↑, 3=lv↓
     // v0.7.8 — 돌파속성 inline expand 제거, 별도 dialog 사용
 
     private void DrawKungfuSkillSection(object player)
@@ -738,14 +741,25 @@ public sealed class PlayerEditorPanel
 
         // 보유 무공 카테고리 필터 탭
         DrawKungfuFilterTabs();
+        DrawKungfuRareLvTabs();
 
-        // 카테고리별 + 페이징 (10/page)
+        // 카테고리별 + 등급별 + 페이징 (10/page)
         var filtered = new List<(int SkillID, int Level, float FightExp, float BookExp, bool Equiped)>();
         foreach (var entry in entries)
         {
             if (_kungfuFilterType >= 0 && Core.SkillNameCache.GetType(entry.SkillID) != _kungfuFilterType) continue;
+            if (_kungfuFilterRareLv >= 0 && Core.SkillNameCache.GetRareLv(entry.SkillID) != _kungfuFilterRareLv) continue;
             filtered.Add(entry);
         }
+        // 정렬 적용
+        IEnumerable<(int SkillID, int Level, float FightExp, float BookExp, bool Equiped)> sortedFiltered = _kungfuSortMode switch
+        {
+            1 => filtered.OrderByDescending(e => Core.SkillNameCache.GetRareLv(e.SkillID)),
+            2 => filtered.OrderBy(e => Core.SkillNameCache.GetRareLv(e.SkillID)),
+            3 => filtered.OrderByDescending(e => e.Level),
+            _ => filtered,
+        };
+        filtered = new List<(int SkillID, int Level, float FightExp, float BookExp, bool Equiped)>(sortedFiltered);
         int totalPages = (filtered.Count + PAGE_SIZE - 1) / PAGE_SIZE;
         if (totalPages == 0) totalPages = 1;
         if (_kungfuPage >= totalPages) _kungfuPage = totalPages - 1;
@@ -987,6 +1001,39 @@ public sealed class PlayerEditorPanel
             }
             GUI.color = prev;
         }
+        GUILayout.EndHorizontal();
+    }
+
+    private void DrawKungfuRareLvTabs()
+    {
+        GUILayout.BeginHorizontal();
+        bool active = _kungfuFilterRareLv == -1;
+        var prev = GUI.color;
+        if (active) GUI.color = Color.cyan;
+        if (GUILayout.Button("전체", GUILayout.Width(50))) { _kungfuFilterRareLv = -1; _kungfuPage = 0; }
+        GUI.color = prev;
+        for (int r = 0; r < Core.SkillNameCache.RareLvNames.Length; r++)
+        {
+            active = _kungfuFilterRareLv == r;
+            prev = GUI.color;
+            GUI.color = active ? Core.SkillRareLvColors.ForRareLv(r) : prev;
+            if (GUILayout.Button(Core.SkillNameCache.RareLvNames[r], GUILayout.Width(45)))
+            {
+                _kungfuFilterRareLv = r;
+                _kungfuPage = 0;
+            }
+            GUI.color = prev;
+        }
+        GUILayout.Space(10);
+        string sortLabel = _kungfuSortMode switch
+        {
+            1 => "[정렬: 등급↓]",
+            2 => "[정렬: 등급↑]",
+            3 => "[정렬: lv↓]",
+            _ => "[정렬: 기본]",
+        };
+        if (GUILayout.Button(sortLabel, GUILayout.Width(90)))
+            _kungfuSortMode = (_kungfuSortMode + 1) % 4;
         GUILayout.EndHorizontal();
     }
 

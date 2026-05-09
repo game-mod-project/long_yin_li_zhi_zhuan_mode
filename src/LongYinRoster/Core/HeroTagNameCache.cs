@@ -10,7 +10,7 @@ namespace LongYinRoster.Core;
 /// v0.7.8 — heroTagDataBase (GameDataController) iterate → tagID → meta cache.
 /// Spike v3 결과 (2026-05-09): HeroTagDataBase 의 fields:
 ///   - name (String) — 한자 라벨 (HangulDict 통과)
-///   - value (Int32) — 단계 점수 (1/2/4/8/...)
+///   - value (Int32) — raw 단계 점수 (1/2/4/8/...). 인게임 디스플레이 = value × 4 (4/8/16/32)
 ///   - category (String) — 한자 카테고리 (武学/高级/技艺/天生/志向/趣向/战法)
 ///   - sameMeaning (String) — 단계 그룹 식별자 (같은 그룹의 단계 모음)
 ///   - order (Int32) — 정렬용
@@ -37,7 +37,7 @@ public static class HeroTagNameCache
     public static string Get(int tagID)
     {
         EnsureBuilt();
-        if (_meta != null && _meta.TryGetValue(tagID, out var m)) return $"{m.NameKr}({m.Value})";
+        if (_meta != null && _meta.TryGetValue(tagID, out var m)) return $"{m.NameKr}({m.Value * 4})";
         return $"태그({tagID})";
     }
 
@@ -60,7 +60,7 @@ public static class HeroTagNameCache
         foreach (var k in keys)
         {
             var m = _meta[k];
-            list.Add((k, $"{m.NameKr} [{m.CategoryKr}/{m.Value}점]"));
+            list.Add((k, $"{m.NameKr} [{m.CategoryKr}/{m.Value * 4}점]"));
         }
         return list;
     }

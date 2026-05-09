@@ -45,6 +45,12 @@ public static class HeroAttriReflector
         if (hero == null) return (0f, 0f);
         try
         {
+            // v0.7.10.1 (post-smoke revert) — getter 호출 (GetMaxAttri 등) 시도했으나
+            // 다른 mod (LongYinCheat) + 우리 Phase 3 Postfix override 가 user-set raw value
+            // (예: 333) 를 mask (항상 999 반환) → user 가 [저장] 후 자기가 입력한 값을 못 봄.
+            // → raw maxXxx[idx] field read 로 복귀. mod = "편집 가능한 raw 값" / in-game =
+            // "Postfix override 적용된 effective 값" 으로 mental model 분리. 사용자가 mod 에서
+            // 본 값과 in-game 표시의 차이는 다른 mod 또는 우리 Phase 3 의 Postfix override 영향.
             var baseList = ReadFieldOrProperty(hero, BaseFieldName(axis));
             var maxList  = ReadFieldOrProperty(hero, MaxFieldName(axis));
             float b = ReadIndexedFloat(baseList, idx);

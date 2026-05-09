@@ -25,10 +25,12 @@ public static class TagPointColors
         return Red;
     }
 
-    /// <summary>tagID → 색상 (TagMeta.Value 기반).</summary>
+    /// <summary>tagID → 색상 (인게임 표시값 기반 — TagMeta.Value × 4 = 디스플레이 점수).</summary>
     public static Color ForTagID(int tagID)
     {
         var meta = HeroTagNameCache.GetMeta(tagID);
-        return meta != null ? ForValue(meta.Value) : White;
+        // v0.7.10.1 — TagMeta.Value 는 raw (1/2/4/8). 인게임 디스플레이 = ×4 (4/8/16/32).
+        // ForValue 의 threshold (5/10/15/20) 는 디스플레이 값 기준 → ×4 적용해서 호출.
+        return meta != null ? ForValue(meta.Value * 4) : White;
     }
 }
