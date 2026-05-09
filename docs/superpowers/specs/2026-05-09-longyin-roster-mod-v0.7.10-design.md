@@ -392,6 +392,49 @@ v0.7.11 별도 brainstorm cycle. v0.7.10 에서는 PlayerEditorPanel 이 player 
 
 ---
 
+## 13. Phase 3 (post-Phase 2 추가) — 자질값 cap 돌파
+
+**추가 배경** (2026-05-09): Phase 2 release 직후 사용자 피드백 — 빌드된 모드의 자질값 setter (`CharacterAttriEditor.ChangeMax`) 가 reflection 으로 `maxXxx[idx] = value` 직접 set 하지만 게임 runtime 의 `GetMaxXxx(int)` getter 가 hard cap 120/120/100 강제 + `RefreshMaxAttriAndSkill()` 가 user-set 값 re-clamp. Phase 2 의 자질값 edit 가 in-memory set 은 되지만 game 이 무시. cheat `LongYinCheat.MultiplierPatch` 의 4 Harmony Postfix 패턴 mirror 추가 = Phase 3.
+
+### 13.1 패턴 (cheat MultiplierPatch.cs:193-322 + CheatPlugin.cs:1211-1214 mirror)
+
+| Patch site | 역할 | Constraint |
+|---|---|---|
+| `HeroData.GetMaxAttri(int id)` Postfix | uncap on: `__result = UncapMaxAttri` / off: defensive re-clamp 120 | player heroID=0 only |
+| `HeroData.GetMaxFightSkill(int id)` Postfix | 동상, cap 120 | 동상 |
+| `HeroData.GetMaxLivingSkill(int id)` Postfix | 동상, cap 100 | 동상 |
+| `HeroData.RefreshMaxAttriAndSkill()` Prefix+Postfix | refresh 전 maxXxx 배열 snapshot, 후 user-set 값 복원 (RestoreIfUserSet) | 동상 |
+
+`[ThreadStatic]` snapshot 사용 — Unity 가 single-thread 라 사실상 시리얼하지만 cheat 의 안전 패턴 mirror.
+
+### 13.2 ConfigEntry (4)
+
+- `EnableUncapMax` (bool, default **false** — opt-in, 사용자가 BepInExConfigManager F5 로 enable)
+- `UncapMaxAttri` (int, default 999, range [120, 999999])
+- `UncapMaxFightSkill` (int, default 999, range [120, 999999])
+- `UncapMaxLivingSkill` (int, default 999, range [100, 999999])
+
+### 13.3 신규 file + LOC
+
+- `Core/HeroDataCapBypassLogic.cs` (~50 LOC) — pure-logic `ApplyMaxOverride` + `ReadHeroID`, no HarmonyLib, 테스트 가능
+- `Core/HeroDataCapBypassPatch.cs` (~200 LOC) — Harmony Register + 4 Postfix wrapper + `[ThreadStatic]` snapshot, runtime-only
+- `Tests/HeroDataCapBypassTests.cs` (+7 tests) — uncap off/on / heroID match/mismatch / value=0 / player null / cap100 variant
+
+### 13.4 player-only constraint (vs cheat 전역)
+
+cheat 의 `EnableUncapMax` 는 전역 — 모든 hero 의 GetMaxXxx 호출에 적용. 우리는 brainstorm Q2=A 에 따라 **player heroID=0 only**:
+- Postfix 가 `__instance.heroID == player.heroID` 일 때만 override
+- NPC 는 무영향 (game 의 normal cap 적용)
+- v0.7.11 에서 per-hero list (HashSet<int> uncappedHeroIDs) 로 generalize 예정
+
+### 13.5 commit
+
+`f950d40 feat(core): v0.7.10 Phase 3 — HeroDataCapBypassPatch (자질값 cap 120/120/100 돌파, cheat MultiplierPatch mirror, player-only)`
+
+6 files changed (4 new + 2 modified), 436 insertions, 374 tests PASS (was 367, +7).
+
+---
+
 **Decision Gate (G3) — append 후 commit**
 
 본 spec 작성 + commit 시점에 메타 로드맵 [`2026-05-05-longyin-roster-mod-roadmap-v0.7.4-to-v0.8.md`](2026-05-05-longyin-roster-mod-roadmap-v0.7.4-to-v0.8.md) §Decision Log 의 G3 Pending → G3 Decision 으로 변경:

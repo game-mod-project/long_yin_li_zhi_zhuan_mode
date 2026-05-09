@@ -188,7 +188,7 @@ PlayerEditorPanel (F11+4) 신규 추가. 플레이어 캐릭터 스탯 편집 UI
 | v0.7.5 | Item 한글화 — Hybrid 사전 (ModFix reflection + 자체 CSV + LTLocalization fallback). ContainerPanel/ItemDetailPanel 한자 노출 제거. bilingual 검색 + Korean 정렬. |
 | v0.7.4.1 | Item 상세 panel 7 카테고리 cover — 말 / 보물 / 재료 curated 추가 (기존 장비/비급/단약 회귀 없음) |
 | v0.7.8 | 플레이어 편집 기본 UI — PlayerEditorPanel (F11+4) 신규. 6 섹션 (Resource / SpeAddData × 3 / 천부 / 무공 / Breakthrough) read-only 표시. 9-카테고리 체크박스. |
-| v0.7.10 | 천부 max lock + 속성·무학·기예 editor — Phase 1: 천부 `[☐ Lock max]` toggle (heroID=0 only). Phase 2: `[기본 / 속성]` tab (속성 6 / 무학 9 / 기예 9, 각 row inline edit + 일괄 button + [저장] gated apply). |
+| v0.7.10 | 천부 max lock + 속성·무학·기예 editor + 자질값 cap 돌파 — Phase 1: 천부 `[☐ Lock max]` toggle (heroID=0 only). Phase 2: `[기본 / 속성]` tab (속성 6 / 무학 9 / 기예 9, 각 row inline edit + 일괄 button + [저장] gated apply). Phase 3: HeroDataCapBypassPatch (4 Harmony Postfix mirror, cheat MultiplierPatch 100%, player-only). |
 
 ## 요구 사항
 

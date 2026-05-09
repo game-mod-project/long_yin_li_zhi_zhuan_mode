@@ -27,6 +27,21 @@
 - [되돌리기] → originals 복원
 - Clamp [0, 999999] (cheat AddTalent 정렬)
 
+### Phase 3 — 자질값 cap 돌파 (HeroDataCapBypassPatch)
+
+Phase 2 의 자질값 edit 가 실제 작동하려면 게임의 hard cap (속성/무학 120, 기예 100) 우회가 필요. cheat `LongYinCheat.MultiplierPatch` 의 4 Harmony Postfix 패턴 100% mirror + **player heroID=0 only** constraint 적용.
+
+- 4 Postfix patches:
+  - `HeroData.GetMaxAttri(int)` Postfix → uncap on 시 `__result = UncapMaxAttri (default 999)`, off 시 defensive re-clamp 120
+  - `HeroData.GetMaxFightSkill(int)` Postfix → 동상 (cap 120)
+  - `HeroData.GetMaxLivingSkill(int)` Postfix → 동상 (cap 100)
+  - `HeroData.RefreshMaxAttriAndSkill()` Prefix+Postfix → snapshot maxXxx 배열 → refresh 후 user-set 값 복원 (game 의 re-clamp 차단), `[ThreadStatic]` 사용
+- ConfigEntry 4: `EnableUncapMax` (bool, default false, opt-in) / `UncapMaxAttri/FightSkill/LivingSkill` (int, default 999, range [120/120/100, 999999])
+- 신규 file: `Core/HeroDataCapBypassPatch.cs` + `Core/HeroDataCapBypassLogic.cs` (테스트 가능 logic 분리)
+- v0.7.11 에서 per-hero list 로 generalize 예정 (NPC 도 개별 적용 가능)
+
+**왜 추가됐는지**: Phase 2 release 직후 사용자 피드백 — 빌드된 모드의 자질값 setter 가 게임 cap (120/120/100) 에 의해 silently overridden. Phase 3 이 cap 돌파를 가능하게 함.
+
 ## 변경
 
 - `Plugin.VERSION` 0.7.8 → 0.7.10
@@ -41,6 +56,8 @@
 - `src/LongYinRoster/Core/CharacterAttriEditor.cs` (Phase 2 — game-self method invoke + clamp)
 - `src/LongYinRoster/Util/AttriLabels.cs` (Phase 2 — 24 한글 라벨 + AttriAxis enum)
 - `src/LongYinRoster/UI/AttriTabPanel.cs` (Phase 2 — 3-column inline + 일괄 + 저장)
+- `src/LongYinRoster/Core/HeroDataCapBypassPatch.cs` (Phase 3 — Harmony Postfix wrapper, 4 patches)
+- `src/LongYinRoster/Core/HeroDataCapBypassLogic.cs` (Phase 3 — 테스트 가능한 logic 분리)
 
 ## 호환성
 
@@ -56,8 +73,8 @@
 
 ## Tests
 
-- 327 → 367 (+40). xUnit + Shouldly + POCO mocks.
-- 인게임 smoke = 18 항목 매트릭스 (Phase 1 4 + Phase 2 10 + 회귀 4)
+- 327 → 374 (+47). xUnit + Shouldly + POCO mocks.
+- 인게임 smoke = 18 항목 매트릭스 (Phase 1 4 + Phase 2 10 + 회귀 4) + Phase 3 7 tests
 
 ## 메타
 
