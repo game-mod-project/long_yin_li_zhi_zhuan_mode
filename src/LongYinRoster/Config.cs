@@ -44,6 +44,10 @@ public static class Config
     public static ConfigEntry<float>   PlayerEditorPanelH = null!;
     public static ConfigEntry<bool>    PlayerEditorPanelOpen = null!;
 
+    // v0.7.10 Phase 1 — Lock 천부 max 보유수 (cheat GameplayPatch.GetMaxTagNum mirror)
+    public static ConfigEntry<bool>    LockMaxTagNum         = null!;
+    public static ConfigEntry<int>     LockedMaxTagNumValue  = null!;
+
     // v0.7.6 — ContainerPanel rect 영속화 (ItemDetailPanel mirror)
     public static ConfigEntry<float>   ContainerPanelX = null!;
     public static ConfigEntry<float>   ContainerPanelY = null!;
@@ -113,6 +117,14 @@ public static class Config
         PlayerEditorPanelW    = cfg.Bind("UI", "PlayerEditorPanelW",    720f,  "플레이어 편집 panel 폭 (v0.7.8: 480→720)");
         PlayerEditorPanelH    = cfg.Bind("UI", "PlayerEditorPanelH",    720f,  "플레이어 편집 panel 높이");
         PlayerEditorPanelOpen = cfg.Bind("UI", "PlayerEditorPanelOpen", false, "플레이어 편집 panel 디폴트 visibility");
+
+        // v0.7.10 Phase 1 — Lock 천부 max 보유수
+        LockMaxTagNum         = cfg.Bind("Hero", "LockMaxTagNum",         false,
+                                         "천부 max 보유수 lock — true 시 GetMaxTagNum() Postfix 가 LockedMaxTagNumValue 로 override (Player heroID=0 only)");
+        LockedMaxTagNumValue  = cfg.Bind("Hero", "LockedMaxTagNumValue",  999,
+                                         new ConfigDescription(
+                                             "LockMaxTagNum=true 시 적용할 천부 max 값 (1~999999)",
+                                             new AcceptableValueRange<int>(1, 999999)));
 
         // v0.7.6 — ContainerPanel rect 영속화
         ContainerPanelX = cfg.Bind("UI", "ContainerPanelX", 150f, "컨테이너 panel X 좌표");
