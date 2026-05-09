@@ -62,10 +62,16 @@ public static class HeroDataCapBypassPatch
         {
             var m = AccessTools.Method(heroDataType, methodName);
             if (m == null) { Logger.Warn($"HeroDataCapBypassPatch: HeroData.{methodName} not found"); return; }
+            // Priority.Last (=0) — LongYinCheat 의 RefreshMaxPostfix 가 EnableUncapMax=false 일 때 maxXxx 를
+            // 120/100 으로 clamp 하므로, 우리 Postfix 가 마지막에 실행되어 cheat 의 clamp 를 덮어써야 한다.
+            // Priority 가 작을수록 늦게 실행 (Harmony 규칙).
             var postfix = new HarmonyMethod(typeof(HeroDataCapBypassPatch).GetMethod(
-                postfixName, BindingFlags.Static | BindingFlags.Public));
+                postfixName, BindingFlags.Static | BindingFlags.Public))
+            {
+                priority = Priority.Last,
+            };
             harmony.Patch(m, postfix: postfix);
-            Logger.Info($"HeroDataCapBypassPatch: HeroData.{methodName} patched");
+            Logger.Info($"HeroDataCapBypassPatch: HeroData.{methodName} patched (Priority.Last)");
         }
         catch (Exception ex)
         {
@@ -80,12 +86,20 @@ public static class HeroDataCapBypassPatch
         {
             var m = AccessTools.Method(heroDataType, methodName);
             if (m == null) { Logger.Warn($"HeroDataCapBypassPatch: HeroData.{methodName} not found"); return; }
+            // Prefix = Priority.First (가장 먼저 snapshot — cheat 보다 먼저 원본 maxXxx 보존),
+            // Postfix = Priority.Last (가장 마지막 restore — cheat 의 clamp 후 우리가 999 로 복원).
             var prefix  = new HarmonyMethod(typeof(HeroDataCapBypassPatch).GetMethod(
-                prefixName, BindingFlags.Static | BindingFlags.Public));
+                prefixName, BindingFlags.Static | BindingFlags.Public))
+            {
+                priority = Priority.First,
+            };
             var postfix = new HarmonyMethod(typeof(HeroDataCapBypassPatch).GetMethod(
-                postfixName, BindingFlags.Static | BindingFlags.Public));
+                postfixName, BindingFlags.Static | BindingFlags.Public))
+            {
+                priority = Priority.Last,
+            };
             harmony.Patch(m, prefix: prefix, postfix: postfix);
-            Logger.Info($"HeroDataCapBypassPatch: HeroData.{methodName} patched (Prefix+Postfix)");
+            Logger.Info($"HeroDataCapBypassPatch: HeroData.{methodName} patched (Prefix=First / Postfix=Last)");
         }
         catch (Exception ex)
         {
