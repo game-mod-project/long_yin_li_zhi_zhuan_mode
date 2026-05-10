@@ -22,6 +22,9 @@ public sealed class ContainerView
     private SearchSortState?              _lastState;
     private List<ContainerPanel.ItemRow>? _cached;
 
+    // v0.7.11 Cat 4K — 결과 카운터용. 직전 ApplyView 결과의 row 수. 미호출 상태 = 0.
+    public int LastViewCount => _cached?.Count ?? 0;
+
     public List<ContainerPanel.ItemRow> ApplyView(List<ContainerPanel.ItemRow> raw, SearchSortState state)
     {
         if (raw == null) raw = new List<ContainerPanel.ItemRow>();
@@ -50,6 +53,14 @@ public sealed class ContainerView
         // v0.7.11 Cat 4E — 착용중 제외
         if (state.ExcludeEquipped)
             q = q.Where(r => !r.Equipped);
+
+        // v0.7.11 Cat 4G — 무공 type 필터 (item.SubType 매칭). 비-Book row 는 SubType 가 다른 의미라
+        // ContainerPanel 이 카테고리 = Book 외에서 -1 reset 보장 가정.
+        if (state.KungfuTypeFilter >= 0)
+        {
+            int t = state.KungfuTypeFilter;
+            q = q.Where(r => r.SubType == t);
+        }
 
         q = state.Key switch
         {

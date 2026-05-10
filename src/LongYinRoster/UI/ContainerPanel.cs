@@ -334,10 +334,65 @@ public sealed class ContainerPanel
             if (active) GUI.color = Color.cyan;
             if (GUILayout.Button(ItemCategoryFilter.KoreanLabel(cat), GUILayout.Width(70)))
             {
-                _filter = cat;
-                Config.ContainerFilterCategory.Value = cat.ToString();   // v0.7.6 immediate write
+                if (_filter != cat)
+                {
+                    _filter = cat;
+                    Config.ContainerFilterCategory.Value = cat.ToString();   // v0.7.6 immediate write
+                    // v0.7.11 Cat 4G — Book 이 아닌 카테고리로 변경 시 무공 type filter reset
+                    if (cat != ItemCategory.Book && _globalState.KungfuTypeFilter >= 0)
+                    {
+                        _globalState = _globalState.WithKungfuTypeFilter(-1);
+                        _invView.Invalidate();
+                        _stoView.Invalidate();
+                        _conView.Invalidate();
+                    }
+                }
             }
             GUI.color = prevColor;
+        }
+        GUILayout.EndHorizontal();
+
+        // v0.7.11 Cat 4G — 카테고리 = Book 일 때만 무공 type secondary tab 표시
+        if (_filter == ItemCategory.Book)
+        {
+            DrawKungfuTypeSecondaryTabs();
+        }
+    }
+
+    /// <summary>v0.7.11 Cat 4G — 9 무공 type secondary tab (전체 + 내공/.../사술).</summary>
+    private static readonly string[] KungfuTypeNames = {
+        "내공", "경공", "절기", "권장", "검법", "도법", "장병", "기문", "사술",
+    };
+    private void DrawKungfuTypeSecondaryTabs()
+    {
+        GUILayout.BeginHorizontal();
+        int filter = _globalState.KungfuTypeFilter;
+        bool active = filter == -1;
+        var prev = GUI.color;
+        if (active) GUI.color = Color.cyan;
+        if (GUILayout.Button("전체", GUILayout.Width(50)))
+        {
+            if (filter != -1)
+            {
+                _globalState = _globalState.WithKungfuTypeFilter(-1);
+                _invView.Invalidate(); _stoView.Invalidate(); _conView.Invalidate();
+            }
+        }
+        GUI.color = prev;
+        for (int t = 0; t < KungfuTypeNames.Length; t++)
+        {
+            active = filter == t;
+            prev = GUI.color;
+            if (active) GUI.color = Color.cyan;
+            if (GUILayout.Button(KungfuTypeNames[t], GUILayout.Width(50)))
+            {
+                if (filter != t)
+                {
+                    _globalState = _globalState.WithKungfuTypeFilter(t);
+                    _invView.Invalidate(); _stoView.Invalidate(); _conView.Invalidate();
+                }
+            }
+            GUI.color = prev;
         }
         GUILayout.EndHorizontal();
     }
@@ -663,6 +718,16 @@ public sealed class ContainerPanel
             _stoView.Invalidate();
             _conView.Invalidate();
         }
+
+        // v0.7.11 Cat 4K — 결과 카운터 (filter 적용 후 visible / raw total).
+        // 직전 frame 의 ApplyView cache 기반 — 1 frame lag 가능 but 사용자 인지 영향 미미.
+        GUILayout.Space(8);
+        int rawTotal      = _inventoryRows.Count + _storageRows.Count + _containerRows.Count;
+        int filteredTotal = _invView.LastViewCount + _stoView.LastViewCount + _conView.LastViewCount;
+        if (filteredTotal == rawTotal)
+            GUILayout.Label($"({rawTotal}개)", GUILayout.Width(80));
+        else
+            GUILayout.Label($"(결과: {filteredTotal} / {rawTotal})", GUILayout.Width(140));
         GUILayout.EndHorizontal();
     }
 
