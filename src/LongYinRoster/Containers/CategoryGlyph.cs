@@ -7,15 +7,14 @@ namespace LongYinRoster.Containers;
 /// </summary>
 public static class CategoryGlyph
 {
-    // v0.7.11.1 fix: 카테고리 매핑 swap 수정 (ItemCategoryFilter 와 일관 유지).
-    //   type=1 → 단약 pill (보혈단/통락단/황련환 등) — 이전 "기타" 로 잘못 분류
-    //   type=2 subType=0 → 음식 (통돼지구이/사군자탕 등) — 이전 "단약" swap
-    //   type=2 subType≥1 → 단약 약주 (용뇌주/두강주 등) — 이전 "음식" swap
+    // v0.7.11.2 fix (재수정): 사용자 인게임 분류와 일치.
+    //   type=1 → 단약 pill (보혈단/통락단/황련환 등)
+    //   type=2 → 음식 전체 (food + wines, subType 무관). 인게임 "음식" 탭 = wine 포함.
     public static string For(int type, int subType) => type switch
     {
         0 => "장비",                              // Equipment
-        1 => "단약",                              // Medicine pill
-        2 => subType == 0 ? "음식" : "단약",      // Food / Medicine wine
+        1 => "단약",                              // Medicine pill only
+        2 => "음식",                              // Food (food + wines, subType 무관)
         3 => "비급",                              // Book
         4 => "보물",                              // Treasure
         5 => "재료",                              // Material
