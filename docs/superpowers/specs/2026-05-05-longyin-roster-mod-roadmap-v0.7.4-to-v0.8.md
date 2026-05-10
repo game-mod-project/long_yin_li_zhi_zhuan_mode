@@ -434,3 +434,40 @@ Next sub-project: **v0.7.11 ContainerPanel UX overhaul** brainstorm cycle 종료
 - **maintenance** (trigger 시)
 
 G5 Decision 은 사용자 명시 선택 시점에 본 spec 에 append.
+
+### G5 Decision (2026-05-10)
+
+v0.7.11 release 직후 사용자가 v0.7.12 = Cat 3 deferred (Undo + toast 강화) 우선 채택:
+
+- **v0.7.12 Cat 3 deferred**: **GO** → rationale = v0.7.11 plan 에서 deferred 명시. ModWindow callback refactor 가능 — single-op stack 으로 KISS 유지. brainstorm Q1A (Full Undo 양방향) + Q2A (Single op stack) + Q3A (Toast 표준화) + Q4A (Toolbar [↶ Undo] button).
+- **v0.7.13 NPC dropdown**: **DEFER until G6** → v0.7.10 자산 generalize 후속.
+- **v0.7.10.x 자질 grade marker**: **DEFER until G6** → derivation rule spike 비용.
+- **v0.8 진짜 sprite**: **DEFER until G6** → IL2CPP sprite asset spike. ContainerPanel Cat 6 + ItemCellRenderer 통합.
+- **maintenance**: **WAIT** → trigger 미발견.
+
+Next sub-project: **v0.7.12 Cat 3 deferred** brainstorm cycle 종료 — spec 작성 완료.
+
+### v0.7.12 Result (2026-05-10)
+
+- Release: [v0.7.12](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.7.12) (push 후 link active)
+- Spec: [2026-05-10-longyin-roster-mod-v0.7.12-design.md](2026-05-10-longyin-roster-mod-v0.7.12-design.md)
+- Smoke: smoke run 후 dumps/ 추가 (사용자 게이트)
+- Tests: 394 → **399 PASS** (+5 ContainerOpUndoTests).
+- **Phase 분리**: 7 phase — Phase 1 (ContainerOpUndo+OpRecord) / Phase 2 (GetGameListCount) / Phase 3-6 (ModWindow.ToastResult+PerformUndo + Do* refactor + ContainerPanel [↶ Undo] button) / Phase 7 (release).
+- **신규 자산**: `ContainerOpUndo` + `OpRecord` + `OpKind` (7 op 종류) / `ContainerOps.GetGameListCount` / `ModWindow.PerformUndo` + `ResolveGameList` + `ToastResult` + `DoDeleteContainerItems` (inline lambda 추출) / `ContainerPanel.OnUndoRequested` + 글로벌 toolbar `[↶ Undo]` button.
+- **알려진 한계**:
+  - Move undo 의 game 측 add 가 maxWeight=9999 (cap 검증 skip) — 즉시 Undo 시나리오 가정
+  - Copy undo 가 마지막 N 제거 — 다른 op 후 Undo 시 mismatch 가능 but single-stack 이 자동 mitigate
+  - Container file 자체 삭제는 Undo 미지원 (5A confirm dialog 가 대체 안전망)
+
+### G6 Gate Pending (v0.7.12 release 직후)
+
+평가 대상:
+- **v0.7.13 NPC dropdown** (★★★ 가성비) — heroID switch + v0.7.10 PlayerEditorPanel 자산 generalize
+- **v0.7.10.x 자질 grade marker** — derivation rule spike (신/하 등 enum 또는 value threshold)
+- **v0.8 진짜 sprite** — IL2CPP sprite asset spike. ContainerPanel Cat 6 + ItemCellRenderer 통합 (β 분할)
+- **v0.7.9 Slot diff preview** — Apply pipeline 변경 cycle
+- **Cat 3 deep stack + Redo** — v0.7.12 single-stack 의 후속 (multi-op history)
+- **maintenance** — trigger 시 활성
+
+G6 Decision 은 사용자 명시 선택 시점에 본 spec 에 append.
