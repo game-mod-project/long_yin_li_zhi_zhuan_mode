@@ -87,6 +87,22 @@ public sealed class ContainerRepository
         if (File.Exists(f)) File.Delete(f);
     }
 
+    /// <summary>
+    /// v0.7.11 Cat 5C — 선택된 컨테이너의 모든 item 을 새 컨테이너로 복제.
+    /// 이름 = "{원본이름} (복사본)". JSON string copy 라 자동 deep copy.
+    /// </summary>
+    /// <returns>새 컨테이너 idx, 실패 시 -1 (source 없음)</returns>
+    public int Clone(int sourceIdx)
+    {
+        var srcMeta = LoadMetadata(sourceIdx);
+        if (srcMeta == null) return -1;
+        string srcItems = LoadItemsJson(sourceIdx);
+        string newName = $"{srcMeta.ContainerName} (복사본)";
+        int newIdx = CreateNew(newName);
+        SaveItemsJson(newIdx, srcItems);
+        return newIdx;
+    }
+
     private string PathFor(int idx) => Path.Combine(_dir, $"container_{idx:D2}.json");
 
     private int NextIndex()
