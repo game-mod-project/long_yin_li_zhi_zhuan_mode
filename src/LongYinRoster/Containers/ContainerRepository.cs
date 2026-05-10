@@ -38,6 +38,10 @@ public sealed class ContainerRepository
             try
             {
                 var parsed = ContainerFile.Parse(File.ReadAllText(f));
+                // v0.7.11 Cat 5B — dropdown 표시용 ItemCount + TotalWeight 채움
+                var stats = ContainerFile.ComputeStats(parsed.ItemsJson);
+                parsed.Metadata.ItemCount   = stats.Count;
+                parsed.Metadata.TotalWeight = stats.TotalWeight;
                 result.Add(parsed.Metadata);
             }
             catch { }
