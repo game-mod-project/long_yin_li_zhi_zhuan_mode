@@ -93,7 +93,7 @@ public static class RestKeepHeroTagPatch
                 if (tag != null) snap.Add(tag);
             }
             _catSnapshot = snap;
-            Logger.Info($"RestKeepHeroTagPatch.Prefix_ClearAllTempTag: snapshot {snap.Count} tag(s)");
+            // v0.7.10.2 — verbose snapshot Info 제거 (휴식 routine 매 호출마다 logging 폭주 원인)
         }
         catch (System.Exception ex)
         {
@@ -116,7 +116,7 @@ public static class RestKeepHeroTagPatch
             int snapshotCount = _catSnapshot.Count;
             if (currentCount >= snapshotCount)
             {
-                Logger.Info($"RestKeepHeroTagPatch.Postfix_ClearAllTempTag: count={currentCount} >= snapshot={snapshotCount}, no restore");
+                // v0.7.10.2 — no-op no-restore Info 제거 (no-op 도 매번 logging 했음)
                 return;
             }
 
@@ -146,7 +146,8 @@ public static class RestKeepHeroTagPatch
                 }
             }
 
-            Logger.Info($"RestKeepHeroTagPatch.Postfix_ClearAllTempTag: restored {restored} tag(s) (was {currentCount}, snapshot {snapshotCount})");
+            if (restored > 0)
+                Logger.Info($"RestKeepHeroTagPatch.Postfix_ClearAllTempTag: restored {restored} tag(s) (was {currentCount}, snapshot {snapshotCount})");
         }
         catch (System.Exception ex)
         {
@@ -183,7 +184,7 @@ public static class RestKeepHeroTagPatch
                 if (tag != null) snap.Add(tag);
             }
             _snapshot = snap;
-            Logger.Info($"RestKeepHeroTagPatch.Prefix: snapshot {snap.Count} tag(s)");
+            // v0.7.10.2 — verbose snapshot Info 제거 (ManageTagTime 매 tick logging 폭주 원인)
         }
         catch (System.Exception ex)
         {
@@ -215,7 +216,7 @@ public static class RestKeepHeroTagPatch
             if (currentCount >= snapshotCount)
             {
                 // Normal flow — no reset detected.
-                Logger.Info($"RestKeepHeroTagPatch.Postfix: count={currentCount} >= snapshot={snapshotCount}, no restore needed");
+                // v0.7.10.2 — verbose "no restore needed" Info 제거 (ManageTagTime 매 tick 노이즈 원인)
                 return;
             }
 
@@ -246,7 +247,8 @@ public static class RestKeepHeroTagPatch
                 }
             }
 
-            Logger.Info($"RestKeepHeroTagPatch.Postfix: restored {restored} tag(s) (was {currentCount}, snapshot {snapshotCount})");
+            if (restored > 0)
+                Logger.Info($"RestKeepHeroTagPatch.Postfix: restored {restored} tag(s) (was {currentCount}, snapshot {snapshotCount})");
         }
         catch (System.Exception ex)
         {
