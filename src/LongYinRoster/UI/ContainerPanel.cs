@@ -76,6 +76,15 @@ public sealed class ContainerPanel
     // v0.7.11 Cat 5A — 삭제 confirm dialog (panel-local, ModWindow 와 별도 instance)
     private readonly ConfirmDialog _confirmDialog = new();
 
+    // v0.7.11 Cat 9A/9D — corner resize handle (사용자 panel 안에서 width/height drag-resize)
+    private bool    _resizing;
+    private Vector2 _resizeStart;
+    private Vector2 _resizeStartSize;
+    private const float MIN_W = 600f;
+    private const float MAX_W = 1600f;
+    private const float MIN_H = 400f;
+    private const float MAX_H = 1080f;
+
     public bool HasFocus => _focus.HasValue;
     public (ContainerArea Area, int Index)? Focus => _focus;
     public void SetFocus(ContainerArea area, int index)
@@ -315,6 +324,8 @@ public sealed class ContainerPanel
             DrawToast();
             // v0.7.11 Cat 5A — 삭제 confirm dialog (modal overlay)
             _confirmDialog.Draw();
+            // v0.7.11 Cat 9A/9D — corner resize handle (DragWindow 보다 먼저 — corner 영역 우선)
+            DrawResizeHandle();
             // DragWindow 영역 — 헤더 전체 (X 버튼 제외)
             GUI.DragWindow(new Rect(0, 0, _rect.width - 32, DialogStyle.HeaderHeight));
         }
@@ -851,6 +862,50 @@ public sealed class ContainerPanel
         string s = $"{label} ({countN}개, {currentWeight:F1} / {maxWeight:F1} kg)";
         if (allowOvercap && currentWeight > maxWeight) s += KoreanStrings.Lbl_OvercapMarker;
         return s;
+    }
+
+    /// <summary>
+    /// v0.7.11 Cat 9A/9D — panel 우하단 corner 영역 (16×16) drag-resize.
+    /// MouseDown 으로 _resizing 활성화, MouseDrag 로 _rect width/height 갱신,
+    /// MouseUp 시 ConfigEntry 영속화. width/height clamp [MIN_W/MAX_W × MIN_H/MAX_H].
+    /// strip-safe: v0.7.4 검증 EventType.MouseDown + v0.7.6 검증 패턴. MouseDrag/MouseUp 은
+    /// 동일 enum surface 라 strip-safe 추정 (Phase 0 spike).
+    /// </summary>
+    private void DrawResizeHandle()
+    {
+        var handleRect = new Rect(_rect.width - 16, _rect.height - 16, 16, 16);
+        var prev = GUI.color;
+        GUI.color = new Color(0.6f, 0.6f, 0.6f, 0.8f);
+        GUI.DrawTexture(handleRect, Texture2D.whiteTexture);
+        GUI.color = prev;
+
+        var e = Event.current;
+        if (e == null) return;
+        if (e.type == EventType.MouseDown && handleRect.Contains(e.mousePosition))
+        {
+            _resizing        = true;
+            _resizeStart     = e.mousePosition;
+            _resizeStartSize = new Vector2(_rect.width, _rect.height);
+            e.Use();
+        }
+        else if (_resizing && e.type == EventType.MouseDrag)
+        {
+            // Vector2 직접 빼기 — UnityStubs 가 Vector2 의 - operator 미정의 (test compile 만 영향)
+            float dx = e.mousePosition.x - _resizeStart.x;
+            float dy = e.mousePosition.y - _resizeStart.y;
+            float newW = System.Math.Max(MIN_W, System.Math.Min(MAX_W, _resizeStartSize.x + dx));
+            float newH = System.Math.Max(MIN_H, System.Math.Min(MAX_H, _resizeStartSize.y + dy));
+            _rect = new Rect(_rect.x, _rect.y, newW, newH);
+            e.Use();
+        }
+        else if (_resizing && e.type == EventType.MouseUp)
+        {
+            _resizing = false;
+            // v0.7.11 — ConfigEntry 영속화 (BepInEx 자동 file write)
+            Config.ContainerPanelW.Value = _rect.width;
+            Config.ContainerPanelH.Value = _rect.height;
+            e.Use();
+        }
     }
 
     private void DrawToast()
