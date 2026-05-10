@@ -246,5 +246,9 @@
     <Compile Include="../LongYinRoster/UI/ConfirmDialog.cs">
       <Link>UI/ConfirmDialog.cs</Link>
     </Compile>
+    <!-- v0.7.12 Cat 3C — Undo stack -->
+    <Compile Include="../LongYinRoster/Containers/ContainerOpUndo.cs">
+      <Link>Containers/ContainerOpUndo.cs</Link>
+    </Compile>
   </ItemGroup>
 </Project>
