@@ -235,6 +235,22 @@ public static class ContainerOps
         return removed;
     }
 
+    /// <summary>
+    /// v0.7.12 Cat 3C — IL2CPP list 의 Count 를 reflection 으로 read.
+    /// PerformUndo 의 Container→Game ops Undo 시 "마지막 N 개 제거" 인덱스 계산용.
+    /// </summary>
+    public static int GetGameListCount(object il2List)
+    {
+        if (il2List == null) return 0;
+        try
+        {
+            var countProp = il2List.GetType().GetProperty("Count", F);
+            if (countProp == null) return 0;
+            return System.Convert.ToInt32(countProp.GetValue(il2List));
+        }
+        catch { return 0; }
+    }
+
     // -------------------------------------------- helpers
 
     private static object? ReadFieldOrProperty(object obj, string name)
