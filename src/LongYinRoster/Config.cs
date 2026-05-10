@@ -54,6 +54,11 @@ public static class Config
     public static ConfigEntry<int>     UncapMaxFightSkill    = null!;
     public static ConfigEntry<int>     UncapMaxLivingSkill   = null!;
 
+    // v0.7.11 Cat 1 — 인벤/창고 collapse + split preset
+    public static ConfigEntry<bool>    ContainerInventoryCollapsed = null!;
+    public static ConfigEntry<bool>    ContainerStorageCollapsed   = null!;
+    public static ConfigEntry<int>     ContainerSplitPreset        = null!;
+
     // v0.7.6 — ContainerPanel rect 영속화 (ItemDetailPanel mirror)
     public static ConfigEntry<float>   ContainerPanelX = null!;
     public static ConfigEntry<float>   ContainerPanelY = null!;
@@ -147,6 +152,16 @@ public static class Config
                                          new ConfigDescription(
                                              "자질값 max override (기예). 게임 cap 100 → 본 값. range [100, 999999]",
                                              new AcceptableValueRange<int>(100, 999999)));
+
+        // v0.7.11 Cat 1 — 인벤/창고 collapse + split preset
+        ContainerInventoryCollapsed = cfg.Bind("Container", "InventoryCollapsed", false,
+            "인벤토리 list collapse 상태 (true=접힘, 라벨만 표시)");
+        ContainerStorageCollapsed   = cfg.Bind("Container", "StorageCollapsed", false,
+            "창고 list collapse 상태");
+        ContainerSplitPreset        = cfg.Bind("Container", "SplitPreset", 0,
+            new ConfigDescription(
+                "인벤/창고 height 비율 preset (0=50:50, 1=70:30, 2=30:70, 3=storage 작게/inv 크게)",
+                new AcceptableValueRange<int>(0, 3)));
 
         // v0.7.6 — ContainerPanel rect 영속화
         ContainerPanelX = cfg.Bind("UI", "ContainerPanelX", 150f, "컨테이너 panel X 좌표");
