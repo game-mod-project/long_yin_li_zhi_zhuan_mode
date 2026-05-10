@@ -40,6 +40,17 @@ public sealed class ContainerView
              || ((r.NameRaw ?? "").IndexOf(needle, StringComparison.OrdinalIgnoreCase) >= 0));
         }
 
+        // v0.7.11 Cat 4B — 등급 범위 (MinGradeOrder ≥ N). -1 = 전체.
+        if (state.MinGradeOrder >= 0)
+        {
+            int min = state.MinGradeOrder;
+            q = q.Where(r => r.GradeOrder >= min);
+        }
+
+        // v0.7.11 Cat 4E — 착용중 제외
+        if (state.ExcludeEquipped)
+            q = q.Where(r => !r.Equipped);
+
         q = state.Key switch
         {
             SortKey.Category => q.OrderBy(r => r.CategoryKey ?? "").ThenBy(r => r.Index),
