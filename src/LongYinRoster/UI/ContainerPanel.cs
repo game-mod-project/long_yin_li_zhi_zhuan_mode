@@ -448,10 +448,11 @@ public sealed class ContainerPanel
             var invView = _invView.ApplyView(_inventoryRows, _globalState);
             DrawSelectionBulkRow(invView, _inventoryChecks);
             DrawItemList(ContainerArea.Inventory, invView, _inventoryChecks, ref _invScroll, invContentH);
-            GUILayout.BeginHorizontal();
-            if (GUILayout.Button("→ 이동")) OnInventoryToContainerMove?.Invoke(new HashSet<int>(_inventoryChecks));
-            if (GUILayout.Button("→ 복사")) OnInventoryToContainerCopy?.Invoke(new HashSet<int>(_inventoryChecks));
-            GUILayout.EndHorizontal();
+            // v0.7.11 Cat 3G — selection 0 또는 컨테이너 미선택 시 disabled, ≥1 시 녹색 강조
+            DrawMoveCopyRow(_inventoryChecks,
+                onMove: c => OnInventoryToContainerMove?.Invoke(c),
+                onCopy: c => OnInventoryToContainerCopy?.Invoke(c),
+                requireContainerSelection: true);
         }
 
         GUILayout.Space(4);
@@ -465,10 +466,10 @@ public sealed class ContainerPanel
             var stoView = _stoView.ApplyView(_storageRows, _globalState);
             DrawSelectionBulkRow(stoView, _storageChecks);
             DrawItemList(ContainerArea.Storage, stoView, _storageChecks, ref _stoScroll, stoContentH);
-            GUILayout.BeginHorizontal();
-            if (GUILayout.Button("→ 이동")) OnStorageToContainerMove?.Invoke(new HashSet<int>(_storageChecks));
-            if (GUILayout.Button("→ 복사")) OnStorageToContainerCopy?.Invoke(new HashSet<int>(_storageChecks));
-            GUILayout.EndHorizontal();
+            DrawMoveCopyRow(_storageChecks,
+                onMove: c => OnStorageToContainerMove?.Invoke(c),
+                onCopy: c => OnStorageToContainerCopy?.Invoke(c),
+                requireContainerSelection: true);
         }
 
         // Split preset cycle button
@@ -535,7 +536,32 @@ public sealed class ContainerPanel
             // -1 → 0 → 1 → ... → 5 → -1
             int next = min < 5 ? min + 1 : -1;
             _globalState = _globalState.WithMinGradeOrder(next);
+            _invView.Invalidate(); _stoView.Invalidate(); _conView.Invalidate();
         }
+        GUILayout.EndHorizontal();
+    }
+
+    /// <summary>v0.7.11 Cat 3G — [→이동] / [→복사] (또는 ←) row. selection 0 / 컨테이너 미선택 시 disabled, ≥1 시 녹색 강조.</summary>
+    private void DrawMoveCopyRow(HashSet<int> checks,
+                                 System.Action<HashSet<int>>? onMove,
+                                 System.Action<HashSet<int>>? onCopy,
+                                 bool requireContainerSelection,
+                                 string moveLabel = "→ 이동",
+                                 string copyLabel = "→ 복사")
+    {
+        bool hasSelection = checks.Count > 0;
+        bool hasContainer = !requireContainerSelection || _selectedContainerIdx > 0;
+        bool enabled      = hasSelection && hasContainer;
+
+        GUILayout.BeginHorizontal();
+        var prevColor   = GUI.color;
+        var prevEnabled = GUI.enabled;
+        GUI.enabled = enabled;
+        if (enabled) GUI.color = new Color(0.5f, 1.0f, 0.5f);   // 녹색 강조
+        if (GUILayout.Button(moveLabel)) onMove?.Invoke(new HashSet<int>(checks));
+        if (GUILayout.Button(copyLabel)) onCopy?.Invoke(new HashSet<int>(checks));
+        GUI.color   = prevColor;
+        GUI.enabled = prevEnabled;
         GUILayout.EndHorizontal();
     }
 
@@ -655,16 +681,27 @@ public sealed class ContainerPanel
         DrawItemList(ContainerArea.Container, conView, _containerChecks, ref _conScroll, 500);
 
         // v0.7.1: destination 별 4 버튼 (좌측 column mirror) + 삭제
+        // v0.7.11 Cat 3G — selection 0 시 disabled, ≥1 시 녹색 강조
+        DrawMoveCopyRow(_containerChecks,
+            onMove: c => OnContainerToInventoryMove?.Invoke(c),
+            onCopy: c => OnContainerToInventoryCopy?.Invoke(c),
+            requireContainerSelection: false,
+            moveLabel: KoreanStrings.BtnInvMove, copyLabel: KoreanStrings.BtnInvCopy);
+        DrawMoveCopyRow(_containerChecks,
+            onMove: c => OnContainerToStorageMove?.Invoke(c),
+            onCopy: c => OnContainerToStorageCopy?.Invoke(c),
+            requireContainerSelection: false,
+            moveLabel: KoreanStrings.BtnStoMove, copyLabel: KoreanStrings.BtnStoCopy);
+        // 삭제 — selection 0 시 disabled, ≥1 시 빨강 강조
         GUILayout.BeginHorizontal();
-        if (GUILayout.Button(KoreanStrings.BtnInvMove)) OnContainerToInventoryMove?.Invoke(new HashSet<int>(_containerChecks));
-        if (GUILayout.Button(KoreanStrings.BtnInvCopy)) OnContainerToInventoryCopy?.Invoke(new HashSet<int>(_containerChecks));
-        GUILayout.EndHorizontal();
-        GUILayout.BeginHorizontal();
-        if (GUILayout.Button(KoreanStrings.BtnStoMove)) OnContainerToStorageMove?.Invoke(new HashSet<int>(_containerChecks));
-        if (GUILayout.Button(KoreanStrings.BtnStoCopy)) OnContainerToStorageCopy?.Invoke(new HashSet<int>(_containerChecks));
-        GUILayout.EndHorizontal();
-        GUILayout.BeginHorizontal();
+        bool hasContainerSel = _containerChecks.Count > 0;
+        var prevColor   = GUI.color;
+        var prevEnabled = GUI.enabled;
+        GUI.enabled = hasContainerSel;
+        if (hasContainerSel) GUI.color = new Color(1.0f, 0.5f, 0.5f);   // 빨강 — destructive
         if (GUILayout.Button("☓ 삭제")) OnContainerDelete?.Invoke(new HashSet<int>(_containerChecks));
+        GUI.color   = prevColor;
+        GUI.enabled = prevEnabled;
         GUILayout.EndHorizontal();
 
         GUILayout.EndVertical();
