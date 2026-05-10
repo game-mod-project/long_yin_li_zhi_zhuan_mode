@@ -387,10 +387,11 @@ public sealed class ContainerPanel
         // ─── 인벤토리 ───
         DrawSectionHeader(invCollapsed,
             () => Config.ContainerInventoryCollapsed.Value = !invCollapsed,
-            KoreanStrings.Lbl_Inventory, _inventoryRows, _inventoryMaxWeight, allowOvercap: true);
+            KoreanStrings.Lbl_Inventory, _inventoryRows, _inventoryChecks, _inventoryMaxWeight, allowOvercap: true);
         if (!invCollapsed && invContentH > 10f)
         {
             var invView = _invView.ApplyView(_inventoryRows, _globalState);
+            DrawSelectionBulkRow(invView, _inventoryChecks);
             DrawItemList(ContainerArea.Inventory, invView, _inventoryChecks, ref _invScroll, invContentH);
             GUILayout.BeginHorizontal();
             if (GUILayout.Button("→ 이동")) OnInventoryToContainerMove?.Invoke(new HashSet<int>(_inventoryChecks));
@@ -403,10 +404,11 @@ public sealed class ContainerPanel
         // ─── 창고 ───
         DrawSectionHeader(stoCollapsed,
             () => Config.ContainerStorageCollapsed.Value = !stoCollapsed,
-            KoreanStrings.Lbl_Storage, _storageRows, _storageMaxWeight, allowOvercap: false);
+            KoreanStrings.Lbl_Storage, _storageRows, _storageChecks, _storageMaxWeight, allowOvercap: false);
         if (!stoCollapsed && stoContentH > 10f)
         {
             var stoView = _stoView.ApplyView(_storageRows, _globalState);
+            DrawSelectionBulkRow(stoView, _storageChecks);
             DrawItemList(ContainerArea.Storage, stoView, _storageChecks, ref _stoScroll, stoContentH);
             GUILayout.BeginHorizontal();
             if (GUILayout.Button("→ 이동")) OnStorageToContainerMove?.Invoke(new HashSet<int>(_storageChecks));
@@ -425,15 +427,60 @@ public sealed class ContainerPanel
         GUILayout.EndVertical();
     }
 
-    /// <summary>v0.7.11 Cat 1B — list section 헤더: collapse toggle + 라벨.</summary>
+    /// <summary>v0.7.11 Cat 1B + 2B — list section 헤더: collapse toggle + 라벨 (선택 카운터+무게 포함).</summary>
     private void DrawSectionHeader(bool collapsed, System.Action onToggle, string title,
-                                   List<ItemRow> rows, float maxWeight, bool allowOvercap)
+                                   List<ItemRow> rows, HashSet<int> checks, float maxWeight, bool allowOvercap)
     {
         GUILayout.BeginHorizontal();
         if (GUILayout.Button(collapsed ? "▶" : "▼", GUILayout.Width(24))) onToggle();
         float totalWeight = 0f;
         foreach (var r in rows) totalWeight += r.Weight;
-        GUILayout.Label(FormatCount(title, rows.Count, totalWeight, maxWeight, allowOvercap));
+
+        // v0.7.11 Cat 2B — 선택 ≥1 시 카운터 + 무게 합계 표시
+        int selCount = checks.Count;
+        if (selCount > 0)
+        {
+            float selWeight = 0f;
+            foreach (var r in rows) if (checks.Contains(r.Index)) selWeight += r.Weight;
+            GUILayout.Label($"{title} (선택: {selCount} / {rows.Count}개, {selWeight:F1}/{totalWeight:F1}kg / 최대 {maxWeight:F1}kg)");
+        }
+        else
+        {
+            GUILayout.Label(FormatCount(title, rows.Count, totalWeight, maxWeight, allowOvercap));
+        }
+        GUILayout.EndHorizontal();
+    }
+
+    /// <summary>v0.7.11 Cat 2A + 2C — 일괄선택 button row (전체/해제/반전 + 등급 ≥ cycle).</summary>
+    private void DrawSelectionBulkRow(List<ItemRow> view, HashSet<int> checks)
+    {
+        GUILayout.BeginHorizontal();
+        // [☑ 전체] — 현재 visible (filtered) row 모두 선택
+        if (GUILayout.Button("☑ 전체", GUILayout.Width(60)))
+            foreach (var r in view) checks.Add(r.Index);
+        // [☐ 해제] — 선택 모두 제거
+        if (GUILayout.Button("☐ 해제", GUILayout.Width(60)))
+            checks.Clear();
+        // [↺ 반전] — visible row 의 currently checked 빼고 unchecked 는 추가
+        if (GUILayout.Button("↺ 반전", GUILayout.Width(60)))
+        {
+            foreach (var r in view)
+            {
+                if (checks.Contains(r.Index)) checks.Remove(r.Index);
+                else                          checks.Add(r.Index);
+            }
+        }
+        // 등급 ≥ N cycle — 글로벌 state 의 MinGradeOrder 사용 (Cat 4B 와 자산 공유)
+        int min = _globalState.MinGradeOrder;
+        string rareLabel = min < 0 ? "등급 전체"
+            : (min == 0 ? "≥ 열악" : min == 1 ? "≥ 보통" : min == 2 ? "≥ 정량"
+            : min == 3 ? "≥ 비전" : min == 4 ? "≥ 정극" : "≥ 절세");
+        if (GUILayout.Button($"[{rareLabel}]", GUILayout.Width(80)))
+        {
+            // -1 → 0 → 1 → ... → 5 → -1
+            int next = min < 5 ? min + 1 : -1;
+            _globalState = _globalState.WithMinGradeOrder(next);
+        }
         GUILayout.EndHorizontal();
     }
 
@@ -604,6 +651,18 @@ public sealed class ContainerPanel
         if (GUILayout.Button("ⓘ 상세", GUILayout.Width(60)))
             OnToggleItemDetailPanel?.Invoke();
         GUI.color = prevColor;
+
+        // v0.7.11 Cat 2H/4E — 착용중 제외 toggle (filter context, all 3 areas 영향)
+        GUILayout.Space(8);
+        bool exclude = _globalState.ExcludeEquipped;
+        bool newExclude = GUILayout.Toggle(exclude, "착용중 제외", GUILayout.Width(100));
+        if (newExclude != exclude)
+        {
+            _globalState = _globalState.WithExcludeEquipped(newExclude);
+            _invView.Invalidate();
+            _stoView.Invalidate();
+            _conView.Invalidate();
+        }
         GUILayout.EndHorizontal();
     }
 
