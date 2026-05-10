@@ -14,7 +14,7 @@ public sealed class Plugin : BasePlugin
 {
     public const string GUID    = "com.deepe.longyinroster";
     public const string NAME    = "LongYin Roster Mod";
-    public const string VERSION = "0.7.10.2";
+    public const string VERSION = "0.7.11";
 
     public override void Load()
     {
@@ -37,5 +37,6 @@ public sealed class Plugin : BasePlugin
         Logger.Info("[v0.7.8] Player editor ready (F11+4) — Resource/Quick/HeroSpeAddData × 3 / 천부 (heroTagData) / 무공 (kungfuSkills) / 돌파속성 dialog");
         Logger.Info("[v0.7.10] GetMaxTagNumPatch registered + AttriTabPanel ready ([기본]/[속성] tab)");
         Logger.Info("[v0.7.10 Phase 3] HeroDataCapBypassPatch registered (자질값 cap 돌파, opt-in via Config.EnableUncapMax)");
+        Logger.Info("[v0.7.11] ContainerPanel UX overhaul — collapse + split / 일괄선택 + 카운터 + 등급별 / 무공 secondary tab + 결과 카운터 / 삭제 confirm + Clone / button 강조 / corner resize");
     }
 }
