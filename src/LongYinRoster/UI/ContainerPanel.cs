@@ -345,34 +345,96 @@ public sealed class ContainerPanel
     private void DrawLeftColumn()
     {
         GUILayout.BeginVertical(GUILayout.Width(390));
-        _leftColumnScroll = GUILayout.BeginScrollView(_leftColumnScroll, GUILayout.Height(640));
 
-        // 인벤
-        var invView = _invView.ApplyView(_inventoryRows, _globalState);
-        float invWeight = 0f;
-        foreach (var r in _inventoryRows) invWeight += r.Weight;   // 라벨은 raw 기준 (전체 무게)
-        GUILayout.Label(FormatCount(KoreanStrings.Lbl_Inventory, _inventoryRows.Count, invWeight, _inventoryMaxWeight, allowOvercap: true));
-        DrawItemList(ContainerArea.Inventory, invView, _inventoryChecks, ref _invScroll, 220);
-        GUILayout.BeginHorizontal();
-        if (GUILayout.Button("→ 이동")) OnInventoryToContainerMove?.Invoke(new HashSet<int>(_inventoryChecks));
-        if (GUILayout.Button("→ 복사")) OnInventoryToContainerCopy?.Invoke(new HashSet<int>(_inventoryChecks));
-        GUILayout.EndHorizontal();
+        // v0.7.11 Cat 1A/1B — collapse 토글 + split preset
+        bool invCollapsed = Config.ContainerInventoryCollapsed.Value;
+        bool stoCollapsed = Config.ContainerStorageCollapsed.Value;
+        int  preset       = Config.ContainerSplitPreset.Value;
+
+        // 사용 가능 height = 640 (기존 outer ScrollView height). 두 list 의 content area 에 분배.
+        // EXPANDED_OVERHEAD = 헤더(28) + 버튼row(28) ≈ 56 per section.
+        const float TOTAL_H            = 640f;
+        const float EXPANDED_OVERHEAD  = 56f;
+        const float COLLAPSED_OVERHEAD = 28f;   // 헤더만
+
+        float invContentH, stoContentH;
+        if (invCollapsed && stoCollapsed)
+        {
+            invContentH = 0f; stoContentH = 0f;
+        }
+        else if (invCollapsed)
+        {
+            invContentH = 0f;
+            stoContentH = TOTAL_H - COLLAPSED_OVERHEAD - EXPANDED_OVERHEAD - 4f;
+        }
+        else if (stoCollapsed)
+        {
+            invContentH = TOTAL_H - EXPANDED_OVERHEAD - COLLAPSED_OVERHEAD - 4f;
+            stoContentH = 0f;
+        }
+        else
+        {
+            float available = TOTAL_H - 2 * EXPANDED_OVERHEAD - 4f;
+            (invContentH, stoContentH) = preset switch
+            {
+                1 => (available * 0.7f, available * 0.3f),  // 70:30
+                2 => (available * 0.3f, available * 0.7f),  // 30:70
+                3 => (available - 60f, 60f),                // 인벤 확장 / 창고 최소
+                _ => (available * 0.5f, available * 0.5f),  // 50:50
+            };
+        }
+
+        // ─── 인벤토리 ───
+        DrawSectionHeader(invCollapsed,
+            () => Config.ContainerInventoryCollapsed.Value = !invCollapsed,
+            KoreanStrings.Lbl_Inventory, _inventoryRows, _inventoryMaxWeight, allowOvercap: true);
+        if (!invCollapsed && invContentH > 10f)
+        {
+            var invView = _invView.ApplyView(_inventoryRows, _globalState);
+            DrawItemList(ContainerArea.Inventory, invView, _inventoryChecks, ref _invScroll, invContentH);
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("→ 이동")) OnInventoryToContainerMove?.Invoke(new HashSet<int>(_inventoryChecks));
+            if (GUILayout.Button("→ 복사")) OnInventoryToContainerCopy?.Invoke(new HashSet<int>(_inventoryChecks));
+            GUILayout.EndHorizontal();
+        }
 
         GUILayout.Space(4);
 
-        // 창고
-        var stoView = _stoView.ApplyView(_storageRows, _globalState);
-        float stoWeight = 0f;
-        foreach (var r in _storageRows) stoWeight += r.Weight;
-        GUILayout.Label(FormatCount(KoreanStrings.Lbl_Storage, _storageRows.Count, stoWeight, _storageMaxWeight, allowOvercap: false));
-        DrawItemList(ContainerArea.Storage, stoView, _storageChecks, ref _stoScroll, 220);
-        GUILayout.BeginHorizontal();
-        if (GUILayout.Button("→ 이동")) OnStorageToContainerMove?.Invoke(new HashSet<int>(_storageChecks));
-        if (GUILayout.Button("→ 복사")) OnStorageToContainerCopy?.Invoke(new HashSet<int>(_storageChecks));
-        GUILayout.EndHorizontal();
+        // ─── 창고 ───
+        DrawSectionHeader(stoCollapsed,
+            () => Config.ContainerStorageCollapsed.Value = !stoCollapsed,
+            KoreanStrings.Lbl_Storage, _storageRows, _storageMaxWeight, allowOvercap: false);
+        if (!stoCollapsed && stoContentH > 10f)
+        {
+            var stoView = _stoView.ApplyView(_storageRows, _globalState);
+            DrawItemList(ContainerArea.Storage, stoView, _storageChecks, ref _stoScroll, stoContentH);
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("→ 이동")) OnStorageToContainerMove?.Invoke(new HashSet<int>(_storageChecks));
+            if (GUILayout.Button("→ 복사")) OnStorageToContainerCopy?.Invoke(new HashSet<int>(_storageChecks));
+            GUILayout.EndHorizontal();
+        }
 
-        GUILayout.EndScrollView();
+        // Split preset cycle button
+        GUILayout.Space(4);
+        string presetLabel = preset switch { 1 => "70:30", 2 => "30:70", 3 => "확장:최소", _ => "50:50" };
+        if (GUILayout.Button($"비율 {presetLabel} ▼", GUILayout.Width(120)))
+        {
+            Config.ContainerSplitPreset.Value = (preset + 1) % 4;
+        }
+
         GUILayout.EndVertical();
+    }
+
+    /// <summary>v0.7.11 Cat 1B — list section 헤더: collapse toggle + 라벨.</summary>
+    private void DrawSectionHeader(bool collapsed, System.Action onToggle, string title,
+                                   List<ItemRow> rows, float maxWeight, bool allowOvercap)
+    {
+        GUILayout.BeginHorizontal();
+        if (GUILayout.Button(collapsed ? "▶" : "▼", GUILayout.Width(24))) onToggle();
+        float totalWeight = 0f;
+        foreach (var r in rows) totalWeight += r.Weight;
+        GUILayout.Label(FormatCount(title, rows.Count, totalWeight, maxWeight, allowOvercap));
+        GUILayout.EndHorizontal();
     }
 
     private void DrawRightColumn()
