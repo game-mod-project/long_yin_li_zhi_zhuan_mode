@@ -4,21 +4,29 @@ public enum ItemCategory
 {
     All       = -1,
     Equipment = 0,   // type=0
-    Medicine  = 1,   // type=2 subType=0
-    Food      = 2,   // type=2 subType≥1
+    Medicine  = 1,   // type=1 (pills) OR type=2 subType≥1 (medicinal wine)
+    Food      = 2,   // type=2 subType=0
     Book      = 3,   // type=3
     Treasure  = 4,   // type=4
     Material  = 5,   // type=5
     Horse     = 6,   // type=6
-    Other     = 99,  // type=1 등 미분류
+    Other     = 99,  // 미분류
 }
 
 public static class ItemCategoryFilter
 {
+    /// <summary>
+    /// v0.7.11.1 fix: 카테고리 매핑 swap 수정.
+    /// 게임 schema:
+    ///   type=1 → 단약 pill (보혈단/통락단/황련환/지렬산 등) — 이전 "Other/기타" 로 잘못 분류
+    ///   type=2 subType=0 → 음식 (통돼지구이/사군자탕/팔진회/고기만두 등) — 이전 "Medicine/단약" 으로 swap
+    ///   type=2 subType≥1 → 단약 약주 (용뇌주/두강주 등) — 이전 "Food/음식" 으로 swap
+    /// </summary>
     public static ItemCategory Classify(int type, int subType) => type switch
     {
         0 => ItemCategory.Equipment,
-        2 => subType == 0 ? ItemCategory.Medicine : ItemCategory.Food,
+        1 => ItemCategory.Medicine,                                                // 단약 pill
+        2 => subType == 0 ? ItemCategory.Food : ItemCategory.Medicine,             // 음식 / 약주
         3 => ItemCategory.Book,
         4 => ItemCategory.Treasure,
         5 => ItemCategory.Material,
