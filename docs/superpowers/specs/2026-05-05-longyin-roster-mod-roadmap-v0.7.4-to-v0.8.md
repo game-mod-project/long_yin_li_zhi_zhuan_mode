@@ -393,3 +393,44 @@ Spec: [2026-05-09-longyin-roster-mod-v0.7.10-design.md](2026-05-09-longyin-roste
 - **maintenance** — trigger 시 활성.
 
 G4 Decision 은 사용자 명시 선택 시점에 본 spec 에 append.
+
+### v0.7.10 Hotfix Series (2026-05-09 ~ 2026-05-10)
+
+- **v0.7.10.1** (2026-05-09) — Hotfix 4 fix: 천부 점수 ×4 표시 (HeroTagNameCache) + 점수별 색상 (TagPointColors meta.Value × 4 매핑) + 무공 owned list 등급 secondary tab + 정렬 4-mode cycle. HeroAttriReflector getter 시도 → raw read 복귀 (cheat / 자체 Postfix override 가 user-set raw value mask 회피). 사용자 2 iteration 검증.
+- **v0.7.10.2** (2026-05-10) — Hotfix log 폭주 fix: RestKeepHeroTagPatch 의 verbose Info logging 5건 제거 / gate. 사용자 보고 — 게임 느려짐 + LogOutput 22000+ lines (우리 mod contribution ~817 lines). Logger.Warn (실제 에러) 보존, no-op + snapshot Info 제거, restored N>0 일 때만 logging.
+
+### G4 Decision (2026-05-10)
+
+v0.7.10.2 release 직후 G4 게이트 평가. 사용자가 ContainerPanel UX 개선 우선 요청 (NPC dropdown 보다):
+
+- **v0.7.11 ContainerPanel UX overhaul**: **GO** → rationale = 사용자 직접 요청. 브레인스토밍 10 카테고리 → 6 채택 (Cat 1/2/3G/4/5/9). Sub-project 분할 = **β** — sprite (Cat 6 = 6A IL2CPP spike) 만 v0.8 분리 → v0.7.11 = sprite 제외 UX 만. Cat 3 의 3C (Undo) + 3D (toast 강화) 는 ModWindow callback refactor 필요로 v0.7.12 deferred. NPC dropdown 도 v0.7.13+ 후속.
+- **v0.7.13 NPC dropdown** (was v0.7.11): **DEFER** → rationale = 사용자가 ContainerPanel UX 우선시. v0.7.10 의 모든 자산 generalize 후속 cycle.
+- **v0.7.10.x 자질 grade marker**: **DEFER until G5** → rationale = derivation rule spike 비용, ContainerPanel UX 후 재평가.
+- **v0.8 진짜 sprite**: **GO (β 분할)** → ContainerPanel 의 Cat 6 = 6A 와 합쳐 v0.8 단독 cycle 으로 IL2CPP sprite spike. v0.7.11 release 후 진입.
+- **v0.7.9 Slot diff preview**: **DEFER until G5**.
+- **maintenance**: **WAIT** → trigger 미발견.
+
+Next sub-project: **v0.7.11 ContainerPanel UX overhaul** brainstorm cycle 종료 — spec 작성 완료 (`2026-05-10-longyin-roster-mod-v0.7.11-design.md`). plan 진입.
+
+### v0.7.11 Result (2026-05-10)
+
+- Release: [v0.7.11](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.7.11) (push 후 link active)
+- Spec: [2026-05-10-longyin-roster-mod-v0.7.11-design.md](2026-05-10-longyin-roster-mod-v0.7.11-design.md)
+- Plan: [2026-05-10-longyin-roster-mod-v0.7.11-plan.md](../plans/2026-05-10-longyin-roster-mod-v0.7.11-plan.md)
+- Smoke: smoke run 후 `docs/superpowers/dumps/2026-05-10-v0.7.11-smoke-results.md` 추가 (사용자 게이트)
+- Tests: 374 → **390 PASS** (+16). 신규 IMGUI API 도입 0.
+- **Phase 분리**: Phase 0 (spike) / Phase 1 (Cat 5) / Phase 2 (Cat 1) / Phase 3 (Cat 2/4 filter) / Phase 4 (Cat 4 secondary+counter) / Phase 5 축소 (Cat 3G only) / Phase 6 (Cat 9 resize) / Phase 7 (release).
+- **Scope reduction**: Cat 3C (Undo) + 3D (toast 강화) 는 ModWindow callback 패턴 변경 필요 → v0.7.12 defer (사용자 인지). Cat 6 (sprite) 는 v0.8 별도 cycle (β 분할).
+- **신규 자산**: ContainerMetadata.ItemCount/TotalWeight (transient) / ContainerFile.ComputeStats / ContainerRepository.Clone / SearchSortState extra fields (MinGradeOrder + ExcludeEquipped + KungfuTypeFilter) + withers / ContainerView 의 LastViewCount + 3 추가 filter / ContainerPanel: DrawSelectionBulkRow + DrawMoveCopyRow + DrawSectionHeader + DrawKungfuTypeSecondaryTabs + DrawResizeHandle + _confirmDialog instance + 3 collapse/split fields.
+
+### G5 Gate Pending (v0.7.11 release 직후)
+
+평가 대상:
+- **v0.7.12 Cat 3 deferred — Undo + toast 강화** (ContainerOps Undo stack + ModWindow callback refactor)
+- **v0.7.13 NPC dropdown** (heroID switch, v0.7.10 자산 generalize)
+- **v0.7.10.x 자질 grade marker** (derivation rule spike)
+- **v0.8 진짜 sprite** (IL2CPP sprite asset spike, ContainerPanel Cat 6 + ItemCellRenderer)
+- **v0.7.9 Slot diff preview** (Apply pipeline)
+- **maintenance** (trigger 시)
+
+G5 Decision 은 사용자 명시 선택 시점에 본 spec 에 append.
