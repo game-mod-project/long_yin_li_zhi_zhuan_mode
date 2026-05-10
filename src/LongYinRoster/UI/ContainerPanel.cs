@@ -73,6 +73,9 @@ public sealed class ContainerPanel
     public Action? OnToggleItemDetailPanel;
     public Func<bool>? IsItemDetailPanelVisible;
 
+    // v0.7.12 Cat 3C — Undo callback. ModWindow 가 wire-up: OnUndoRequested = PerformUndo.
+    public Action? OnUndoRequested;
+
     // v0.7.11 Cat 5A — 삭제 confirm dialog (panel-local, ModWindow 와 별도 instance)
     private readonly ConfirmDialog _confirmDialog = new();
 
@@ -766,6 +769,16 @@ public sealed class ContainerPanel
             _stoView.Invalidate();
             _conView.Invalidate();
         }
+
+        // v0.7.12 Cat 3C — Undo button (can-undo 시 enabled, 노랑 강조)
+        GUILayout.Space(8);
+        var undoPrevColor   = GUI.color;
+        var undoPrevEnabled = GUI.enabled;
+        GUI.enabled = Containers.ContainerOpUndo.CanUndo;
+        if (GUI.enabled) GUI.color = new Color(1.0f, 0.9f, 0.5f);   // 노랑 (warning-ish)
+        if (GUILayout.Button("↶ Undo", GUILayout.Width(80))) OnUndoRequested?.Invoke();
+        GUI.color   = undoPrevColor;
+        GUI.enabled = undoPrevEnabled;
 
         // v0.7.11 Cat 4K — 결과 카운터 (filter 적용 후 visible / raw total).
         // 직전 frame 의 ApplyView cache 기반 — 1 frame lag 가능 but 사용자 인지 영향 미미.

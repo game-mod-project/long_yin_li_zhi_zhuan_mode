@@ -136,19 +136,16 @@ public sealed class ModWindow : MonoBehaviour
             _containerOps.CurrentContainerIndex = idx;
             RefreshContainerRows();
         };
-        _containerPanel.OnInventoryToContainerMove = checks => DoGameToContainer(getList: GetPlayerInventoryList, checks, removeFromGame: true);
-        _containerPanel.OnInventoryToContainerCopy = checks => DoGameToContainer(getList: GetPlayerInventoryList, checks, removeFromGame: false);
-        _containerPanel.OnStorageToContainerMove   = checks => DoGameToContainer(getList: GetPlayerStorageList,   checks, removeFromGame: true);
-        _containerPanel.OnStorageToContainerCopy   = checks => DoGameToContainer(getList: GetPlayerStorageList,   checks, removeFromGame: false);
+        _containerPanel.OnInventoryToContainerMove = checks => DoGameToContainer(getList: GetPlayerInventoryList, checks, removeFromGame: true,  sourceLabel: "인벤토리");
+        _containerPanel.OnInventoryToContainerCopy = checks => DoGameToContainer(getList: GetPlayerInventoryList, checks, removeFromGame: false, sourceLabel: "인벤토리");
+        _containerPanel.OnStorageToContainerMove   = checks => DoGameToContainer(getList: GetPlayerStorageList,   checks, removeFromGame: true,  sourceLabel: "창고");
+        _containerPanel.OnStorageToContainerCopy   = checks => DoGameToContainer(getList: GetPlayerStorageList,   checks, removeFromGame: false, sourceLabel: "창고");
         _containerPanel.OnContainerToInventoryMove = checks => DoContainerToInventory(checks, removeFromContainer: true);
         _containerPanel.OnContainerToInventoryCopy = checks => DoContainerToInventory(checks, removeFromContainer: false);
         _containerPanel.OnContainerToStorageMove   = checks => DoContainerToStorage  (checks, removeFromContainer: true);
         _containerPanel.OnContainerToStorageCopy   = checks => DoContainerToStorage  (checks, removeFromContainer: false);
-        _containerPanel.OnContainerDelete           = checks => {
-            var r = _containerOps.DeleteFromContainer(checks);
-            _containerPanel.Toast($"삭제: {r.Succeeded}개" + (string.IsNullOrEmpty(r.Reason) ? "" : $" — {r.Reason}"));
-            RefreshContainerRows();
-        };
+        _containerPanel.OnContainerDelete          = checks => DoDeleteContainerItems(checks);
+        _containerPanel.OnUndoRequested            = PerformUndo;   // v0.7.12 Cat 3C
 
         // v0.7.4 D-1 — ItemDetailPanel 초기화 + ContainerPanel ⓘ 토글 wiring
         _itemDetailPanel.Init(
@@ -256,7 +253,7 @@ public sealed class ModWindow : MonoBehaviour
             _containerPanel.SetContainerRows(new List<ContainerPanel.ItemRow>(), new List<object>());
     }
 
-    private void DoGameToContainer(Func<object?> getList, HashSet<int> checks, bool removeFromGame)
+    private void DoGameToContainer(Func<object?> getList, HashSet<int> checks, bool removeFromGame, string sourceLabel = "")
     {
         if (_containerOps == null) return;
         var lst = getList();
@@ -288,8 +285,32 @@ public sealed class ModWindow : MonoBehaviour
             }
         }
 
+        // v0.7.12 Cat 3C — snapshot before op
+        int containerIdx = _containerOps.CurrentContainerIndex;
+        string jsonBefore = containerIdx > 0 ? (_containerRepo?.LoadItemsJson(containerIdx) ?? "[]") : "[]";
+        // Move 의 경우 game 측 제거된 item JSON 도 capture (Undo 시 game 에 re-add 용)
+        string movedItemsJson = removeFromGame ? Containers.ContainerOps.ExtractGameItemsToJson(lst, checks) : "";
+
         var r = _containerOps.GameToContainer(lst, checks, removeFromGame);
-        _containerPanel.Toast($"{(removeFromGame ? "이동" : "복사")}: {r.Succeeded}개" + (r.Failed > 0 ? $" / {r.Failed}개 실패" : "") + (string.IsNullOrEmpty(r.Reason) ? "" : $" — {r.Reason}"));
+
+        // v0.7.12 Cat 3C — record on success
+        if (r.Succeeded > 0 && containerIdx > 0)
+        {
+            string field = sourceLabel == "창고" ? "selfStorage" : "itemListData";
+            Containers.ContainerOpUndo.Record(new Containers.OpRecord
+            {
+                Kind                = removeFromGame ? Containers.OpKind.GameToContainerMove : Containers.OpKind.GameToContainerCopy,
+                ContainerIdx        = containerIdx,
+                ContainerJsonBefore = jsonBefore,
+                AddedItemsJson      = movedItemsJson,
+                GameSourceField     = field,
+                AddedCountToGame    = 0,
+                Description         = $"{(removeFromGame ? "이동" : "복사")} {r.Succeeded}개 from {(string.IsNullOrEmpty(sourceLabel) ? "게임" : sourceLabel)} → 컨테이너",
+            });
+        }
+
+        // v0.7.12 Cat 3D — 표준화 toast (success/fail 카운트 + 사유)
+        ToastResult(removeFromGame ? "이동" : "복사", r);
         RefreshAllContainerRows();
     }
 
@@ -299,14 +320,31 @@ public sealed class ModWindow : MonoBehaviour
         var p = Core.HeroLocator.GetPlayer();
         if (p == null) { _containerPanel.Toast(KoreanStrings.ToastContainerNeedGameEnter); return; }
         float maxW = Core.ItemListReflector.GetMaxWeight(GetPlayerItemListData(), Config.InventoryMaxWeight.Value);
+
+        // v0.7.12 Cat 3C — snapshot
+        int idx = _containerOps.CurrentContainerIndex;
+        string jsonBefore = idx > 0 ? (_containerRepo?.LoadItemsJson(idx) ?? "[]") : "[]";
+
         var r = _containerOps.ContainerToInventory(p, checks, removeFromContainer, maxW);
-        if (!string.IsNullOrEmpty(r.Reason) && r.Succeeded == 0)
+
+        // v0.7.12 Cat 3C — record on success
+        if (r.Succeeded > 0 && idx > 0)
         {
-            _containerPanel.Toast(r.Reason);
+            Containers.ContainerOpUndo.Record(new Containers.OpRecord
+            {
+                Kind                = removeFromContainer ? Containers.OpKind.ContainerToInvMove : Containers.OpKind.ContainerToInvCopy,
+                ContainerIdx        = idx,
+                ContainerJsonBefore = jsonBefore,
+                AddedItemsJson      = "",
+                GameSourceField     = "itemListData",
+                AddedCountToGame    = r.Succeeded,
+                Description         = $"{(removeFromContainer ? "이동" : "복사")} {r.Succeeded}개 컨테이너 → 인벤토리",
+            });
         }
-        else if (r.OverCapWeight > 0f)
+
+        // v0.7.12 Cat 3D — over-cap 시 추가 디테일 표시
+        if (r.OverCapWeight > 0f)
         {
-            // 인벤 over-cap 발생: 현재 무게 = inventory wrapper.weight 합산 (refresh 전 값)
             float finalW = 0f;
             var inv = GetPlayerInventoryList();
             if (inv != null)
@@ -320,11 +358,11 @@ public sealed class ModWindow : MonoBehaviour
                     if (w is float wf) finalW += wf;
                 }
             }
-            _containerPanel.Toast(string.Format(KoreanStrings.ToastInvOvercap, r.Succeeded, finalW, maxW));
+            ToastService.Push(string.Format(KoreanStrings.ToastInvOvercap, r.Succeeded, finalW, maxW), ToastKind.Error);
         }
         else
         {
-            _containerPanel.Toast(string.Format(KoreanStrings.ToastInvOk, r.Succeeded));
+            ToastResult(removeFromContainer ? "이동 → 인벤" : "복사 → 인벤", r);
         }
         RefreshAllContainerRows();
     }
@@ -335,24 +373,135 @@ public sealed class ModWindow : MonoBehaviour
         var p = Core.HeroLocator.GetPlayer();
         if (p == null) { _containerPanel.Toast(KoreanStrings.ToastContainerNeedGameEnter); return; }
         float maxW = Core.ItemListReflector.GetMaxWeight(GetPlayerSelfStorage(), Config.StorageMaxWeight.Value);
+
+        // v0.7.12 Cat 3C — snapshot
+        int idx = _containerOps.CurrentContainerIndex;
+        string jsonBefore = idx > 0 ? (_containerRepo?.LoadItemsJson(idx) ?? "[]") : "[]";
+
         var r = _containerOps.ContainerToStorage(p, checks, removeFromContainer, maxW);
-        if (!string.IsNullOrEmpty(r.Reason) && r.Succeeded == 0 && r.Failed == 0)
+
+        // v0.7.12 Cat 3C — record on success
+        if (r.Succeeded > 0 && idx > 0)
         {
-            _containerPanel.Toast(r.Reason);
+            Containers.ContainerOpUndo.Record(new Containers.OpRecord
+            {
+                Kind                = removeFromContainer ? Containers.OpKind.ContainerToStoMove : Containers.OpKind.ContainerToStoCopy,
+                ContainerIdx        = idx,
+                ContainerJsonBefore = jsonBefore,
+                AddedItemsJson      = "",
+                GameSourceField     = "selfStorage",
+                AddedCountToGame    = r.Succeeded,
+                Description         = $"{(removeFromContainer ? "이동" : "복사")} {r.Succeeded}개 컨테이너 → 창고",
+            });
         }
-        else if (r.Succeeded == 0 && r.Failed > 0)
-        {
-            _containerPanel.Toast(KoreanStrings.ToastStoFull);
-        }
-        else if (r.Failed > 0)
-        {
-            _containerPanel.Toast(string.Format(KoreanStrings.ToastStoPartial, r.Succeeded, r.Failed));
-        }
-        else
-        {
-            _containerPanel.Toast(string.Format(KoreanStrings.ToastStoOk, r.Succeeded));
-        }
+
+        // v0.7.12 Cat 3D — 표준화
+        ToastResult(removeFromContainer ? "이동 → 창고" : "복사 → 창고", r);
         RefreshAllContainerRows();
+    }
+
+    /// <summary>v0.7.12 Cat 3C — 컨테이너 안 item 삭제 + Undo record (직전 inline lambda 추출).</summary>
+    private void DoDeleteContainerItems(HashSet<int> checks)
+    {
+        if (_containerOps == null) return;
+        int idx = _containerOps.CurrentContainerIndex;
+        string jsonBefore = idx > 0 ? (_containerRepo?.LoadItemsJson(idx) ?? "[]") : "[]";
+        var r = _containerOps.DeleteFromContainer(checks);
+        if (r.Succeeded > 0 && idx > 0)
+        {
+            Containers.ContainerOpUndo.Record(new Containers.OpRecord
+            {
+                Kind                = Containers.OpKind.ContainerDelete,
+                ContainerIdx        = idx,
+                ContainerJsonBefore = jsonBefore,
+                Description         = $"삭제 {r.Succeeded}개 from 컨테이너",
+            });
+        }
+        ToastResult("삭제", r);
+        RefreshContainerRows();
+    }
+
+    /// <summary>v0.7.12 Cat 3D — 표준화 toast: success / fail 카운트 + 사유 + over-cap 정보.</summary>
+    private void ToastResult(string opLabel, ContainerOpsHelper.Result r)
+    {
+        var kind = r.Failed > 0 ? ToastKind.Error : ToastKind.Info;
+        if (r.Succeeded == 0 && r.Failed == 0 && !string.IsNullOrEmpty(r.Reason))
+        {
+            ToastService.Push($"{opLabel}: {r.Reason}", ToastKind.Error);
+            return;
+        }
+        string msg = $"{opLabel}: {r.Succeeded}개 성공";
+        if (r.Failed > 0) msg += $" / {r.Failed}개 실패";
+        if (!string.IsNullOrEmpty(r.Reason)) msg += $" — {r.Reason}";
+        if (r.OverCapWeight > 0f) msg += $" (over-cap {r.OverCapWeight:F1}kg)";
+        ToastService.Push(msg, kind);
+    }
+
+    /// <summary>v0.7.12 Cat 3C — Undo 시 game 측 list resolve. fieldName = "itemListData" / "selfStorage".</summary>
+    private object? ResolveGameList(string fieldName) => fieldName switch
+    {
+        "itemListData" => GetPlayerInventoryList(),
+        "selfStorage"  => GetPlayerStorageList(),
+        _              => null,
+    };
+
+    /// <summary>v0.7.12 Cat 3C — 직전 op inverse 실행. ContainerOpUndo.Pop() 의 OpRecord 따라 분기.</summary>
+    private void PerformUndo()
+    {
+        var op = Containers.ContainerOpUndo.Pop();
+        if (op == null) { _containerPanel.Toast("Undo 가능한 작업 없음"); return; }
+        if (_containerRepo == null) return;
+        try
+        {
+            // 1. Container restore (always — ContainerJsonBefore 가 항상 채워짐)
+            if (!string.IsNullOrEmpty(op.ContainerJsonBefore))
+                _containerRepo.SaveItemsJson(op.ContainerIdx, op.ContainerJsonBefore);
+
+            // 2. Game side restore — Kind 별 분기
+            var p = Core.HeroLocator.GetPlayer();
+            switch (op.Kind)
+            {
+                case Containers.OpKind.GameToContainerMove:
+                    // game 에서 제거된 item 들을 다시 add (re-insert via JSON)
+                    if (p != null && !string.IsNullOrEmpty(op.AddedItemsJson))
+                    {
+                        // maxWeight = 9999 (인위적 무한대 — Move 직전 상태 복원, cap 검증 skip)
+                        Containers.ContainerOps.AddItemsJsonToGame(p, op.AddedItemsJson, 9999f, allowOvercap: true, op.GameSourceField);
+                    }
+                    break;
+
+                case Containers.OpKind.GameToContainerCopy:
+                case Containers.OpKind.ContainerDelete:
+                    // Container 만 변경 — Game 측 unchanged. 추가 작업 없음.
+                    break;
+
+                case Containers.OpKind.ContainerToInvMove:
+                case Containers.OpKind.ContainerToInvCopy:
+                case Containers.OpKind.ContainerToStoMove:
+                case Containers.OpKind.ContainerToStoCopy:
+                    // game 의 마지막 N 개 (방금 추가된 item) 제거
+                    if (op.AddedCountToGame > 0)
+                    {
+                        var targetList = ResolveGameList(op.GameSourceField);
+                        if (targetList != null)
+                        {
+                            int count = Containers.ContainerOps.GetGameListCount(targetList);
+                            var lastIndices = new HashSet<int>();
+                            int start = Math.Max(0, count - op.AddedCountToGame);
+                            for (int i = start; i < count; i++) lastIndices.Add(i);
+                            Containers.ContainerOps.RemoveGameItems(targetList, lastIndices);
+                        }
+                    }
+                    break;
+            }
+            _containerPanel.Toast($"↶ Undo: {op.Description}");
+            RefreshAllContainerRows();
+        }
+        catch (Exception ex)
+        {
+            _containerPanel.Toast($"Undo 실패: {ex.Message}");
+            Util.Logger.Warn($"PerformUndo threw: {ex.GetType().Name}: {ex.Message}");
+        }
     }
 
     /// <summary>
