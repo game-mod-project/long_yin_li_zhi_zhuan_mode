@@ -101,6 +101,9 @@ namespace UnityEngine
         public static void BeginVertical(params GUILayoutOption[] options) { }
         public static void EndVertical() { }
         public static bool BeginScrollView(Vector2 pos, bool h, bool v, out Vector2 outPos, params GUILayoutOption[] options) { outPos = pos; return false; }
+
+        // v0.7.11 Cat 5A — ConfirmDialog 가 GUILayout.Window 사용. Unity API 에 둘 다 존재 (GUI.Window + GUILayout.Window).
+        public static Rect Window(int id, Rect clientRect, GUI.WindowFunction func, string title) => clientRect;
     }
 
     public class GUILayoutOption { }

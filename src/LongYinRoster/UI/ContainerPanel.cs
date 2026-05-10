@@ -73,6 +73,9 @@ public sealed class ContainerPanel
     public Action? OnToggleItemDetailPanel;
     public Func<bool>? IsItemDetailPanelVisible;
 
+    // v0.7.11 Cat 5A — 삭제 confirm dialog (panel-local, ModWindow 와 별도 instance)
+    private readonly ConfirmDialog _confirmDialog = new();
+
     public bool HasFocus => _focus.HasValue;
     public (ContainerArea Area, int Index)? Focus => _focus;
     public void SetFocus(ContainerArea area, int index)
@@ -310,6 +313,8 @@ public sealed class ContainerPanel
             DrawRightColumn();
             GUILayout.EndHorizontal();
             DrawToast();
+            // v0.7.11 Cat 5A — 삭제 confirm dialog (modal overlay)
+            _confirmDialog.Draw();
             // DragWindow 영역 — 헤더 전체 (X 버튼 제외)
             GUI.DragWindow(new Rect(0, 0, _rect.width - 32, DialogStyle.HeaderHeight));
         }
@@ -390,16 +395,41 @@ public sealed class ContainerPanel
                 _dropdownOpen = false;
             }
         }
+        // v0.7.11 Cat 5C — 컨테이너 복사 (Clone)
+        if (GUILayout.Button("복사", GUILayout.Width(45)))
+        {
+            if (_repo != null && _selectedContainerIdx > 0)
+            {
+                int newIdx = _repo.Clone(_selectedContainerIdx);
+                if (newIdx > 0)
+                {
+                    RefreshContainerList();
+                    _selectedContainerIdx = newIdx;
+                    Config.ContainerLastIndex.Value = newIdx;
+                    OnContainerSelected?.Invoke(newIdx);
+                    Toast($"컨테이너 #{newIdx} 복사됨");
+                }
+                else
+                {
+                    Toast("컨테이너 복사 실패");
+                }
+                _dropdownOpen = false;
+            }
+        }
+        // v0.7.11 Cat 5A — 삭제 confirm dialog (즉시 삭제 → 사용자 확인 후 삭제)
         if (GUILayout.Button("삭제", GUILayout.Width(45)))
         {
             if (_repo != null && _selectedContainerIdx > 0)
             {
-                _repo.Delete(_selectedContainerIdx);
-                _selectedContainerIdx = -1;
-                Config.ContainerLastIndex.Value = -1;   // v0.7.6 immediate write
-                RefreshContainerList();
-                OnContainerSelected?.Invoke(-1);
-                Toast("컨테이너 삭제됨");
+                var meta = _containerList.Find(c => c.ContainerIndex == _selectedContainerIdx);
+                string name  = meta?.ContainerName ?? $"#{_selectedContainerIdx}";
+                int    items = meta?.ItemCount ?? 0;
+                _confirmDialog.Show(
+                    title: "컨테이너 삭제",
+                    body: $"<{name}> 컨테이너를 삭제하시겠습니까?\n안의 {items}개 item 도 함께 삭제됩니다.",
+                    confirmLabel: "삭제",
+                    onConfirm: DoDeleteSelectedContainer);
+                _dropdownOpen = false;
             }
         }
         GUILayout.EndHorizontal();
@@ -408,7 +438,9 @@ public sealed class ContainerPanel
         {
             foreach (var m in _containerList)
             {
-                if (GUILayout.Button($"{m.ContainerIndex:D2}: {m.ContainerName}"))
+                // v0.7.11 Cat 5B — dropdown entry 에 ItemCount + TotalWeight 표시
+                string dropdownLabel = $"{m.ContainerIndex:D2}: {m.ContainerName} ({m.ItemCount}개, {m.TotalWeight:F1}kg)";
+                if (GUILayout.Button(dropdownLabel))
                 {
                     _selectedContainerIdx = m.ContainerIndex;
                     Config.ContainerLastIndex.Value = m.ContainerIndex;   // v0.7.6 immediate write
@@ -472,6 +504,18 @@ public sealed class ContainerPanel
         GUILayout.EndHorizontal();
 
         GUILayout.EndVertical();
+    }
+
+    /// <summary>v0.7.11 Cat 5A — 삭제 confirm dialog 의 onConfirm callback. 기존 즉시 삭제 logic 동일.</summary>
+    private void DoDeleteSelectedContainer()
+    {
+        if (_repo == null || _selectedContainerIdx <= 0) return;
+        _repo.Delete(_selectedContainerIdx);
+        _selectedContainerIdx = -1;
+        Config.ContainerLastIndex.Value = -1;   // v0.7.6 immediate write
+        RefreshContainerList();
+        OnContainerSelected?.Invoke(-1);
+        Toast("컨테이너 삭제됨");
     }
 
     private void DrawGlobalToolbar()

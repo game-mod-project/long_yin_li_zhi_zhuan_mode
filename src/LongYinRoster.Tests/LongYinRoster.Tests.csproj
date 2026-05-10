@@ -242,5 +242,9 @@
     <Compile Include="../LongYinRoster/Core/HeroDataCapBypassLogic.cs">
       <Link>Core/HeroDataCapBypassLogic.cs</Link>
     </Compile>
+    <!-- v0.7.11 Cat 5A — ConfirmDialog 가 ContainerPanel 의 신규 dependency -->
+    <Compile Include="../LongYinRoster/UI/ConfirmDialog.cs">
+      <Link>UI/ConfirmDialog.cs</Link>
+    </Compile>
   </ItemGroup>
 </Project>
