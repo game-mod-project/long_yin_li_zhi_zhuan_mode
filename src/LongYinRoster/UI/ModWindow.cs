@@ -947,6 +947,7 @@ public sealed class ModWindow : MonoBehaviour
                 if (!_visible) Toggle();
                 _containerPanel.Visible = false;
                 _settingsPanel.Visible = false;
+                _playerEditorPanel.Visible = false;
                 _itemGenPanel.Visible = false;
             }
             else if (_modeSelector.CurrentMode == ModeSelector.Mode.Container)
@@ -954,6 +955,7 @@ public sealed class ModWindow : MonoBehaviour
                 _containerPanel.Visible = true;
                 if (_visible) Toggle();
                 _settingsPanel.Visible = false;
+                _playerEditorPanel.Visible = false;
                 _itemGenPanel.Visible = false;
                 RefreshAllContainerRows();
             }
