@@ -260,5 +260,9 @@
     <Compile Include="../LongYinRoster/Core/GeneratorSpec.cs">
       <Link>Core/GeneratorSpec.cs</Link>
     </Compile>
+    <!-- v0.7.13 T3 — ItemGenEntry + ItemGenFilter -->
+    <Compile Include="../LongYinRoster/Core/ItemGenEntry.cs">
+      <Link>Core/ItemGenEntry.cs</Link>
+    </Compile>
   </ItemGroup>
 </Project>
