@@ -268,5 +268,12 @@
     <Compile Include="../LongYinRoster/Core/ItemDbCache.cs">
       <Link>Core/ItemDbCache.cs</Link>
     </Compile>
+    <!-- v0.7.13 T5 -->
+    <Compile Include="../LongYinRoster/Core/GameControllerLocator.cs">
+      <Link>Core/GameControllerLocator.cs</Link>
+    </Compile>
+    <Compile Include="../LongYinRoster/Core/ItemFactory.cs">
+      <Link>Core/ItemFactory.cs</Link>
+    </Compile>
   </ItemGroup>
 </Project>
