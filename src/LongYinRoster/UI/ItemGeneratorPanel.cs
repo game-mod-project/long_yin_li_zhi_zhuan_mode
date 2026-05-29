@@ -77,7 +77,7 @@ public sealed class ItemGeneratorPanel
             var prev = GUI.color;
             if (_category == c) GUI.color = Color.cyan;
             if (GUILayout.Button(ItemGenCategoryNames.Korean(c), GUILayout.Width(55)))
-            { _category = c; _secondary = -1; _page = 0; _selectedId = -1; }
+            { _category = c; _secondary = -1; _page = 0; _selectedId = -1; _search = ""; }
             GUI.color = prev;
         }
         GUILayout.EndHorizontal();
@@ -112,6 +112,9 @@ public sealed class ItemGeneratorPanel
     {
         var filtered = ItemGenFilter.Apply(ItemDbCache.All(), _category, _secondary, _search);
         var (slice, totalPages) = ItemGenFilter.Page(filtered, _page, PAGE_SIZE);
+        // 데이터가 줄어든 경우 stale _page 를 보정 (PlayerEditorPanel 무공 list 패턴)
+        if (_page >= totalPages) _page = totalPages - 1;
+        if (_page < 0) _page = 0;
 
         GUILayout.BeginHorizontal();
         if (GUILayout.Button("◀", GUILayout.Width(30)) && _page > 0) _page--;
