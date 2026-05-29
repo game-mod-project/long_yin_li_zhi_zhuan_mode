@@ -21,20 +21,23 @@ public static class ItemFactory
         public string? ItemName { get; set; }
     }
 
-    /// <summary>generator 메서드 인자 배열 (this/player 제외). 인게임 확정값 반영.</summary>
+    /// <summary>generator 메서드 인자 배열 (this/player 제외). 인게임 확정 시그니처 반영.</summary>
     public static object[] BuildArgs(ItemGenCategory cat, int subType, int id, int lv, int rare)
     {
-        // "레벨" = itemLv = bossLv 동일 적용 (spec 단순화)
+        float bossF = lv;  // bossLv 는 Single — 반드시 float
         return cat switch
         {
-            ItemGenCategory.Equipment => new object[] { lv, 0, 0, lv },   // (itemLv,0,0,bossLv) + player(호출부 append)
-            ItemGenCategory.Book      => new object[] { id, rare },        // SetBookData/GenerateBook(skillID, rareLv)
-            ItemGenCategory.Medicine  => new object[] { id, lv },
-            ItemGenCategory.Food      => new object[] { id, lv },
-            ItemGenCategory.Material  => new object[] { subType, lv, lv },
-            ItemGenCategory.Horse     => new object[] { id, lv },
-            ItemGenCategory.Treasure  => new object[] { id, rare, lv },
-            _ => new object[] { lv },
+            // 장비: subType 5(마구)=HorseArmor(lv, bossLv) player 없음 / 그 외=(itemLv, id, bossLv)+player(호출부 append)
+            ItemGenCategory.Equipment => subType == 5
+                ? new object[] { lv, bossF }
+                : new object[] { lv, id, bossF },
+            ItemGenCategory.Medicine => new object[] { id, bossF },
+            ItemGenCategory.Food     => new object[] { id, bossF },
+            ItemGenCategory.Material => new object[] { id, lv, bossF },   // (materialType=id, itemLv, bossLv)
+            ItemGenCategory.Horse    => new object[] { id, bossF },
+            ItemGenCategory.Treasure => new object[] { id, lv, bossF },   // (treasureType=id, itemLv, bossLv)
+            ItemGenCategory.Book     => new object[] { lv, bossF, -1 },   // GenerateBook(skillLv, bossLv, forceID=-1)
+            _ => new object[] { lv, bossF },
         };
     }
 
@@ -46,7 +49,6 @@ public static class ItemFactory
         if (gc == null) { res.Reason = "GameController null"; return res; }
 
         var spec = cat == ItemGenCategory.Equipment ? GeneratorSpec.ForEquipmentSubType(subType) : GeneratorSpec.For(cat);
-        if (string.IsNullOrEmpty(spec.MethodName)) { res.Reason = $"generator 미정의: {cat}"; return res; }
 
         int created = 0;
         string? lastName = null;
@@ -54,8 +56,23 @@ public static class ItemFactory
         {
             try
             {
-                object? item = InvokeGenerator(gc, player, spec, cat, subType, id, lv, rare);
-                if (item == null) { res.Reason = $"{spec.MethodName} 반환 null"; break; }
+                object? item;
+                if (cat == ItemGenCategory.Book)
+                {
+                    // GenerateBook 으로 Book ItemData 생성 후 특정 skill 로 override
+                    item = InvokeMethodReturning(gc, "GenerateBook", new object[] { lv, (float)lv, -1 });
+                    if (item == null) { res.Reason = "GenerateBook 반환 null"; break; }
+                    TryInvokeFlexible(item, "SetBookData", new object[] { id, rare });
+                }
+                else
+                {
+                    var args = BuildArgs(cat, subType, id, lv, rare);
+                    bool appendPlayer = cat == ItemGenCategory.Equipment && subType != 5;
+                    object[] callArgs = appendPlayer ? Append(args, player) : args;
+                    item = InvokeMethodReturning(gc, spec.MethodName, callArgs);
+                    if (item == null) { res.Reason = $"{spec.MethodName} 반환 null"; break; }
+                    if (rare > 0) TrySetInt(item, "rareLv", rare);   // generator 가 rareLv 안 받음 → post-set
+                }
 
                 if (spec.TameRateFixup) TrySetHorseTame(item);
                 ItemListApplier.FinalizeNewItemWrapper(item);
@@ -65,7 +82,7 @@ public static class ItemFactory
             }
             catch (Exception ex)
             {
-                Logger.WarnOnce("ItemFactory", $"Generate {spec.MethodName}: {ex.GetType().Name}: {ex.Message}");
+                Logger.WarnOnce("ItemFactory", $"Generate {cat}/{spec.MethodName}: {ex.GetType().Name}: {ex.Message}");
                 res.Reason = $"{spec.MethodName}: {ex.Message}";
                 break;
             }
@@ -76,12 +93,34 @@ public static class ItemFactory
         return res;
     }
 
-    private static object? InvokeGenerator(object gc, object player, GeneratorSpec spec,
-        ItemGenCategory cat, int subType, int id, int lv, int rare)
+    private static void TrySetInt(object obj, string name, int value)
     {
-        var args = BuildArgs(cat, subType, id, lv, rare);
-        object[] callArgs = cat == ItemGenCategory.Equipment ? Append(args, player) : args;
-        return InvokeMethodReturning(gc, spec.MethodName, callArgs);
+        try
+        {
+            var t = obj.GetType();
+            var p = t.GetProperty(name, F);
+            if (p != null && p.CanWrite) { p.SetValue(obj, value); return; }
+            var f = t.GetField(name, F);
+            if (f != null) f.SetValue(obj, value);
+        }
+        catch { }
+    }
+
+    // SetBookData 시그니처 불확실 → 가능한 인자 조합 시도 (있으면 호출, 없으면 무시)
+    private static void TryInvokeFlexible(object obj, string methodName, object[] preferredArgs)
+    {
+        try
+        {
+            var best = FindMethod(obj.GetType(), methodName, preferredArgs);
+            if (best != null) { best.Invoke(obj, FillArgs(best, preferredArgs)); return; }
+            // fallback: 첫 번째 인자만 (skillID) 받는 overload 시도
+            if (preferredArgs.Length > 1)
+            {
+                var one = FindMethod(obj.GetType(), methodName, new[] { preferredArgs[0] });
+                if (one != null) one.Invoke(obj, FillArgs(one, new[] { preferredArgs[0] }));
+            }
+        }
+        catch { }
     }
 
     private static object[] Append(object[] arr, object tail)
