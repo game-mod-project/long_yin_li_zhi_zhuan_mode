@@ -128,6 +128,9 @@
     <Compile Include="../LongYinRoster/Containers/CategoryGlyph.cs">
       <Link>Containers/CategoryGlyph.cs</Link>
     </Compile>
+    <Compile Include="../LongYinRoster/Containers/CategorySecondaryTabs.cs">
+      <Link>Containers/CategorySecondaryTabs.cs</Link>
+    </Compile>
     <Compile Include="../LongYinRoster/Containers/ContainerOps.cs">
       <Link>Containers/ContainerOps.cs</Link>
     </Compile>

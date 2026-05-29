@@ -20,17 +20,18 @@ public sealed class ContainerView
 
     private object?                       _lastRawRef;   // reference identity
     private SearchSortState?              _lastState;
+    private ItemCategory                  _lastCategory = (ItemCategory)int.MinValue;
     private List<ContainerPanel.ItemRow>? _cached;
 
     // v0.7.11 Cat 4K — 결과 카운터용. 직전 ApplyView 결과의 row 수. 미호출 상태 = 0.
     public int LastViewCount => _cached?.Count ?? 0;
 
-    public List<ContainerPanel.ItemRow> ApplyView(List<ContainerPanel.ItemRow> raw, SearchSortState state)
+    public List<ContainerPanel.ItemRow> ApplyView(List<ContainerPanel.ItemRow> raw, SearchSortState state, ItemCategory category = ItemCategory.All)
     {
         if (raw == null) raw = new List<ContainerPanel.ItemRow>();
         if (state == null) state = SearchSortState.Default;
 
-        if (object.ReferenceEquals(raw, _lastRawRef) && state.Equals(_lastState) && _cached != null)
+        if (object.ReferenceEquals(raw, _lastRawRef) && state.Equals(_lastState) && category == _lastCategory && _cached != null)
             return _cached;
 
         IEnumerable<ContainerPanel.ItemRow> q = raw;
@@ -54,12 +55,14 @@ public sealed class ContainerView
         if (state.ExcludeEquipped)
             q = q.Where(r => !r.Equipped);
 
-        // v0.7.11 Cat 4G — 무공 type 필터 (item.SubType 매칭). 비-Book row 는 SubType 가 다른 의미라
-        // ContainerPanel 이 카테고리 = Book 외에서 -1 reset 보장 가정.
-        if (state.KungfuTypeFilter >= 0)
+        // 카테고리별 secondary tab 필터. 비급은 KungfuType(bookData.skillID→type 매핑), 그 외는 SubType.
+        if (state.SecondaryFilter >= 0)
         {
-            int t = state.KungfuTypeFilter;
-            q = q.Where(r => r.SubType == t);
+            int t = state.SecondaryFilter;
+            if (category == ItemCategory.Book)
+                q = q.Where(r => r.KungfuType == t);
+            else
+                q = q.Where(r => r.SubType == t);
         }
 
         q = state.Key switch
@@ -74,16 +77,18 @@ public sealed class ContainerView
         var result = q.ToList();
         if (!state.Ascending) result.Reverse();
 
-        _lastRawRef = raw;
-        _lastState  = state;
-        _cached     = result;
+        _lastRawRef  = raw;
+        _lastState   = state;
+        _lastCategory = category;
+        _cached       = result;
         return result;
     }
 
     public void Invalidate()
     {
-        _lastRawRef = null;
-        _lastState  = null;
-        _cached     = null;
+        _lastRawRef   = null;
+        _lastState    = null;
+        _lastCategory = (ItemCategory)int.MinValue;
+        _cached       = null;
     }
 }

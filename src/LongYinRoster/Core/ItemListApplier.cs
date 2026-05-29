@@ -109,18 +109,26 @@ public static class ItemListApplier
         }
         Logger.Info($"ItemList Apply: allItem runtime type = {allItem.GetType().FullName}");
 
-        // Wrapper type 발견
+        // Wrapper type 발견 — generic argument 우선, sample fallback.
+        // v0.7.12.2: 새 캐릭터 인벤이 비어있을 때 sample 추출 실패하던 회귀 fix
+        // (SelfStorageApplier v0.5.5 패턴 backport).
+        var listType = allItem.GetType();
         Type? wrapperType = null;
+        if (listType.IsGenericType && listType.GetGenericArguments().Length == 1)
+            wrapperType = listType.GetGenericArguments()[0];
         int initialCount = IL2CppListOps.Count(allItem);
         Logger.Info($"ItemList Apply: allItem initialCount = {initialCount}");
-        for (int i = 0; i < initialCount; i++)
+        if (wrapperType == null)
         {
-            var sample = IL2CppListOps.Get(allItem, i);
-            if (sample != null) { wrapperType = sample.GetType(); break; }
+            for (int i = 0; i < initialCount; i++)
+            {
+                var sample = IL2CppListOps.Get(allItem, i);
+                if (sample != null) { wrapperType = sample.GetType(); break; }
+            }
         }
         if (wrapperType == null)
         {
-            res.Skipped = true; res.Reason = "wrapperType null (allItem empty before clear)";
+            res.Skipped = true; res.Reason = "wrapperType undetermined (allItem 비어있음 — generic arg 도 미확인)";
             return res;
         }
         Logger.Info($"ItemList Apply: wrapperType = {wrapperType.FullName}");
@@ -174,6 +182,14 @@ public static class ItemListApplier
 
                     // Deep-copy all root + subData fields from JSON entry to wrapper
                     ApplyJsonToObject(entry, wrapper, depth: 0);
+
+                    // v0.7.12.2: cheat ItemGenerator.AddToInventory 패턴 mirror —
+                    // 새 캐릭터의 첫 save 시 invalid item 청소 회피.
+                    // (1) isNew=true 강제 set (cheat 자동 설정 mirror)
+                    // (2) CountValueAndWeight() 호출 — value/weight=0 인 wrapper 가
+                    //     게임 save validation 에서 invalid 판정되는 회귀 회피.
+                    TrySetMember(wrapper, "isNew", true);
+                    TryInvokeNoArg(wrapper, "CountValueAndWeight");
 
                     InvokeMethod(player, AddMethodName, new object[] { wrapper, false });
                     succeeded++;
@@ -386,6 +402,36 @@ public static class ItemListApplier
         if (targetType == typeof(double)) return val.GetDouble();
         if (targetType.IsEnum) return Enum.ToObject(targetType, val.GetInt32());
         return null;
+    }
+
+    // v0.7.12.2 — game-self member/method best-effort 호출 (없으면 silent skip).
+    private static void TrySetMember(object obj, string name, object value)
+    {
+        try
+        {
+            var t = obj.GetType();
+            var p = t.GetProperty(name, F);
+            if (p != null && p.CanWrite) { p.SetValue(obj, value); return; }
+            var f = t.GetField(name, F);
+            if (f != null) { f.SetValue(obj, value); return; }
+        }
+        catch { }
+    }
+
+    private static void TryInvokeNoArg(object obj, string methodName)
+    {
+        try
+        {
+            var t = obj.GetType();
+            foreach (var m in t.GetMethods(F))
+            {
+                if (m.Name != methodName) continue;
+                if (m.GetParameters().Length != 0) continue;
+                m.Invoke(obj, null);
+                return;
+            }
+        }
+        catch { }
     }
 
     private static object? ReadFieldOrProperty(object obj, string name)

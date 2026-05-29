@@ -115,7 +115,9 @@ public sealed class PlayerEditorPanel
                 return;
             }
 
-            _scroll = GUILayout.BeginScrollView(_scroll, GUILayout.Height(_rect.height - 100));
+            // v0.7.10 secondary tab row(~30px) 추가 후 -100 으로는 scroll view 하단이 window
+            // 영역을 살짝 넘어 마지막 row 가 잘림. -140 으로 늘려 안전 margin 확보.
+            _scroll = GUILayout.BeginScrollView(_scroll, GUILayout.Height(_rect.height - 140));
 
             // Section 1: Resource stats + Quick actions
             DrawSectionHeader("resource", KoreanStrings.PlayerEditorSection_Resource);

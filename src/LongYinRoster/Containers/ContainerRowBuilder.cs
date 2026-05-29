@@ -32,6 +32,12 @@ public static class ContainerRowBuilder
                 int quality = (e.TryGetProperty("rareLv", out var qlv) && qlv.ValueKind == JsonValueKind.Number) ? qlv.GetInt32()
                             : (e.TryGetProperty("quality", out var qv) && qv.ValueKind  == JsonValueKind.Number) ? qv.GetInt32()
                             : -1;
+                int kungfuType = -1;
+                if (type == 3 && e.TryGetProperty("bookData", out var bd) && bd.ValueKind == JsonValueKind.Object
+                    && bd.TryGetProperty("skillID", out var sk) && sk.ValueKind == JsonValueKind.Number)
+                {
+                    kungfuType = SkillNameCache.GetType(sk.GetInt32());
+                }
                 list.Add(new ContainerPanel.ItemRow
                 {
                     Index        = i++,
@@ -46,6 +52,7 @@ public static class ContainerRowBuilder
                     NameKr       = HangulDict.Translate(name),   // v0.7.5 D-4 한글 캐시
                     GradeOrder   = grade,
                     QualityOrder = quality,
+                    KungfuType   = kungfuType,
                 });
             }
         }
@@ -97,6 +104,16 @@ public static class ContainerRowBuilder
                 var hd = ReadObj(item, "horseData");
                 if (hd != null) equipped = ReadBool(hd, "equiped");
             }
+            int kungfuType = -1;
+            if (type == 3)
+            {
+                var bd = ReadObj(item, "bookData");
+                if (bd != null)
+                {
+                    int skillID = ReadInt(bd, "skillID");
+                    kungfuType = SkillNameCache.GetType(skillID);
+                }
+            }
             list.Add(new ContainerPanel.ItemRow
             {
                 Index        = i,
@@ -111,6 +128,7 @@ public static class ContainerRowBuilder
                 NameKr       = HangulDict.Translate(name),   // v0.7.5 D-4 한글 캐시
                 GradeOrder   = LongYinRoster.Core.ItemReflector.GetGradeOrder(item),
                 QualityOrder = LongYinRoster.Core.ItemReflector.GetQualityOrder(item),
+                KungfuType   = kungfuType,
             });
         }
         return list;

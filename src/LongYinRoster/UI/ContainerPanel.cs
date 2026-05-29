@@ -37,6 +37,11 @@ public sealed class ContainerPanel
         // Eager cache: IMGUI re-renders every frame, display-time Translate() per row 가 CPU 낭비.
         // Trade-off: dict reload 는 next Set*Rows 까지 기존 row 미반영 — dict 가 init 후 static 이라 OK.
         public string? NameKr      { get; init; }
+
+        // 비급(Book, type=3) 전용 — bookData.skillID → SkillNameCache.GetType (0~8). 비급 외 = -1.
+        // Container secondary tab 가 SubType 가 아닌 KungfuType 으로 필터해야 정확 (book item.subType
+        // 은 무공 type 과 무관).
+        public int     KungfuType  { get; init; } = -1;
     }
 
     public bool Visible { get; set; } = false;
@@ -352,13 +357,11 @@ public sealed class ContainerPanel
                 {
                     _filter = cat;
                     Config.ContainerFilterCategory.Value = cat.ToString();   // v0.7.6 immediate write
-                    // v0.7.11 Cat 4G — Book 이 아닌 카테고리로 변경 시 무공 type filter reset
-                    if (cat != ItemCategory.Book && _globalState.KungfuTypeFilter >= 0)
+                    // 카테고리 변경 시 secondary filter 초기화 — 카테고리마다 의미가 다르기 때문
+                    if (_globalState.SecondaryFilter >= 0)
                     {
-                        _globalState = _globalState.WithKungfuTypeFilter(-1);
-                        _invView.Invalidate();
-                        _stoView.Invalidate();
-                        _conView.Invalidate();
+                        _globalState = _globalState.WithSecondaryFilter(-1);
+                        _invView.Invalidate(); _stoView.Invalidate(); _conView.Invalidate();
                     }
                 }
             }
@@ -366,21 +369,19 @@ public sealed class ContainerPanel
         }
         GUILayout.EndHorizontal();
 
-        // v0.7.11 Cat 4G — 카테고리 = Book 일 때만 무공 type secondary tab 표시
-        if (_filter == ItemCategory.Book)
+        // 카테고리별 secondary tab — 장비/음식/비급/재료 만 표시 (단약/보물/말/기타는 정의 없음).
+        var subTabs = CategorySecondaryTabs.ForCategory(_filter);
+        if (subTabs.Count > 0)
         {
-            DrawKungfuTypeSecondaryTabs();
+            DrawSecondaryTabs(subTabs);
         }
     }
 
-    /// <summary>v0.7.11 Cat 4G — 9 무공 type secondary tab (전체 + 내공/.../사술).</summary>
-    private static readonly string[] KungfuTypeNames = {
-        "내공", "경공", "절기", "권장", "검법", "도법", "장병", "기문", "사술",
-    };
-    private void DrawKungfuTypeSecondaryTabs()
+    /// <summary>카테고리별 secondary tab — "전체" + 카테고리 정의 tabs.</summary>
+    private void DrawSecondaryTabs(IReadOnlyList<(string Label, int Value)> tabs)
     {
         GUILayout.BeginHorizontal();
-        int filter = _globalState.KungfuTypeFilter;
+        int filter = _globalState.SecondaryFilter;
         bool active = filter == -1;
         var prev = GUI.color;
         if (active) GUI.color = Color.cyan;
@@ -388,21 +389,21 @@ public sealed class ContainerPanel
         {
             if (filter != -1)
             {
-                _globalState = _globalState.WithKungfuTypeFilter(-1);
+                _globalState = _globalState.WithSecondaryFilter(-1);
                 _invView.Invalidate(); _stoView.Invalidate(); _conView.Invalidate();
             }
         }
         GUI.color = prev;
-        for (int t = 0; t < KungfuTypeNames.Length; t++)
+        foreach (var (label, value) in tabs)
         {
-            active = filter == t;
+            active = filter == value;
             prev = GUI.color;
             if (active) GUI.color = Color.cyan;
-            if (GUILayout.Button(KungfuTypeNames[t], GUILayout.Width(50)))
+            if (GUILayout.Button(label, GUILayout.Width(50)))
             {
-                if (filter != t)
+                if (filter != value)
                 {
-                    _globalState = _globalState.WithKungfuTypeFilter(t);
+                    _globalState = _globalState.WithSecondaryFilter(value);
                     _invView.Invalidate(); _stoView.Invalidate(); _conView.Invalidate();
                 }
             }
@@ -459,7 +460,7 @@ public sealed class ContainerPanel
             KoreanStrings.Lbl_Inventory, _inventoryRows, _inventoryChecks, _inventoryMaxWeight, allowOvercap: true);
         if (!invCollapsed && invContentH > 10f)
         {
-            var invView = _invView.ApplyView(_inventoryRows, _globalState);
+            var invView = _invView.ApplyView(_inventoryRows, _globalState, _filter);
             DrawSelectionBulkRow(invView, _inventoryChecks);
             DrawItemList(ContainerArea.Inventory, invView, _inventoryChecks, ref _invScroll, invContentH);
             // v0.7.11 Cat 3G — selection 0 또는 컨테이너 미선택 시 disabled, ≥1 시 녹색 강조
@@ -477,7 +478,7 @@ public sealed class ContainerPanel
             KoreanStrings.Lbl_Storage, _storageRows, _storageChecks, _storageMaxWeight, allowOvercap: false);
         if (!stoCollapsed && stoContentH > 10f)
         {
-            var stoView = _stoView.ApplyView(_storageRows, _globalState);
+            var stoView = _stoView.ApplyView(_storageRows, _globalState, _filter);
             DrawSelectionBulkRow(stoView, _storageChecks);
             DrawItemList(ContainerArea.Storage, stoView, _storageChecks, ref _stoScroll, stoContentH);
             DrawMoveCopyRow(_storageChecks,
@@ -690,7 +691,7 @@ public sealed class ContainerPanel
             GUILayout.EndHorizontal();
         }
 
-        var conView = _conView.ApplyView(_containerRows, _globalState);
+        var conView = _conView.ApplyView(_containerRows, _globalState, _filter);
         GUILayout.Label($"{KoreanStrings.Lbl_Container} ({_containerRows.Count}개)");
         DrawItemList(ContainerArea.Container, conView, _containerChecks, ref _conScroll, 500);
 

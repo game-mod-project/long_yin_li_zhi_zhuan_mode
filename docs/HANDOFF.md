@@ -1,7 +1,7 @@
 # LongYin Roster Mod — 작업 핸드오프 문서
 
-**일시 중지**: 2026-05-10
-**진행 상태**: **v0.7.12 release** — Cat 3 deferred 구현. ContainerOpUndo single-op stack ([↶ Undo] button) + Toast 표준화 (success/fail 카운트 + Reason + over-cap). 7 op 종류 (Game→Container Move/Copy / Container→Inv Move/Copy / Container→Sto Move/Copy / Container Delete) 모두 reversible. ToastResult helper 가 ToastKind.Info(성공)/Error(부분실패+) 색상 분리. ContainerPanel 글로벌 toolbar 끝에 노랑 강조 [↶ Undo] button. 399 tests PASS (394 → 399, +5).
+**일시 중지**: 2026-05-29
+**진행 상태**: **v0.7.12.2 hotfix** — 새 캐릭터 인벤 Apply 회귀 fix (사용자 smoke PASS). v0.7.12.1 의 3종 hotfix 도 같은 commit 에 묶임. **v0.7.12.2 핵심**: (1) **wrapperType generic-arg fallback** — `allItem` 이 비어있을 때 `allItem.GetType().GetGenericArguments()[0]` 로 추출 (SelfStorageApplier v0.5.5 패턴 backport). (2) **isNew=true + CountValueAndWeight()** — cheat `ItemGenerator.AddToInventory` 자동 설정 mirror. 새 캐릭터 첫 save 시 게임이 `isNew=false` 또는 `value/weight=0` wrapper 를 invalid 로 cleanup 하던 회귀 회피. 사용자 smoke 검증: 새 캐릭터 → 인벤 Apply → 세이브 → 로드 → **인벤 유지 ✓**. 399/399 tests PASS.
 **저장소**: https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode (`main` 브랜치)
 **프로젝트 루트**: `E:/Games/龙胤立志传.v1.0.0f8.2/LongYinLiZhiZhuan/Save/_PlayerExport/`
 **Releases**:
@@ -33,6 +33,8 @@
 - [v0.7.10.2](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.7.10.2) — Hotfix: RestKeepHeroTagPatch verbose Info logging 제거 (사용자 보고 — 게임 느려짐, log 폭주 ~817 lines 우리 mod contribution). 5 verbose Info logs 제거 / gate (no-op 도 매 호출 logging 했음).
 - [v0.7.11](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.7.11) — ContainerPanel UX overhaul. 6 카테고리 incremental 개선 (Cat 1/2/3G/4/5/9). 인벤/창고 collapse + split 4-preset / 일괄선택 button + 카운터 + 등급별 cycle / button 강조+disabled / 등급 범위 + 착용중 제외 + 무공 secondary tab + 결과 카운터 / 삭제 confirm + dropdown 정보 + Clone / corner resize handle. 신규 IMGUI 0. 374→390 tests PASS. 3C Undo + 3D toast 강화는 v0.7.12 defer (ModWindow refactor 필요). 6A sprite 는 v0.8 별도 cycle.
 - [v0.7.12](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.7.12) — Cat 3 deferred. ContainerOpUndo single-op stack + 7 op reversible + ContainerPanel `[↶ Undo]` button (노랑 강조). ModWindow.PerformUndo + ResolveGameList helpers. ToastResult 표준화 — success/fail 카운트 + Reason + over-cap, ToastKind.Info/Error 색상 분리. 394→399 tests PASS (+5 ContainerOpUndoTests).
+- **v0.7.12.2** (2026-05-29) — 새 캐릭터 인벤 Apply 회귀 hotfix (사용자 smoke PASS). **시나리오**: 새 캐릭터(시작 인벤 존재) → 다른 캐릭터 인벤 Apply (성공) → 세이브 → 로드 → 인벤 모두 사라짐 → 재Apply 시 `wrapperType null` 로 skip. **Root cause 2종**: (1) **wrapperType 추출 fragility** — sample 만 시도하던 v0.5.3 path 가 new char default 시작 아이템이 없는 경우 실패. SelfStorageApplier v0.5.5 의 generic-arg 우선 추출 패턴 backport. (2) **save validation cleanup** — cheat `ItemGenerator.AddToInventory` 가 자동 설정하는 `item.isNew = true` + `CountValueAndWeight()` 를 우리 path 가 누락해 새 캐릭터 첫 save 시 게임이 invalid item 으로 청소. ItemListApplier add 직전에 두 호출 추가. **사용자 smoke**: 새 캐릭터 → 인벤 Apply → 세이브 → 로드 → 인벤 유지 ✓. 기존 캐릭터는 mature state 라 v0.5.3 이후 작동 — new char specific 회귀. 399/399 tests PASS.
+- **v0.7.12.1** (2026-05-17) — 사용자 보고 3 종 hotfix bundle (v0.7.12.2 에 같은 commit 으로 묶임). **Bug 1**: `PlayerEditorPanel` 무공 탭 하단 짤림 — v0.7.10 의 `[기본]/[속성]` secondary tab(~30px) 추가 후 scroll view 의 `_rect.height - 100` reserve 가 부족해 마지막 row 가 window 영역을 살짝 넘김. `- 140` 으로 안전 margin 확보. **Bug 2**: 컨테이너 비급 sub-tab 이 `r.SubType == kungfuTypeFilter` 로 매칭했지만 book item 의 `subType` 은 무공 type 과 매핑되지 않아 전체/내공만 결과가 나오고 나머지 sub-tab 은 0개. 신규 `ItemRow.KungfuType` 필드 + `ContainerRowBuilder` 가 game/JSON 양쪽 path 에서 `bookData.skillID → SkillNameCache.GetType(0~8)` 추출 후 채움. `ContainerView.ApplyView(rows, state, category)` 에 카테고리 context 추가 — Book 일 때 `r.KungfuType`, 그 외 `r.SubType` 비교 분기. **Bug 3**: 비급만 sub-tab 가지던 inconsistency — 신규 `Containers/CategorySecondaryTabs.cs` 정의 클래스. 장비(무기/갑옷/투구/신발/장신구 = subType 0~4) · 음식(음식/술 = 0~1) · 비급(9 무공 type) · 재료(목재/광석/약재/식재 = 0~3) sub-tab 추가. 단약/보물/말 = 실제 save data 상 subType 분류 무의미라 skip (보물·말은 사용자 명시). `SearchSortState.KungfuTypeFilter` → 일반화된 `SecondaryFilter`. ContainerPanel 의 `DrawCategoryTabs` 카테고리 변경 시 secondary filter -1 reset.
 - [v0.7.7](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.7.7) — Item editor. ItemDetailPanel view-only → edit-able. `[편집]` 토글 + ItemEditFieldMatrix (15 distinct field) + Hybrid Apply pipeline (reflection setter + read-back + CountValueAndWeight + RefreshMaxAttriAndSkill, IsEquipped 시). HeroSpeAddData stat editor (baseAddData/extraAddData entry add/edit/delete, 134 type 풀 매핑). SelectorDialog modal popup (검색+scrollable) — 등급(열악~절세)/품질(잔품~극품)/속성(134 type) 선택. Panel 480×640 + 기존 cfg auto-bump. 304 tests + 사용자 5 iteration 검증 PASS.
 - [v0.7.6](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.7.6) — 설정 panel (Hybrid stateful-only). 신규 SettingsPanel (F11+3) — hotkey rebind 4 (MainKey + Character/Container/Settings) + ContainerPanel rect 4 buffer 편집 + [저장]·[기본값 복원]·[취소]. 자동 영속화 6 (정렬 key/방향 / 카테고리 필터 / 마지막 컨테이너 idx / ContainerPanel rect) — ContainerPanel 사용 중 immediate ConfigEntry write. EventType.KeyDown + Event.current.keyCode strip-safe 검증 (spike PASS). HotkeyMap.Bind/NumpadFor 자동 derive (Alpha↔Keypad). 238 tests + smoke 28/28.
 - [v0.7.5.2](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.7.5.2) — Cell 24×24 정사각형 + 한자 → 48×24 가로 직사각형 + 한글 라벨 (장비/단약/음식/비급/보물/재료/말). cell 내부 강화/착 마커 제거. 216 tests + smoke 11/11.
@@ -51,27 +53,27 @@
 ## 1. 한 줄 요약
 
 BepInEx 6 IL2CPP 환경에서 플레이어 캐릭터 스냅샷을 20슬롯에 저장 / 관리하는 모드 + 컨테이너 (인벤/창고 ↔ 외부 디스크) 관리 + 사용자 설정 panel + Item editor + Player editor.
-**현재 main baseline = v0.7.12** (Cat 3 deferred — Undo single-op stack + Toast 표준화. 7 op reversible + ContainerPanel [↶ Undo] button. 399 tests PASS).
+**현재 main baseline = v0.7.12.2** (새 캐릭터 인벤 Apply 회귀 hotfix 사용자 smoke PASS + v0.7.12.1 의 3종 hotfix 묶음. 399 tests PASS).
 
-**다음 세션 후속 sub-project**:
-- ✅ ~~v0.7.4.x ~ v0.7.5.2~~ (Container 시리즈)
-- ✅ ~~v0.7.6 설정 panel~~ (2026-05-08)
-- ✅ ~~v0.7.7 Item editor~~ (2026-05-09)
-- ✅ ~~v0.7.8 Player editor~~ (2026-05-09)
-- ✅ ~~v0.7.10 LockedMax + 속성·무학·기예 editor~~ (2026-05-09)
-- ✅ ~~v0.7.10.1 hotfix (천부 점수 ×4 / 색상 / 무공 secondary / 정렬)~~ (2026-05-09)
-- ✅ ~~v0.7.10.2 hotfix (RestKeepHeroTagPatch verbose log 제거)~~ (2026-05-10)
-- ✅ ~~v0.7.11 ContainerPanel UX overhaul~~ (2026-05-10)
-- ✅ ~~v0.7.12 Cat 3 deferred — Undo + toast 강화~~ (2026-05-10)
-- **v0.7.13 (후보) NPC dropdown** — heroID switch, v0.7.10 PlayerEditorPanel 자산 generalize. SelectorDialog 2단계 탭 (force/문파 + name search)
-- **v0.7.10.x (후보) 자질 grade marker** — derivation rule spike (신/하 등 enum 또는 value threshold)
-- **v0.8 (후보)** 진짜 sprite — ItemCellRenderer placeholder 글리프 → sprite blit. IL2CPP sprite asset spike. cheat IconHelper.cs 316 LOC 참조. β 분할로 ContainerPanel 의 Cat 6 (sprite) 도 본 cycle 에서 처리
-- **maintenance** — trigger 시 활성
-- **v0.7.7 (후보)**: Item editor — ItemDetailPanel 의 view-only 필드를 edit-able 로 확장 (강화 lv 직접 변경, equipUseSpeAddValue 같은 sub-data 직접 수정). game-self method 우선 + reflection setter fallback. v0.7.4 의 ItemFieldExtractor 자산 baseline
-- v0.7.8: Apply 부분 미리보기 — 선택한 카테고리 적용 시 전후 비교
-- v0.7.9: Slot diff preview — Apply 전 어떤 필드가 바뀔지 미리보기 (스탯/장비/무공 차이 시각화)
-- v0.7.10: NPC 지원 — 캐릭터 선택 + apply target 확장 (heroID=0 외 다른 캐릭터)
-- **v0.8 (후보)**: 진짜 game sprite 도입 — `ItemCellRenderer` 의 placeholder block 만 sprite blit 으로 교체. IL2CPP sprite asset 접근 + IMGUI texture caching challenge. v0.7.3 의 cell 구조가 baseline
+**다음 세션 후속 sub-project** (우선순위 순):
+
+### Tier 1 — 즉시 후보
+- 🆕 **v0.7.12.3 SelfStorageApplier 동일 fix 보험 (P1)** — 새 캐릭터에 다른 캐릭터 창고 Apply 도 동일 isNew/CountValueAndWeight 누락 가능. SelfStorageApplier 는 직접 `list.Add` path 라 효과 다를 수 있음 — spike + 인게임 smoke. 또한 v0.7.12.1 의 Container 카테고리 sub-tab 일관성 인게임 smoke (PlayerEditor 무공 탭 / 비급 sub-tab / 장비·음식·재료 sub-tab) 도 다음 세션 첫 확인 권장.
+- 🆕 **단약 sub-tab spike (P2)** — 사용자 기대상 단약도 sub-category 가 있어야 함 (호환단/통락단/황련환 등). save data 의 `medFoodData.extraAddData` 또는 changeHeroState 의 effect 분류 가능성 spike. 분류 가능 시 `CategorySecondaryTabs.Medicine` 채움.
+
+### Tier 2 — 사용자 요청 누적 (구체화 필요)
+- **v0.7.13 NPC dropdown** — heroID switch, v0.7.10 PlayerEditorPanel 자산 generalize. SelectorDialog 2단계 탭 (force/문파 + name search). (= v0.7.10 NPC 지원 항목과 통합)
+- **v0.7.10.x 자질 grade marker** — derivation rule spike (신/하 등 enum 또는 value threshold)
+- **Apply 부분 미리보기** — 선택한 카테고리 적용 시 전후 비교 (구 v0.7.8 항목)
+- **Slot diff preview** — Apply 전 어떤 필드가 바뀔지 미리보기 (스탯/장비/무공 차이 시각화) (구 v0.7.9 항목)
+
+### Tier 3 — 큰 spike 필요
+- **v0.8 진짜 sprite** — `ItemCellRenderer` placeholder 글리프 → game sprite blit. IL2CPP sprite asset spike. cheat `IconHelper.cs` 316 LOC 참조. ContainerPanel Cat 6 (sprite) 도 본 cycle 에서 처리. v0.7.3 의 cell 구조가 baseline
+- **bookData.subType 의미 spike** — 비급 책의 `subType` 가 실제 무엇을 가리키는지 (완본/잔본/장수 등) 미확인. v0.7.12.1 에서 KungfuType 으로 대체했지만 `subType` 자체의 의미는 raw 그대로 보존 — 향후 비급 dropdown filter 후보 (완본 vs 잔본 차별화).
+
+### Tier 4 — 트리거 시 활성
+- **maintenance** — 사용자 보고 회귀 / hotfix bundle
+- **Item editor 확장** — ItemDetailPanel view-only → edit-able 추가 필드 (현 v0.7.7 의 후속, 강화 lv / sub-data 직접 편집은 이미 v0.7.7 에 포함됨. 추가 요청 시 활성)
 
 각 sub-project 는 별도 brainstorming → spec → plan → impl cycle. 진입점은 ModeSelector 메뉴에 항목 추가.
 
