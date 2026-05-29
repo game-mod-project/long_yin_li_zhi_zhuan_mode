@@ -40,9 +40,9 @@ public static class GameControllerLocator
         foreach (var alt in new[] { "instance", "_instance", "s_Instance", "s_instance" })
         {
             var pa = t.GetProperty(alt, StaticFlags);
-            if (pa != null) return pa.GetValue(null);
+            if (pa != null) { Logger.InfoOnce("GCLoc", $"GameControllerLocator: static fallback hit property '{alt}' on {t.Name}"); return pa.GetValue(null); }
             var fa = t.GetField(alt, StaticFlags);
-            if (fa != null) return fa.GetValue(null);
+            if (fa != null) { Logger.InfoOnce("GCLoc", $"GameControllerLocator: static fallback hit field '{alt}' on {t.Name}"); return fa.GetValue(null); }
         }
         return null;
     }
