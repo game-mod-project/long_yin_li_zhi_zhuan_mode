@@ -60,6 +60,8 @@ public sealed class ModWindow : MonoBehaviour
             if (_instance._playerEditorPanel.Visible  && _instance._playerEditorPanel.WindowRect.Contains(pos)) return true;
             if (_instance._playerEditorPanel.Selector.Visible && _instance._playerEditorPanel.Selector.WindowRect.Contains(pos)) return true;
             if (_instance._playerEditorPanel.BreakthroughDialog.Visible && _instance._playerEditorPanel.BreakthroughDialog.WindowRect.Contains(pos)) return true;
+            // v0.7.13 — ItemGeneratorPanel 영역 차단
+            if (_instance._itemGenPanel.Visible && _instance._itemGenPanel.WindowRect.Contains(pos)) return true;
 
             if (!_instance._visible) return false;
             if (_instance._confirm.IsVisible
@@ -94,6 +96,10 @@ public sealed class ModWindow : MonoBehaviour
     // v0.7.8 — 플레이어 편집 panel (ModeSelector "플레이어 편집" 또는 F11+4)
     private readonly PlayerEditorPanel _playerEditorPanel = new();
     private bool                       _lastPlayerEditorVisible = false;
+
+    // v0.7.13 — 아이템 생성 panel (ModeSelector "아이템 생성" 또는 F11+5)
+    private readonly ItemGeneratorPanel _itemGenPanel = new();
+    private bool                        _lastItemGenVisible = false;
 
     private void Awake()
     {
@@ -180,6 +186,14 @@ public sealed class ModWindow : MonoBehaviour
         _playerEditorPanel.GetPlayer = Core.HeroLocator.GetPlayer;
         // v0.7.8 — Player edit 는 인벤·창고 영향 없음 → ContainerPanel refresh 불필요 (로그 폭주 회피)
         _playerEditorPanel.OnAppliedRefreshRequest = null;
+        // v0.7.13 — ItemGeneratorPanel wire-up
+        _itemGenPanel.Init(
+            Config.ItemGenPanelX.Value,
+            Config.ItemGenPanelY.Value,
+            Config.ItemGenPanelW.Value,
+            Config.ItemGenPanelH.Value);
+        _itemGenPanel.Visible = Config.ItemGenPanelOpen.Value;
+        _itemGenPanel.GetPlayer = Core.HeroLocator.GetPlayer;
         // ContainerPanel 영속화 hydrate (containerList 가 SetRepository 안에서 채워졌으므로 그 후 안전)
         _containerPanel.HydrateFromConfig();
 
@@ -916,6 +930,10 @@ public sealed class ModWindow : MonoBehaviour
         {
             _modeSelector.SetMode(ModeSelector.Mode.Player);
         }
+        if (HotkeyMap.ItemGenShortcut())
+        {
+            _modeSelector.SetMode(ModeSelector.Mode.ItemGen);
+        }
         // v0.7.13 TEMP spike — F11+9 로 진단 dump (Task 8 에서 제거)
         if (UnityEngine.Input.GetKey(HotkeyMap.MainKey) && UnityEngine.Input.GetKeyDown(UnityEngine.KeyCode.Alpha9))
             LongYinRoster.Core.ItemGenDiagnostic.Dump();
@@ -929,12 +947,14 @@ public sealed class ModWindow : MonoBehaviour
                 if (!_visible) Toggle();
                 _containerPanel.Visible = false;
                 _settingsPanel.Visible = false;
+                _itemGenPanel.Visible = false;
             }
             else if (_modeSelector.CurrentMode == ModeSelector.Mode.Container)
             {
                 _containerPanel.Visible = true;
                 if (_visible) Toggle();
                 _settingsPanel.Visible = false;
+                _itemGenPanel.Visible = false;
                 RefreshAllContainerRows();
             }
             else if (_modeSelector.CurrentMode == ModeSelector.Mode.Settings)
@@ -944,6 +964,7 @@ public sealed class ModWindow : MonoBehaviour
                 if (_visible) Toggle();
                 _containerPanel.Visible = false;
                 _playerEditorPanel.Visible = false;
+                _itemGenPanel.Visible = false;
             }
             else if (_modeSelector.CurrentMode == ModeSelector.Mode.Player)
             {
@@ -951,6 +972,15 @@ public sealed class ModWindow : MonoBehaviour
                 if (_visible) Toggle();
                 _containerPanel.Visible = false;
                 _settingsPanel.Visible = false;
+                _itemGenPanel.Visible = false;
+            }
+            else if (_modeSelector.CurrentMode == ModeSelector.Mode.ItemGen)
+            {
+                _itemGenPanel.Visible = true;
+                if (_visible) Toggle();
+                _containerPanel.Visible = false;
+                _settingsPanel.Visible = false;
+                _playerEditorPanel.Visible = false;
             }
         }
 
@@ -979,10 +1009,17 @@ public sealed class ModWindow : MonoBehaviour
             _modeSelector.SetMode(ModeSelector.Mode.None);
             _lastSeenMode = ModeSelector.Mode.None;
         }
+        // v0.7.13 — ItemGenPanel X 닫기 시 mode reset
+        if (_lastItemGenVisible && !_itemGenPanel.Visible)
+        {
+            _modeSelector.SetMode(ModeSelector.Mode.None);
+            _lastSeenMode = ModeSelector.Mode.None;
+        }
         _lastVisible = _visible;
         _lastContainerVisible = _containerPanel.Visible;
         _lastSettingsVisible = _settingsPanel.Visible;
         _lastPlayerEditorVisible = _playerEditorPanel.Visible;
+        _lastItemGenVisible = _itemGenPanel.Visible;
 
         // v0.5.3 Spike — F12 trigger, mod 창 visible 동안 1-3 으로 Mode 직접 설정 (release 전 cleanup)
         if (Input.GetKeyDown(KeyCode.F12)) Core.Probes.ProbeRunner.Trigger();
@@ -1027,6 +1064,8 @@ public sealed class ModWindow : MonoBehaviour
         _settingsPanel.OnGUI();
         // v0.7.8 — PlayerEditorPanel (Visible 체크는 panel 내부)
         _playerEditorPanel.OnGUI();
+        // v0.7.13 — ItemGeneratorPanel (Visible 체크는 panel 내부)
+        _itemGenPanel.OnGUI();
         // ItemDetailPanel 위치/크기/visibility 영속화
         Config.ItemDetailPanelX.Value      = _itemDetailPanel.WindowRect.x;
         Config.ItemDetailPanelY.Value      = _itemDetailPanel.WindowRect.y;
@@ -1044,6 +1083,12 @@ public sealed class ModWindow : MonoBehaviour
         Config.PlayerEditorPanelW.Value    = _playerEditorPanel.WindowRect.width;
         Config.PlayerEditorPanelH.Value    = _playerEditorPanel.WindowRect.height;
         Config.PlayerEditorPanelOpen.Value = _playerEditorPanel.Visible;
+        // v0.7.13 — ItemGenPanel rect/visibility 영속화
+        Config.ItemGenPanelX.Value    = _itemGenPanel.WindowRect.x;
+        Config.ItemGenPanelY.Value    = _itemGenPanel.WindowRect.y;
+        Config.ItemGenPanelW.Value    = _itemGenPanel.WindowRect.width;
+        Config.ItemGenPanelH.Value    = _itemGenPanel.WindowRect.height;
+        Config.ItemGenPanelOpen.Value = _itemGenPanel.Visible;
 
         if (!_visible) return;
 

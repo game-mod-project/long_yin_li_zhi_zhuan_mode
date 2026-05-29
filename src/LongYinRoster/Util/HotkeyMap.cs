@@ -13,10 +13,12 @@ public static class HotkeyMap
     public static KeyCode ContainerModeKey         = KeyCode.Alpha2;
     public static KeyCode SettingsModeKey          = KeyCode.Alpha3;     // v0.7.6 신규
     public static KeyCode PlayerEditorModeKey      = KeyCode.Alpha4;     // v0.7.8 신규
+    public static KeyCode ItemGenModeKey           = KeyCode.Alpha5;     // v0.7.13 신규
     public static KeyCode CharacterModeKeyNumpad   = KeyCode.Keypad1;
     public static KeyCode ContainerModeKeyNumpad   = KeyCode.Keypad2;
     public static KeyCode SettingsModeKeyNumpad    = KeyCode.Keypad3;    // v0.7.6 신규
     public static KeyCode PlayerEditorModeKeyNumpad = KeyCode.Keypad4;   // v0.7.8 신규
+    public static KeyCode ItemGenModeKeyNumpad     = KeyCode.Keypad5;    // v0.7.13 신규
 
     /// <summary>
     /// v0.7.6 — Config 의 ConfigEntry 값을 정적 필드에 sync. Plugin Awake 와 SettingsPanel.DoSave 가 호출.
@@ -29,10 +31,12 @@ public static class HotkeyMap
         ContainerModeKey         = Config.HotkeyContainerMode.Value;
         SettingsModeKey          = Config.HotkeySettingsMode.Value;
         PlayerEditorModeKey      = Config.HotkeyPlayerEditorMode.Value;
+        ItemGenModeKey           = Config.HotkeyItemGenMode.Value;
         CharacterModeKeyNumpad   = NumpadFor(CharacterModeKey);
         ContainerModeKeyNumpad   = NumpadFor(ContainerModeKey);
         SettingsModeKeyNumpad    = NumpadFor(SettingsModeKey);
         PlayerEditorModeKeyNumpad = NumpadFor(PlayerEditorModeKey);
+        ItemGenModeKeyNumpad     = NumpadFor(ItemGenModeKey);
     }
 
     /// <summary>
@@ -58,11 +62,12 @@ public static class HotkeyMap
     public static bool MainKeyPressedAlone()
     {
         if (!Input.GetKeyDown(MainKey)) return false;
-        return !(Input.GetKey(CharacterModeKey) || Input.GetKey(ContainerModeKey) || Input.GetKey(SettingsModeKey) || Input.GetKey(PlayerEditorModeKey)
+        return !(Input.GetKey(CharacterModeKey) || Input.GetKey(ContainerModeKey) || Input.GetKey(SettingsModeKey) || Input.GetKey(PlayerEditorModeKey) || Input.GetKey(ItemGenModeKey)
               || (CharacterModeKeyNumpad   != KeyCode.None && Input.GetKey(CharacterModeKeyNumpad))
               || (ContainerModeKeyNumpad   != KeyCode.None && Input.GetKey(ContainerModeKeyNumpad))
               || (SettingsModeKeyNumpad    != KeyCode.None && Input.GetKey(SettingsModeKeyNumpad))
-              || (PlayerEditorModeKeyNumpad != KeyCode.None && Input.GetKey(PlayerEditorModeKeyNumpad)));
+              || (PlayerEditorModeKeyNumpad != KeyCode.None && Input.GetKey(PlayerEditorModeKeyNumpad))
+              || (ItemGenModeKeyNumpad     != KeyCode.None && Input.GetKey(ItemGenModeKeyNumpad)));
     }
 
     /// <summary>F11+1 — 캐릭터 관리 직진입.</summary>
@@ -96,4 +101,10 @@ public static class HotkeyMap
                (Input.GetKeyDown(PlayerEditorModeKey) ||
                 (PlayerEditorModeKeyNumpad != KeyCode.None && Input.GetKeyDown(PlayerEditorModeKeyNumpad)));
     }
+
+    /// <summary>F11+5 — 아이템 생성 직진입. v0.7.13 신규.</summary>
+    public static bool ItemGenShortcut()
+        => Input.GetKey(MainKey) &&
+           (Input.GetKeyDown(ItemGenModeKey) ||
+            (ItemGenModeKeyNumpad != KeyCode.None && Input.GetKeyDown(ItemGenModeKeyNumpad)));
 }

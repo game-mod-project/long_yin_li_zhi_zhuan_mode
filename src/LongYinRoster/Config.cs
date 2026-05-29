@@ -36,6 +36,8 @@ public static class Config
     public static ConfigEntry<KeyCode> HotkeySettingsMode     = null!;
     // v0.7.8 — Player editor hotkey
     public static ConfigEntry<KeyCode> HotkeyPlayerEditorMode = null!;
+    // v0.7.13 — ItemGen hotkey
+    public static ConfigEntry<KeyCode> HotkeyItemGenMode      = null!;
 
     // v0.7.8 — PlayerEditorPanel rect 영속화
     public static ConfigEntry<float>   PlayerEditorPanelX = null!;
@@ -43,6 +45,13 @@ public static class Config
     public static ConfigEntry<float>   PlayerEditorPanelW = null!;
     public static ConfigEntry<float>   PlayerEditorPanelH = null!;
     public static ConfigEntry<bool>    PlayerEditorPanelOpen = null!;
+
+    // v0.7.13 — ItemGenPanel rect 영속화
+    public static ConfigEntry<float>   ItemGenPanelX    = null!;
+    public static ConfigEntry<float>   ItemGenPanelY    = null!;
+    public static ConfigEntry<float>   ItemGenPanelW    = null!;
+    public static ConfigEntry<float>   ItemGenPanelH    = null!;
+    public static ConfigEntry<bool>    ItemGenPanelOpen = null!;
 
     // v0.7.10 Phase 1 — Lock 천부 max 보유수 (cheat GameplayPatch.GetMaxTagNum mirror)
     public static ConfigEntry<bool>    LockMaxTagNum         = null!;
@@ -121,6 +130,8 @@ public static class Config
         HotkeySettingsMode     = cfg.Bind("Hotkey", "SettingsMode",     KeyCode.Alpha3, "설정 panel 단축키 (F11+이 키)");
         // v0.7.8 — Player editor hotkey
         HotkeyPlayerEditorMode = cfg.Bind("Hotkey", "PlayerEditorMode", KeyCode.Alpha4, "플레이어 편집 단축키 (F11+이 키)");
+        // v0.7.13 — ItemGen hotkey
+        HotkeyItemGenMode      = cfg.Bind("Hotkey", "ItemGenMode",      KeyCode.Alpha5, "아이템 생성 단축키 (F11+이 키)");
 
         // v0.7.8 — PlayerEditorPanel rect 영속화 (ItemDetailPanel mirror)
         PlayerEditorPanelX    = cfg.Bind("UI", "PlayerEditorPanelX",    200f,  "플레이어 편집 panel X 좌표");
@@ -128,6 +139,12 @@ public static class Config
         PlayerEditorPanelW    = cfg.Bind("UI", "PlayerEditorPanelW",    720f,  "플레이어 편집 panel 폭 (v0.7.8: 480→720)");
         PlayerEditorPanelH    = cfg.Bind("UI", "PlayerEditorPanelH",    720f,  "플레이어 편집 panel 높이");
         PlayerEditorPanelOpen = cfg.Bind("UI", "PlayerEditorPanelOpen", false, "플레이어 편집 panel 디폴트 visibility");
+        // v0.7.13 — ItemGenPanel rect 영속화
+        ItemGenPanelX    = cfg.Bind("UI", "ItemGenPanelX",    300f,  "아이템 생성 panel X");
+        ItemGenPanelY    = cfg.Bind("UI", "ItemGenPanelY",    150f,  "아이템 생성 panel Y");
+        ItemGenPanelW    = cfg.Bind("UI", "ItemGenPanelW",    620f,  "아이템 생성 panel 폭");
+        ItemGenPanelH    = cfg.Bind("UI", "ItemGenPanelH",    560f,  "아이템 생성 panel 높이");
+        ItemGenPanelOpen = cfg.Bind("UI", "ItemGenPanelOpen", false, "아이템 생성 panel 디폴트 표시");
 
         // v0.7.10 Phase 1 — Lock 천부 max 보유수
         LockMaxTagNum         = cfg.Bind("Hero", "LockMaxTagNum",         false,

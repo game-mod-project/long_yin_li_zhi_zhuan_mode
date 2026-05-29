@@ -7,13 +7,13 @@ namespace LongYinRoster.UI;
 /// </summary>
 public sealed class ModeSelector
 {
-    public enum Mode { None, Character, Container, Settings, Player }   // v0.7.8 — Player 추가
+    public enum Mode { None, Character, Container, Settings, Player, ItemGen }   // v0.7.13 — ItemGen 추가
 
     public Mode CurrentMode { get; private set; } = Mode.None;
     public bool MenuVisible { get; private set; } = false;
     public Rect WindowRect => _windowRect;
 
-    private Rect _windowRect = new Rect(100, 100, 280, 280);   // v0.7.8 — 240 → 280 (Player 버튼 자리)
+    private Rect _windowRect = new Rect(100, 100, 280, 320);   // v0.7.13 — 280 → 320 (ItemGen 버튼 자리)
     private const int WindowID = 0x4C593731;  // "LY71" ASCII unique
 
     public void Toggle()
@@ -51,6 +51,8 @@ public sealed class ModeSelector
         if (GUILayout.Button("설정 (F11+3)", GUILayout.Height(32)))           SetMode(Mode.Settings);
         GUILayout.Space(6);
         if (GUILayout.Button("플레이어 편집 (F11+4)", GUILayout.Height(32))) SetMode(Mode.Player);
+        GUILayout.Space(6);
+        if (GUILayout.Button("아이템 생성 (F11+5)", GUILayout.Height(32)))  SetMode(Mode.ItemGen);
         GUILayout.Space(10);
         GUILayout.Label("F11 닫기");
         GUI.DragWindow(new Rect(0, 0, _windowRect.width - 32, DialogStyle.HeaderHeight));
