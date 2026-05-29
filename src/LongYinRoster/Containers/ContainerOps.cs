@@ -128,13 +128,19 @@ public static class ContainerOps
             // 현재 무게: itemListData.weight property 시도, 미발견 시 wrapper.weight 합산 fallback
             float currentWeight = TryGetCurrentWeight(ild!, allItem, curN);
 
+            // v0.7.12.3: wrapperType generic-arg 우선 추출 (sample fallback).
+            // 새 캐릭터의 빈 인벤/창고로 이동·복사 시 sample-only 추출이 실패하던 회귀 fix
+            // (ItemListApplier v0.7.12.2 / SelfStorageApplier v0.5.5 패턴).
+            var listType = allItem.GetType();
             Type? wrapperType = null;
+            if (listType.IsGenericType && listType.GetGenericArguments().Length == 1)
+                wrapperType = listType.GetGenericArguments()[0];
             for (int k = 0; k < curN && wrapperType == null; k++)
             {
                 var s = IL2CppListOps.Get(allItem, k);
                 if (s != null) wrapperType = s.GetType();
             }
-            if (wrapperType == null) { res.Reason = "wrapperType 미발견 (인벤토리/창고 비어있음)"; return res; }
+            if (wrapperType == null) { res.Reason = "wrapperType 미발견 (인벤토리/창고 비어있음 — generic arg 도 미확인)"; return res; }
 
             ConstructorInfo? ctor = null;
             Type? itemTypeEnum = null;
@@ -169,6 +175,8 @@ public static class ContainerOps
                     int type = entry.TryGetProperty("type", out var tEl) && tEl.ValueKind == JsonValueKind.Number ? tEl.GetInt32() : 0;
                     var wrapper = ctor.Invoke(new object[] { Enum.ToObject(itemTypeEnum!, type) });
                     ItemListApplier.ApplyJsonToObject(entry, wrapper, depth: 0);
+                    // v0.7.12.3: 새 캐릭터로 이동·복사 시 save cleanup 회피 — isNew=true + CountValueAndWeight().
+                    ItemListApplier.FinalizeNewItemWrapper(wrapper);
                     InvokeMethod(player, "GetItem", new object[] { wrapper, false });
                     res.Succeeded++;
                     accumulatedWeight += entryWeight;

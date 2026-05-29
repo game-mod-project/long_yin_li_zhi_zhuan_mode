@@ -14,7 +14,7 @@ public sealed class Plugin : BasePlugin
 {
     public const string GUID    = "com.deepe.longyinroster";
     public const string NAME    = "LongYin Roster Mod";
-    public const string VERSION = "0.7.12.2";
+    public const string VERSION = "0.7.12.3";
 
     public override void Load()
     {
@@ -41,5 +41,6 @@ public sealed class Plugin : BasePlugin
         Logger.Info("[v0.7.12] Cat 3 deferred — ContainerOpUndo single-stack ([↶ Undo] button) + toast 표준화 (success/fail/사유/over-cap)");
         Logger.Info("[v0.7.12.1] hotfix bundle — PlayerEditor 무공 탭 scroll cutoff + Container 비급 sub-tab 정확 매칭 + 카테고리 sub-tab 일관성 (CategorySecondaryTabs)");
         Logger.Info("[v0.7.12.2] hotfix — 새 캐릭터 인벤 Apply: wrapperType generic-arg fallback + isNew=true + CountValueAndWeight() (cheat ItemGenerator 패턴 mirror)");
+        Logger.Info("[v0.7.12.3] hotfix — 동일 회귀 fix 를 창고(SelfStorage) + 컨테이너 이동·복사(ContainerOps)로 확장. FinalizeNewItemWrapper 공유 helper");
     }
 }

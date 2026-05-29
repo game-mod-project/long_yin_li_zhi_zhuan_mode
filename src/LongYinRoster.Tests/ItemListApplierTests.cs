@@ -100,4 +100,46 @@ public class ItemListApplierTests
         result.Skipped.ShouldBeTrue();
         result.Reason!.ShouldContain("player null");
     }
+
+    // ===== v0.7.12.2/3 — FinalizeNewItemWrapper (cheat ItemGenerator.AddToInventory mirror)
+    // 순수 reflection helper. ItemList / SelfStorage / ContainerOps add path 가 공유.
+
+    private sealed class FakeItemWithProperty
+    {
+        public bool isNew { get; set; }
+        public int CountCalls { get; private set; }
+        public void CountValueAndWeight() => CountCalls++;
+    }
+
+    private sealed class FakeItemWithField
+    {
+        public bool isNew;
+        public int CountCalls;
+        public void CountValueAndWeight() => CountCalls++;
+    }
+
+    [Fact]
+    public void FinalizeNewItemWrapper_PropertyPath_SetsIsNewAndCountsValueWeight()
+    {
+        var item = new FakeItemWithProperty { isNew = false };
+        ItemListApplier.FinalizeNewItemWrapper(item);
+        item.isNew.ShouldBeTrue();
+        item.CountCalls.ShouldBe(1);
+    }
+
+    [Fact]
+    public void FinalizeNewItemWrapper_FieldPath_SetsIsNewAndCountsValueWeight()
+    {
+        var item = new FakeItemWithField { isNew = false };
+        ItemListApplier.FinalizeNewItemWrapper(item);
+        item.isNew.ShouldBeTrue();
+        item.CountCalls.ShouldBe(1);
+    }
+
+    [Fact]
+    public void FinalizeNewItemWrapper_MissingMembers_DoesNotThrow()
+    {
+        // isNew / CountValueAndWeight 둘 다 없는 객체 — silent skip (예외 없음)
+        Should.NotThrow(() => ItemListApplier.FinalizeNewItemWrapper(new object()));
+    }
 }

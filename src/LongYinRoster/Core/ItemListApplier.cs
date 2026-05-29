@@ -185,11 +185,7 @@ public static class ItemListApplier
 
                     // v0.7.12.2: cheat ItemGenerator.AddToInventory 패턴 mirror —
                     // 새 캐릭터의 첫 save 시 invalid item 청소 회피.
-                    // (1) isNew=true 강제 set (cheat 자동 설정 mirror)
-                    // (2) CountValueAndWeight() 호출 — value/weight=0 인 wrapper 가
-                    //     게임 save validation 에서 invalid 판정되는 회귀 회피.
-                    TrySetMember(wrapper, "isNew", true);
-                    TryInvokeNoArg(wrapper, "CountValueAndWeight");
+                    FinalizeNewItemWrapper(wrapper);
 
                     InvokeMethod(player, AddMethodName, new object[] { wrapper, false });
                     succeeded++;
@@ -402,6 +398,20 @@ public static class ItemListApplier
         if (targetType == typeof(double)) return val.GetDouble();
         if (targetType.IsEnum) return Enum.ToObject(targetType, val.GetInt32());
         return null;
+    }
+
+    /// <summary>
+    /// v0.7.12.2 — cheat ItemGenerator.AddToInventory 패턴 mirror.
+    /// 새 캐릭터의 첫 save 시 게임이 invalid item (isNew=false 또는 value/weight=0)
+    /// 을 cleanup 하던 회귀 회피. add (GetItem 또는 직접 list.Add) 직전 호출.
+    /// (1) isNew=true 강제 set — cheat 자동 설정 mirror.
+    /// (2) CountValueAndWeight() 호출 — value/weight 재계산.
+    /// 멤버/메서드 부재 시 silent skip. SelfStorageApplier / ContainerOps 가 공유.
+    /// </summary>
+    internal static void FinalizeNewItemWrapper(object wrapper)
+    {
+        TrySetMember(wrapper, "isNew", true);
+        TryInvokeNoArg(wrapper, "CountValueAndWeight");
     }
 
     // v0.7.12.2 — game-self member/method best-effort 호출 (없으면 silent skip).

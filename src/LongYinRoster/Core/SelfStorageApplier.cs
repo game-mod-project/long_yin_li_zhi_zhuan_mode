@@ -180,6 +180,11 @@ public static class SelfStorageApplier
                     // Deep-copy via ItemListApplier helper (re-use)
                     ItemListApplier.ApplyJsonToObject(entry, wrapper, depth: 0);
 
+                    // v0.7.12.3: 창고도 동일 회귀 회피 — isNew=true + CountValueAndWeight().
+                    // selfStorage 는 직접 list.Add (game-self method 미경유) 라 인벤보다
+                    // wrapper 가 더 raw — save validation cleanup 위험 더 높음.
+                    ItemListApplier.FinalizeNewItemWrapper(wrapper);
+
                     addM.Invoke(allItem, new object[] { wrapper });
                     succeeded++;
                 }
