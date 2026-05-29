@@ -264,5 +264,9 @@
     <Compile Include="../LongYinRoster/Core/ItemGenEntry.cs">
       <Link>Core/ItemGenEntry.cs</Link>
     </Compile>
+    <!-- v0.7.13 T4 — ItemDbCache -->
+    <Compile Include="../LongYinRoster/Core/ItemDbCache.cs">
+      <Link>Core/ItemDbCache.cs</Link>
+    </Compile>
   </ItemGroup>
 </Project>
