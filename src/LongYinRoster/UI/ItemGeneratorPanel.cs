@@ -16,15 +16,15 @@ public sealed class ItemGeneratorPanel
 
     private Rect _rect = new(300, 150, 620, 560);
     private const int WindowID = 0x4C593738;   // "LY78"
-    private const int PAGE_SIZE = 10;
+    private int _pageSize = 10;
 
     private ItemGenCategory _category = ItemGenCategory.Equipment;
     private int _secondary = -1;
     private int _page = 0;
     private string _search = "";
     private int _selectedId = -1;
-    private string _lvBuf = "5";
-    private string _rareBuf = "5";
+    private int _itemLv = 5;    // 등급 (itemLv 0~5)
+    private int _rareLv = 5;    // 품질 (rareLv 0~5)
     private string _qtyBuf = "1";
     private Vector2 _scroll = Vector2.zero;
 
@@ -111,7 +111,7 @@ public sealed class ItemGeneratorPanel
     private void DrawList()
     {
         var filtered = ItemGenFilter.Apply(ItemDbCache.All(), _category, _secondary, _search);
-        var (slice, totalPages) = ItemGenFilter.Page(filtered, _page, PAGE_SIZE);
+        var (slice, totalPages) = ItemGenFilter.Page(filtered, _page, _pageSize);
         // 데이터가 줄어든 경우 stale _page 를 보정 (PlayerEditorPanel 무공 list 패턴)
         if (_page >= totalPages) _page = totalPages - 1;
         if (_page < 0) _page = 0;
@@ -120,6 +120,14 @@ public sealed class ItemGeneratorPanel
         if (GUILayout.Button("◀", GUILayout.Width(30)) && _page > 0) _page--;
         GUILayout.Label($"  {_page + 1} / {totalPages} ({filtered.Count}개)", GUILayout.Width(160));
         if (GUILayout.Button("▶", GUILayout.Width(30)) && _page < totalPages - 1) _page++;
+        GUILayout.Label("표시:", GUILayout.Width(40));
+        foreach (int ps in new[] { 10, 15, 20 })
+        {
+            var prevPs = GUI.color;
+            if (_pageSize == ps) GUI.color = Color.cyan;
+            if (GUILayout.Button(ps.ToString(), GUILayout.Width(34))) { _pageSize = ps; _page = 0; }
+            GUI.color = prevPs;
+        }
         GUILayout.EndHorizontal();
 
         _scroll = GUILayout.BeginScrollView(_scroll, GUILayout.Height(260));
@@ -138,11 +146,32 @@ public sealed class ItemGeneratorPanel
 
     private void DrawGenerateBar(object player)
     {
+        // 등급 (itemLv) 선택
         GUILayout.BeginHorizontal();
-        GUILayout.Label("레벨:", GUILayout.Width(40));
-        _lvBuf = GUILayout.TextField(_lvBuf, GUILayout.Width(40));
         GUILayout.Label("등급:", GUILayout.Width(40));
-        _rareBuf = GUILayout.TextField(_rareBuf, GUILayout.Width(40));
+        for (int i = 0; i < ItemRareLvNames.EquipLvNames.Length; i++)
+        {
+            var prev = GUI.color;
+            if (_itemLv == i) GUI.color = Color.cyan;
+            if (GUILayout.Button(ItemRareLvNames.EquipLvNames[i], GUILayout.Width(48))) _itemLv = i;
+            GUI.color = prev;
+        }
+        GUILayout.EndHorizontal();
+
+        // 품질 (rareLv) 선택
+        GUILayout.BeginHorizontal();
+        GUILayout.Label("품질:", GUILayout.Width(40));
+        for (int i = 0; i < ItemRareLvNames.QualityNames.Length; i++)
+        {
+            var prev = GUI.color;
+            if (_rareLv == i) GUI.color = Color.cyan;
+            if (GUILayout.Button(ItemRareLvNames.QualityNames[i], GUILayout.Width(48))) _rareLv = i;
+            GUI.color = prev;
+        }
+        GUILayout.EndHorizontal();
+
+        // 수량 + 생성
+        GUILayout.BeginHorizontal();
         GUILayout.Label("수량:", GUILayout.Width(40));
         _qtyBuf = GUILayout.TextField(_qtyBuf, GUILayout.Width(40));
         if (GUILayout.Button("생성", GUILayout.Width(80))) DoGenerate(player);
@@ -152,7 +181,7 @@ public sealed class ItemGeneratorPanel
     private void DoGenerate(object player)
     {
         if (_selectedId < 0) { ToastService.Push("아이템을 선택하세요", ToastKind.Error); return; }
-        int lv = ParseInt(_lvBuf, 5), rare = ParseInt(_rareBuf, 5), qty = ParseInt(_qtyBuf, 1);
+        int lv = _itemLv, rare = _rareLv, qty = ParseInt(_qtyBuf, 1);
         int subType = _category == ItemGenCategory.Equipment ? Math.Max(0, _secondary) : 0;
         var res = ItemFactory.Generate(player, _category, subType, _selectedId, lv, rare, qty);
         if (res.Ok)
