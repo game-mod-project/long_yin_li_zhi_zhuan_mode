@@ -22,7 +22,7 @@ public sealed class ItemGeneratorPanel
     private int _secondary = -1;
     private int _page = 0;
     private string _search = "";
-    private int _selectedId = -1;
+    private ItemGenEntry? _selected = null;
     private int _itemLv = 5;    // 등급 (itemLv 0~5)
     private int _rareLv = 5;    // 품질 (rareLv 0~5)
     private string _qtyBuf = "1";
@@ -77,7 +77,7 @@ public sealed class ItemGeneratorPanel
             var prev = GUI.color;
             if (_category == c) GUI.color = Color.cyan;
             if (GUILayout.Button(ItemGenCategoryNames.Korean(c), GUILayout.Width(55)))
-            { _category = c; _secondary = -1; _page = 0; _selectedId = -1; _search = ""; }
+            { _category = c; _secondary = -1; _page = 0; _selected = null; _search = ""; }
             GUI.color = prev;
         }
         GUILayout.EndHorizontal();
@@ -135,9 +135,9 @@ public sealed class ItemGeneratorPanel
         {
             GUILayout.BeginHorizontal();
             var prev = GUI.color;
-            if (_selectedId == e.Id) GUI.color = Color.cyan;
-            string mark = _selectedId == e.Id ? "▶ " : "  ";
-            if (GUILayout.Button($"{mark}{e.Display}", GUILayout.Width(_rect.width - 60))) _selectedId = e.Id;
+            if (ReferenceEquals(_selected, e)) GUI.color = Color.cyan;
+            string mark = ReferenceEquals(_selected, e) ? "▶ " : "  ";
+            if (GUILayout.Button($"{mark}{e.Display}", GUILayout.Width(_rect.width - 60))) _selected = e;
             GUI.color = prev;
             GUILayout.EndHorizontal();
         }
@@ -180,10 +180,10 @@ public sealed class ItemGeneratorPanel
 
     private void DoGenerate(object player)
     {
-        if (_selectedId < 0) { ToastService.Push("아이템을 선택하세요", ToastKind.Error); return; }
+        if (_selected == null) { ToastService.Push("아이템을 선택하세요", ToastKind.Error); return; }
         int lv = _itemLv, rare = _rareLv, qty = ParseInt(_qtyBuf, 1);
-        int subType = _category == ItemGenCategory.Equipment ? Math.Max(0, _secondary) : 0;
-        var res = ItemFactory.Generate(player, _category, subType, _selectedId, lv, rare, qty);
+        // 생성 조건은 선택한 entry 의 Category/SubType/Id 에서 — 현재 탭 상태가 아니라 (전체 탭에서도 정확).
+        var res = ItemFactory.Generate(player, _selected.Category, _selected.SubType, _selected.Id, lv, rare, qty);
         if (res.Ok)
         {
             ToastService.Push($"✓ {res.ItemName ?? "아이템"} ×{res.Created} 생성됨", ToastKind.Success);
