@@ -15,18 +15,16 @@ public static class ItemDbCache
     private static List<ItemGenEntry>? _cache;
     private static readonly object _lock = new();
 
-    // 인게임 spike 로 확정할 DB property 이름 (현재 후보). (category, subType, dbProperty)
+    // 인게임 spike 로 확정한 DB property 이름. decorationDataBase/materialDataBase/treasureDataBase
+    // 는 GameDataController 에 존재하지 않음 → AddSyntheticEntries/ProbeTreasures 로 대체.
     private static readonly (ItemGenCategory Cat, int SubType, string DbProp)[] DbMap =
     {
         (ItemGenCategory.Equipment, 0, "weaponDataBase"),
         (ItemGenCategory.Equipment, 1, "armorDataBase"),
         (ItemGenCategory.Equipment, 2, "helmetDataBase"),
         (ItemGenCategory.Equipment, 3, "shoesDataBase"),
-        (ItemGenCategory.Equipment, 4, "decorationDataBase"),
         (ItemGenCategory.Medicine,  0, "medDataBase"),
         (ItemGenCategory.Food,      0, "foodDataBase"),
-        (ItemGenCategory.Material,  0, "materialDataBase"),
-        (ItemGenCategory.Treasure,  0, "treasureDataBase"),
         (ItemGenCategory.Horse,     0, "horseDataBase"),
     };
 
@@ -77,6 +75,8 @@ public static class ItemDbCache
                     Category = ItemGenCategory.Book, SubType = SkillNameCache.GetType(id),
                 });
             }
+            AddSyntheticEntries(list);
+            try { ProbeTreasures(list); } catch (Exception ex) { Logger.WarnOnce("ItemDbCache", $"ProbeTreasures: {ex.GetType().Name}: {ex.Message}"); }
             Logger.Info($"ItemDbCache: built {list.Count} entries");
         }
         catch (Exception ex)
@@ -133,5 +133,56 @@ public static class ItemDbCache
         }
         catch { }
         return "";
+    }
+
+    // v0.7.13 — DB 없는 type-생성 카테고리는 합성 entry (장식품/마구/재료).
+    private static void AddSyntheticEntries(List<ItemGenEntry> list)
+    {
+        string[] decorations = { "향낭", "옥선", "반지", "옥패", "요대", "면구" };
+        for (int i = 0; i < decorations.Length; i++)
+            list.Add(new ItemGenEntry { Id = i, NameRaw = decorations[i], NameKr = decorations[i],
+                Category = ItemGenCategory.Equipment, SubType = 4 });   // 장신구 secondary
+
+        list.Add(new ItemGenEntry { Id = 0, NameRaw = "안구", NameKr = "안구",
+            Category = ItemGenCategory.Equipment, SubType = 5 });       // 마구 secondary
+
+        string[] materials = { "목재", "광석", "약재", "식재" };
+        for (int i = 0; i < materials.Length; i++)
+            list.Add(new ItemGenEntry { Id = i, NameRaw = materials[i], NameKr = materials[i],
+                Category = ItemGenCategory.Material, SubType = i });
+    }
+
+    // v0.7.13 — 보물 type 개수 미상 → GenerateTreasure(t,1,1f) probe 로 자동 발견.
+    // 반환 ItemData 의 name 을 읽어 entry 생성. 3회 연속 실패 시 중단 (최대 30).
+    private static void ProbeTreasures(List<ItemGenEntry> list)
+    {
+        var gc = GameControllerLocator.GetGameController();
+        if (gc == null) return;
+        var m = FindTreasureMethod(gc.GetType());
+        if (m == null) { Logger.WarnOnce("ItemDbCache", "GenerateTreasure(int,int,Single) 미발견"); return; }
+        int consecutiveFail = 0;
+        for (int t = 0; t < 30 && consecutiveFail < 3; t++)
+        {
+            object? item = null;
+            try { item = m.Invoke(gc, new object[] { t, 1, 1f }); } catch { }
+            string raw = item != null ? ReadStr(item, "name") : "";
+            if (item == null || string.IsNullOrEmpty(raw)) { consecutiveFail++; continue; }
+            consecutiveFail = 0;
+            list.Add(new ItemGenEntry { Id = t, NameRaw = raw,
+                NameKr = HangulDict.Translate(raw), Category = ItemGenCategory.Treasure, SubType = 0 });
+        }
+    }
+
+    private static System.Reflection.MethodInfo? FindTreasureMethod(Type t)
+    {
+        foreach (var mi in t.GetMethods(F))
+        {
+            if (mi.Name != "GenerateTreasure") continue;
+            var ps = mi.GetParameters();
+            if (ps.Length == 3 && ps[0].ParameterType == typeof(int)
+                && ps[1].ParameterType == typeof(int) && ps[2].ParameterType == typeof(float))
+                return mi;
+        }
+        return null;
     }
 }

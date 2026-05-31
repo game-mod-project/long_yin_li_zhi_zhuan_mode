@@ -71,6 +71,7 @@ public static class ItemFactory
                     object[] callArgs = appendPlayer ? Append(args, player) : args;
                     item = InvokeMethodReturning(gc, spec.MethodName, callArgs);
                     if (item == null) { res.Reason = $"{spec.MethodName} 반환 null"; break; }
+                    if (lv > 0) TrySetInt(item, "itemLv", lv);      // generator 가 itemLv 안 받는 카테고리(med/food 등) 보정
                     if (rare > 0) TrySetInt(item, "rareLv", rare);   // generator 가 rareLv 안 받음 → post-set
                 }
 
