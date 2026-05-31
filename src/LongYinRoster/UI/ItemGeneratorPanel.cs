@@ -181,7 +181,7 @@ public sealed class ItemGeneratorPanel
     private void DoGenerate(object player)
     {
         if (_selected == null) { ToastService.Push("아이템을 선택하세요", ToastKind.Error); return; }
-        int lv = _itemLv, rare = _rareLv, qty = ParseInt(_qtyBuf, 1);
+        int lv = _itemLv, rare = _rareLv, qty = Math.Clamp(ParseInt(_qtyBuf, 1), 1, 99);
         // 생성 조건은 선택한 entry 의 Category/SubType/Id 에서 — 현재 탭 상태가 아니라 (전체 탭에서도 정확).
         var res = ItemFactory.Generate(player, _selected.Category, _selected.SubType, _selected.Id, lv, rare, qty);
         if (res.Ok)

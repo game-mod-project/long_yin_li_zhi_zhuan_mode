@@ -59,8 +59,8 @@ public static class ItemFactory
                 object? item;
                 if (cat == ItemGenCategory.Book)
                 {
-                    // GenerateBook 으로 Book ItemData 생성 후 특정 skill 로 override
-                    item = InvokeMethodReturning(gc, "GenerateBook", new object[] { lv, (float)lv, -1 });
+                    // GenerateBook 으로 Book ItemData 생성 후 특정 skill 로 override (spec.MethodName == "GenerateBook")
+                    item = InvokeMethodReturning(gc, spec.MethodName, new object[] { lv, (float)lv, -1 });
                     if (item == null) { res.Reason = "GenerateBook 반환 null"; break; }
                     TryInvokeFlexible(item, "SetBookData", new object[] { id, rare });
                 }
