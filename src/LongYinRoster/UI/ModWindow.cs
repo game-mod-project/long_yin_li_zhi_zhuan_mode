@@ -934,9 +934,6 @@ public sealed class ModWindow : MonoBehaviour
         {
             _modeSelector.SetMode(ModeSelector.Mode.ItemGen);
         }
-        // v0.7.13 TEMP spike — F11+9 로 진단 dump (Task 8 에서 제거)
-        if (UnityEngine.Input.GetKey(HotkeyMap.MainKey) && UnityEngine.Input.GetKeyDown(UnityEngine.KeyCode.Alpha9))
-            LongYinRoster.Core.ItemGenDiagnostic.Dump();
 
         // ModeSelector 의 mode 변경을 transition 으로 처리 — 매 프레임 polling 안 함.
         if (_modeSelector.CurrentMode != _lastSeenMode)

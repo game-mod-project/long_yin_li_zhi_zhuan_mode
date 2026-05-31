@@ -14,7 +14,7 @@ public sealed class Plugin : BasePlugin
 {
     public const string GUID    = "com.deepe.longyinroster";
     public const string NAME    = "LongYin Roster Mod";
-    public const string VERSION = "0.7.12.3";
+    public const string VERSION = "0.7.13";
 
     public override void Load()
     {
@@ -42,5 +42,6 @@ public sealed class Plugin : BasePlugin
         Logger.Info("[v0.7.12.1] hotfix bundle — PlayerEditor 무공 탭 scroll cutoff + Container 비급 sub-tab 정확 매칭 + 카테고리 sub-tab 일관성 (CategorySecondaryTabs)");
         Logger.Info("[v0.7.12.2] hotfix — 새 캐릭터 인벤 Apply: wrapperType generic-arg fallback + isNew=true + CountValueAndWeight() (cheat ItemGenerator 패턴 mirror)");
         Logger.Info("[v0.7.12.3] hotfix — 동일 회귀 fix 를 창고(SelfStorage) + 컨테이너 이동·복사(ContainerOps)로 확장. FinalizeNewItemWrapper 공유 helper");
+        Logger.Info("[v0.7.13] 아이템 생성기 (F11+5) — 7 카테고리 generator 직접 호출 + GetItem (장비/비급/단약/음식/재료/말/보물, 등급·품질 선택)");
     }
 }
