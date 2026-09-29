@@ -253,5 +253,27 @@
     <Compile Include="../LongYinRoster/Containers/ContainerOpUndo.cs">
       <Link>Containers/ContainerOpUndo.cs</Link>
     </Compile>
+    <!-- v0.7.13 T2 — ItemGenCategory + GeneratorSpec -->
+    <Compile Include="../LongYinRoster/Core/ItemGenCategory.cs">
+      <Link>Core/ItemGenCategory.cs</Link>
+    </Compile>
+    <Compile Include="../LongYinRoster/Core/GeneratorSpec.cs">
+      <Link>Core/GeneratorSpec.cs</Link>
+    </Compile>
+    <!-- v0.7.13 T3 — ItemGenEntry + ItemGenFilter -->
+    <Compile Include="../LongYinRoster/Core/ItemGenEntry.cs">
+      <Link>Core/ItemGenEntry.cs</Link>
+    </Compile>
+    <!-- v0.7.13 T4 — ItemDbCache -->
+    <Compile Include="../LongYinRoster/Core/ItemDbCache.cs">
+      <Link>Core/ItemDbCache.cs</Link>
+    </Compile>
+    <!-- v0.7.13 T5 -->
+    <Compile Include="../LongYinRoster/Core/GameControllerLocator.cs">
+      <Link>Core/GameControllerLocator.cs</Link>
+    </Compile>
+    <Compile Include="../LongYinRoster/Core/ItemFactory.cs">
+      <Link>Core/ItemFactory.cs</Link>
+    </Compile>
   </ItemGroup>
 </Project>
