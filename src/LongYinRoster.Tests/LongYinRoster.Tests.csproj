@@ -285,6 +285,9 @@
     <Compile Include="../LongYinRoster/UI/Layout/PanelWindowLogic.cs">
       <Link>UI/Layout/PanelWindowLogic.cs</Link>
     </Compile>
+    <Compile Include="../LongYinRoster/UI/Layout/SettingsLayout.cs">
+      <Link>UI/Layout/SettingsLayout.cs</Link>
+    </Compile>
     <Compile Include="../LongYinRoster/UI/PanelWindow.cs">
       <Link>UI/PanelWindow.cs</Link>
     </Compile>
