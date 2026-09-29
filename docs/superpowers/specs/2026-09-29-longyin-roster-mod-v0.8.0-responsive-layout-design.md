@@ -77,7 +77,7 @@ public sealed class PanelWindow
 - `bounds` 가 `Func` 인 이유: 최소 크기가 패널 상태(섹션 접힘 등)에 따라 달라지므로 계산기가 매번 낸다.
 - `OnGUI` 순서: `FillBackground` → `DrawHeader(title)` → X 버튼(`Visible=false` + `Persist`) → `drawContent(ContentRect)` → 코너 핸들(DragWindow 보다 먼저 — 코너 우선) → `GUI.DragWindow(헤더 영역)`.
 - 예외 가드: `drawContent` 를 try/catch 로 감싸 `Logger.WarnOnce("<title>", …)` — 지금 패널마다 있는 동일 패턴을 한 곳으로.
-- 저장 시점: 리사이즈 MouseUp / 드래그 종료(MouseUp) / 닫힘(X, 단축키) / `PanelRegistry.PersistAll` (게임 종료 경로 보존).
+- 저장 시점: 리사이즈 MouseUp / 드래그 종료(MouseUp, 또는 rect 변화가 멈춘 다음 호출 — 게임 창 밖에서 마우스를 놓아 MouseUp 을 못 본 경우) / 닫힘(X, 단축키) / `PanelRegistry.PersistAll` (게임 종료 경로 보존).
 - 화면 클램프: `Hydrate`·`SetRect`·리사이즈·드래그 후 `PanelWindowLogic.ClampToScreen`. `Screen.width/height` 는 `PanelWindow` 가 읽어 로직에 숫자로 넘긴다(테스트 가능).
 
 ```csharp
@@ -112,7 +112,7 @@ public static class LayoutMath   // UI/Layout — Unity 의존 없음
 }
 ```
 
-행 높이·간격 상수는 `DialogStyle` 에 모은다(기존 `HeaderHeight = 28` 옆): `RowHeight = 24`, `ButtonRowHeight = 28`, `Padding = 4`, `Gap = 4`. 계산기와 `Draw` 가 같은 상수를 쓰는 것이 "계산 ≠ 렌더" 어긋남을 막는 1차 방어선이다.
+행 높이·간격 상수는 `DialogStyle` 에 모은다(기존 `HeaderHeight = 28` 옆): `RowHeight = 24`, `ButtonRowHeight = 28`, `Padding = 12`, `Gap = 4`. `Padding` 은 GUI.Window 기본 skin 의 내부 여백을 흡수하는 값이라 인게임 smoke(최소 크기에서 가로 잘림·스크롤바 없음)로 확정한다 — 어긋나면 이 상수 하나만 올린다. 계산기와 `Draw` 가 같은 상수를 쓰는 것이 "계산 ≠ 렌더" 어긋남을 막는 1차 방어선이다.
 
 ## 6. 패널별 계산기 규칙
 
@@ -137,7 +137,7 @@ public static class LayoutMath   // UI/Layout — Unity 의존 없음
 - 유지: 기존 5 패널의 X/Y/W(Width)/H(Height) 키 전부 그대로(이름 불변, 구 cfg 호환).
 - 로드: `Hydrate` 에서 화면 클램프 — 다른 해상도에서 저장된 값 대응.
 - 삭제 없음: `표시 10/15/20` 은 설정 키가 없었음.
-- SettingsPanel 의 rect 입력 필드 목록에 자기 자신(SettingsPanel) 추가. "기본값 복원" 은 6 패널 전부 기본 rect 로.
+- SettingsPanel 의 rect 입력 필드 목록에 자기 자신(SettingsPanel) 추가. "기본값 복원" 은 편집 가능한 버퍼(단축키 + 컨테이너 rect + 설정 rect)만, "영속화 정보 reset" 이 6 패널 전부의 rect 를 기본값으로 즉시 되돌린다(v0.7.6 부터의 두 버튼 역할 유지).
 
 ## 8. 리팩토링 범위 (옮기는 김에만)
 

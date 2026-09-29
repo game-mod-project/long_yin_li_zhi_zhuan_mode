@@ -783,6 +783,8 @@ public sealed class PanelWindow
     private Vector2 _resizeStartSize;
     private bool    _mouseUpSeen;
     private Rect    _lastPersisted;
+    private Rect    _lastSeenRect;      // 직전 OnGUI 호출의 rect (settle 검출용)
+    private bool    _pendingSettle;     // rect 가 바뀐 뒤 아직 저장 안 됨
 
     public PanelWindow(int windowId, string title, Func<PanelBounds> bounds, RectBinding binding)
     {
@@ -812,6 +814,7 @@ public sealed class PanelWindow
             _rect = PanelWindowLogic.ClampToScreen(_rect, screenW, screenH, _bounds());
         }
         _lastPersisted = _rect;
+        _lastSeenRect  = _rect;
         _hydrated = true;
     }
 
@@ -855,16 +858,27 @@ public sealed class PanelWindow
         {
             Logger.WarnOnce($"PanelWindow/{_title}/OnGUI", $"{_title} OnGUI: {ex.GetType().Name}: {ex.Message}");
         }
-        // 헤더 드래그 종료 검출: 콜백에서 MouseUp 을 봤고 rect 가 마지막 저장값과 다르면 저장
-        if (_mouseUpSeen)
+        // 헤더 드래그 종료 검출 — 두 경로:
+        //  (a) 콜백에서 MouseUp 을 봤다(정상 종료)
+        //  (b) rect 가 바뀐 뒤 이번 호출에서 더 이상 안 바뀐다(게임 창 밖에서 마우스를 놓아 MouseUp 을 못 본 경우)
+        // 어느 쪽이든 마지막 저장값과 다르면 화면 클램프 후 저장. (b) 는 드래그 중 잠깐 멈춰도 발동하지만
+        // 클램프는 멱등이고 저장은 값이 바뀔 때만 파일에 쓴다(기존 per-frame 저장과 같은 비용 상한).
+        bool changed = !SameRect(_rect, _lastSeenRect);
+        if (_mouseUpSeen || (_pendingSettle && !changed))
         {
             _mouseUpSeen = false;
+            _pendingSettle = false;
             if (!SameRect(_rect, _lastPersisted))
             {
                 _rect = PanelWindowLogic.ClampToScreen(_rect, Screen.width, Screen.height, _bounds());
                 Persist();
             }
         }
+        else if (changed)
+        {
+            _pendingSettle = true;
+        }
+        _lastSeenRect = _rect;
     }
 
     private void DrawWindow(int id)
@@ -1109,7 +1123,9 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 - Consumes: `PanelWindow`, `RectBinding`, `PanelRegistry`, `SettingsLayout`, `Config.SettingsPanelX/Y/W/H`, `Config.PlayerEditorPanel*`, `Config.ItemGenPanel*`.
 - Produces: `SettingsPanel.Window : PanelWindow`, `Visible`(위임), `WindowRect`(위임), `BufferSelfX/Y/W/H`, `SetBufferSelfRect(float,float,float,float)`, `HydrateFromValues(main, ch, co, se, x, y, w, h, sx = 200, sy = 120, sw = 480, sh = 600)`, `internal static bool TryParseRectField(string, float min, out float)`.
 
-- [ ] **Step 1: 테스트 추가 (SettingsPanelTests.cs 끝, 클래스 닫는 `}` 앞)**
+- [ ] **Step 1: 테스트 추가 (SettingsPanelTests.cs)**
+
+먼저 파일 상단 `using` 블록에 `using LongYinRoster.UI.Layout;` 를 추가한다(`SettingsLayout` 참조). 그다음 클래스 닫는 `}` 앞에:
 
 ```csharp
     // ── v0.8.0 S1 — 설정 패널 자기 rect 버퍼 ──
@@ -1158,7 +1174,6 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
     }
 ```
 
-파일 상단 `using` 에 `using LongYinRoster.UI.Layout;` 추가.
 
 - [ ] **Step 2: 실패 확인** — `dotnet test --nologo -v quiet 2>&1 | grep -E "error CS" | head -3` → `CS1061 'SettingsPanel'에 'BufferSelfX' 정의가 없음` 등.
 
@@ -2107,7 +2122,7 @@ public sealed class ItemGeneratorPanel
 
 `_registry.HydrateAll(...)` 호출(1단계에서 SettingsPanel 등록 직후에 넣은 것)은 **이 Register 뒤로 이동**한다 — 등록 순서: Settings → ItemGen → HydrateAll.
 
-(b) 1085~1090번 줄의 `// v0.7.13 — ItemGenPanel rect/visibility 영속화` 블록(5줄 대입) 삭제. PanelWindow 가 드래그/리사이즈/닫힘 시 저장하고 `OnDestroy` 가 안전망.
+(b) 1085번 줄 주석 `// v0.7.13 — ItemGenPanel rect/visibility 영속화` 와 그 아래 대입 5줄(1086~1090, `Config.ItemGenPanelX/Y/W/H/Open.Value = ...`) 삭제. PanelWindow 가 드래그/리사이즈/닫힘 시 저장하고 `OnDestroy` 가 안전망.
 
 - [ ] **Step 4: 테스트·빌드**
 
