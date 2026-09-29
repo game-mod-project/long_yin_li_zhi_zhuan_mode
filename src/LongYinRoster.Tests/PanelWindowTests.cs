@@ -176,4 +176,48 @@ public class PanelWindowTests
         }
         finally { e.type = EventType.Repaint; e.mousePosition = default; }
     }
+
+    // ── 리뷰 후속(2026-09-29) ──
+
+    [Fact]
+    public void Visible_Setter_PersistsOpenEntry()
+    {
+        // 모드 전환이 Visible 을 직접 세팅해도 Open 이 따라가야 한다 (v0.7.13 은 per-frame 저장이었음)
+        var b = MakeBinding(10, 10, 400, 300, open: false);
+        var w = Make(b);
+        w.Hydrate(1920, 1080);
+        w.Visible = true;
+        b.Open!.Value.ShouldBeTrue();
+        w.Visible = false;
+        b.Open!.Value.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void ReloadRect_ReadsConfigWithoutTouchingVisible()
+    {
+        // "영속화 정보 reset" 이 Config 를 바꾼 뒤 창 rect 만 다시 읽는다 — Visible/Open 은 건드리지 않음
+        var b = MakeBinding(10, 10, 400, 300, open: false);
+        var w = Make(b);
+        w.Hydrate(1920, 1080);
+        w.Visible = true;
+        b.X.Value = 300; b.Y.Value = 150; b.W.Value = 620; b.H.Value = 560;
+        var reg = new PanelRegistry();
+        reg.Register(w);
+        reg.ReloadRects(1920, 1080);
+        (w.Rect.x, w.Rect.y, w.Rect.width, w.Rect.height).ShouldBe((300f, 150f, 620f, 560f));
+        w.Visible.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void Hydrate_ZeroScreen_KeepsSavedRectAndStaysUnhydrated()
+    {
+        // 초기 프레임에 Screen 이 0×0 이면 클램프가 저장값을 (0,0,min) 으로 파괴한다 → 클램프 없이 읽고 첫 OnGUI 에서 재시도
+        var w = Make(MakeBinding(1800, 1000, 400, 300));
+        w.Hydrate(0, 0);
+        (w.Rect.x, w.Rect.y, w.Rect.width, w.Rect.height).ShouldBe((1800f, 1000f, 400f, 300f));
+        w.IsHydrated.ShouldBeFalse();
+        w.Hydrate(1920, 1080);
+        (w.Rect.x, w.Rect.y).ShouldBe((1520f, 780f));
+        w.IsHydrated.ShouldBeTrue();
+    }
 }

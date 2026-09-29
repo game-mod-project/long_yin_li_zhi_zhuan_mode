@@ -57,26 +57,51 @@ public sealed class PanelWindow
     public Rect Rect => _rect;
     public Rect ContentRect => PanelWindowLogic.ContentRect(_rect, DialogStyle.HeaderHeight, DialogStyle.Padding);
     public bool IsHydrated => _hydrated;
-    public bool Visible { get; set; }
+    private bool _visible;
+    /// <summary>표시 여부. 바뀔 때 Open 엔트리에 즉시 반영 — ModWindow 모드 전환이 직접 세팅하는 경로도 영속화(v0.7.13 per-frame 저장 대체).
+    /// BepInEx ConfigEntry 는 값이 같으면 저장하지 않으므로 매 프레임 대입해도 파일 I/O 없음.</summary>
+    public bool Visible
+    {
+        get => _visible;
+        set
+        {
+            if (_visible == value) return;
+            _visible = value;
+            if (_binding.IsBound && _binding.Open != null) _binding.Open.Value = value;
+        }
+    }
     /// <summary>X 버튼/Close() 뒤 패널이 부가 정리(버퍼 폐기 등)를 할 때.</summary>
     public Action? OnClosed;
 
-    /// <summary>설정 → rect (화면 클램프). Open 엔트리가 있으면 Visible 도 읽는다. 미바인딩이면 최소 크기 유지.</summary>
+    /// <summary>설정 → rect (화면 클램프). Open 엔트리가 있으면 Visible 도 읽는다. 미바인딩이면 최소 크기 유지.
+    /// 화면 크기가 아직 0×0 이면(초기 프레임) 클램프가 저장값을 (0,0,최소) 로 부숴 버리므로 클램프 없이 읽고 hydrated 를 세우지 않는다 — 첫 OnGUI 가 재시도.</summary>
     public void Hydrate(float screenW, float screenH)
     {
+        bool screenValid = screenW > 0f && screenH > 0f;
         if (_binding.IsBound)
         {
             var r = new Rect(_binding.X.Value, _binding.Y.Value, _binding.W.Value, _binding.H.Value);
-            _rect = PanelWindowLogic.ClampToScreen(r, screenW, screenH, _bounds());
+            _rect = screenValid ? PanelWindowLogic.ClampToScreen(r, screenW, screenH, _bounds()) : r;
             if (_binding.Open != null) Visible = _binding.Open.Value;
         }
-        else
+        else if (screenValid)
         {
             _rect = PanelWindowLogic.ClampToScreen(_rect, screenW, screenH, _bounds());
         }
         _lastPersisted = _rect;
         _lastSeenRect  = _rect;
-        _hydrated = true;
+        _hydrated = screenValid;
+    }
+
+    /// <summary>설정 → rect 만 다시 읽는다(Visible/Open 불변). "영속화 정보 reset" 이 Config 를 바꾼 뒤 창이 즉시 따라가도록 — 안 하면 다음 Persist 가 옛 rect 로 되덮는다.</summary>
+    public void ReloadRect(float screenW, float screenH)
+    {
+        if (!_binding.IsBound) return;
+        var r = new Rect(_binding.X.Value, _binding.Y.Value, _binding.W.Value, _binding.H.Value);
+        _rect = (screenW > 0f && screenH > 0f) ? PanelWindowLogic.ClampToScreen(r, screenW, screenH, _bounds()) : r;
+        _lastPersisted = _rect;
+        _lastSeenRect  = _rect;
+        _resizing = false;
     }
 
     /// <summary>설정 패널 숫자 입력 경로. 클램프 후 즉시 저장.</summary>
@@ -184,6 +209,8 @@ public sealed class PanelWindow
         {
             _rect = PanelWindowLogic.Resize(_rect, _resizeStart, _resizeStartSize, e.mousePosition,
                                             _bounds(), Screen.width, Screen.height);
+            // e.Use() 필수: 리사이즈로 PageSize 등이 바뀌어 같은 패스의 GUILayout 컨트롤 수가 Layout 캐시와 달라져도,
+            // 이벤트가 Used 면 GUILayoutUtility 가 더미 rect 를 돌려줘 "Getting control N position" ArgumentException 이 나지 않는다.
             e.Use();
         }
         else if (_resizing && e.type == EventType.MouseUp)
