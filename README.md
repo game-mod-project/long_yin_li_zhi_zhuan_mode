@@ -1,6 +1,6 @@
 # LongYin Roster Mod
 
-**龙胤立志传 (LongYinLiZhiZhuan) v1.0.0 f8.2** 의 BepInEx 6 IL2CPP 플러그인.
+**龙胤立志传 (LongYinLiZhiZhuan) v1.1.0f5** 의 BepInEx 6 IL2CPP 플러그인.
 플레이어 캐릭터(`heroID=0`) 스냅샷을 최대 20슬롯에 저장 / 관리한다.
 
 ## 무엇을 할 수 있나 (v0.5.2)
@@ -192,7 +192,7 @@ PlayerEditorPanel (F11+4) 신규 추가. 플레이어 캐릭터 스탯 편집 UI
 
 ## 요구 사항
 
-- 게임: **龙胤立志传 v1.0.0 f8.2** (Steam)
+- 게임: **龙胤立志传 v1.1.0f5** (Steam)
 - 모드 로더: **BepInEx 6.0.0-dev** (IL2CPP, .NET 6 runtime)
 - 플랫폼: Windows 10/11 64-bit
 
