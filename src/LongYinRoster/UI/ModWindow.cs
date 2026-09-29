@@ -180,7 +180,6 @@ public sealed class ModWindow : MonoBehaviour
         };
         // v0.8.0 S1 — SettingsPanel 창 틀 등록 + 설정 → rect (화면 클램프)
         _registry.Register(_settingsPanel.Window);
-        _registry.HydrateAll(Screen.width, Screen.height);
         // v0.7.8 — PlayerEditorPanel wire-up
         _playerEditorPanel.Init(
             Config.PlayerEditorPanelX.Value,
@@ -191,14 +190,10 @@ public sealed class ModWindow : MonoBehaviour
         _playerEditorPanel.GetPlayer = Core.HeroLocator.GetPlayer;
         // v0.7.8 — Player edit 는 인벤·창고 영향 없음 → ContainerPanel refresh 불필요 (로그 폭주 회피)
         _playerEditorPanel.OnAppliedRefreshRequest = null;
-        // v0.7.13 — ItemGeneratorPanel wire-up
-        _itemGenPanel.Init(
-            Config.ItemGenPanelX.Value,
-            Config.ItemGenPanelY.Value,
-            Config.ItemGenPanelW.Value,
-            Config.ItemGenPanelH.Value);
-        _itemGenPanel.Visible = Config.ItemGenPanelOpen.Value;
+        // v0.7.13 — ItemGeneratorPanel wire-up / v0.8.0 S2 — 창 틀 등록 (rect·Open 은 Hydrate 가 읽음)
         _itemGenPanel.GetPlayer = Core.HeroLocator.GetPlayer;
+        _registry.Register(_itemGenPanel.Window);
+        _registry.HydrateAll(Screen.width, Screen.height);   // 등록 순서: Settings → ItemGen → HydrateAll
         // ContainerPanel 영속화 hydrate (containerList 가 SetRepository 안에서 채워졌으므로 그 후 안전)
         _containerPanel.HydrateFromConfig();
 
@@ -1094,12 +1089,6 @@ public sealed class ModWindow : MonoBehaviour
         Config.PlayerEditorPanelW.Value    = _playerEditorPanel.WindowRect.width;
         Config.PlayerEditorPanelH.Value    = _playerEditorPanel.WindowRect.height;
         Config.PlayerEditorPanelOpen.Value = _playerEditorPanel.Visible;
-        // v0.7.13 — ItemGenPanel rect/visibility 영속화
-        Config.ItemGenPanelX.Value    = _itemGenPanel.WindowRect.x;
-        Config.ItemGenPanelY.Value    = _itemGenPanel.WindowRect.y;
-        Config.ItemGenPanelW.Value    = _itemGenPanel.WindowRect.width;
-        Config.ItemGenPanelH.Value    = _itemGenPanel.WindowRect.height;
-        Config.ItemGenPanelOpen.Value = _itemGenPanel.Visible;
 
         if (!_visible) return;
 

@@ -54,4 +54,16 @@ public class ItemGenFilterTests
         totalPages.ShouldBe(1);
         slice.Count.ShouldBe(3);
     }
+
+    [Fact]
+    public void Page_ClampsWhenPageSizeGrows()
+    {
+        // 25개, 페이지 크기 10 에서 3페이지(idx 2) 보던 중 창을 키워 페이지 크기 20 → 총 2페이지 → idx 1 로 당김
+        var items = new List<ItemGenEntry>();
+        for (int i = 0; i < 25; i++) items.Add(new ItemGenEntry { Id = i, NameRaw = $"n{i}" });
+        var (slice, total) = ItemGenFilter.Page(items, page: 2, pageSize: 20);
+        total.ShouldBe(2);
+        slice.Count.ShouldBe(5);          // 마지막 페이지(idx 1) = 20..24
+        slice[0].Id.ShouldBe(20);
+    }
 }
