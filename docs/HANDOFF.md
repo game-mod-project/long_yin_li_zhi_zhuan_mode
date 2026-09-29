@@ -3,7 +3,7 @@
 **일시 중지**: 2026-05-31
 **진행 상태**: **v0.7.13 아이템 생성기** (사용자 smoke 3회 PASS, feat 브랜치 완성). CT 테이블(`LongYinLiZhiZhuan.CT`) 이식 분석 → 게임 generator 메서드를 reflection 으로 **직접 호출**(in-process라 CT의 cmdBuf/shellcode 우회장치 불필요)해 7 카테고리 아이템을 생성하는 F11+5 전용 패널. spike 로 실제 시그니처 확정 (핵심: 모든 `bossLv` 는 `Single`/float). 신규 4 컴포넌트 (`GameControllerLocator`/`ItemDbCache`/`ItemFactory`/`ItemGeneratorPanel`) + `GeneratorSpec`/`ItemGenFilter`. 416 tests PASS. **다음**: v0.7.14 이벤트 생성 (WorldEventController.CreateWorldEvent — 사용자 요청, 분리됨).
 **저장소**: https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode (`main` 브랜치)
-**프로젝트 루트**: `E:/Games/龙胤立志传.v1.0.0f8.2/LongYinLiZhiZhuan/Save/_PlayerExport/`
+**프로젝트 루트**: `E:/Games/龙胤立志传.v1.1.0f5/game/LongYinLiZhiZhuan_Data/Save/_PlayerExport/`
 **Releases**:
 - [v0.1.0](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.1.0) — Live capture + slot management
 - [v0.2.0](https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode/releases/tag/v0.2.0) — Import from save + input gating
@@ -418,7 +418,7 @@ v0.7.3 출시 완료 (2026-05-03). D-2 컨테이너 Item 시각 표시 풍부화
 **다음 세션 첫 메시지에 붙여넣을 요약**:
 
 > LongYin Roster Mod — **main baseline = v0.7.8** (2026-05-09 release, commit 9664651). v0.7.6+v0.7.7+v0.7.8 통합 commit + 3 tags push 완료. 327/327 unit tests + 인게임 smoke PASS (사용자 11 iteration 검증).
-> 프로젝트 루트: `E:/Games/龙胤立志传.v1.0.0f8.2/LongYinLiZhiZhuan/Save/_PlayerExport/`.
+> 프로젝트 루트: `E:/Games/龙胤立志传.v1.1.0f5/game/LongYinLiZhiZhuan_Data/Save/_PlayerExport/`.
 > 핸드오프: `docs/HANDOFF.md`. 메타 로드맵: `docs/superpowers/specs/2026-05-05-longyin-roster-mod-roadmap-v0.7.4-to-v0.8.md`.
 >
 > **v0.7.6+v0.7.7+v0.7.8 결과 요약**:
@@ -496,7 +496,7 @@ v0.7.3 출시 완료 (2026-05-03). D-2 컨테이너 Item 시각 표시 풍부화
 
 ```bash
 # 게임 닫고 빌드
-cd "E:/Games/龙胤立志传.v1.0.0f8.2/LongYinLiZhiZhuan/Save/_PlayerExport"
+cd "E:/Games/龙胤立志传.v1.1.0f5/game/LongYinLiZhiZhuan_Data/Save/_PlayerExport"
 DOTNET_CLI_UI_LANGUAGE=en dotnet build src/LongYinRoster/LongYinRoster.csproj -c Release
 
 # 테스트
@@ -509,15 +509,15 @@ tasklist | grep -i LongYinLiZhiZhuan
 git pull origin main
 
 # BepInEx 로그 클리어 + 추적 (검증 사이클)
-> "E:/Games/龙胤立志传.v1.0.0f8.2/LongYinLiZhiZhuan/BepInEx/LogOutput.log"
-grep -n "HeroLocator\|toast\|Capture\|slot \|HeroData\." "E:/Games/龙胤立志传.v1.0.0f8.2/LongYinLiZhiZhuan/BepInEx/LogOutput.log"
+> "E:/Games/龙胤立志传.v1.1.0f5/game/BepInEx/LogOutput.log"
+grep -n "HeroLocator\|toast\|Capture\|slot \|HeroData\." "E:/Games/龙胤立志传.v1.1.0f5/game/BepInEx/LogOutput.log"
 
 # 슬롯 디렉터리 확인 + 깨끗하게 시작
-ls "E:/Games/龙胤立志传.v1.0.0f8.2/LongYinLiZhiZhuan/BepInEx/plugins/LongYinRoster/Slots/"
-rm -f "E:/Games/龙胤立志传.v1.0.0f8.2/LongYinLiZhiZhuan/BepInEx/plugins/LongYinRoster/Slots/"slot_*.json
+ls "E:/Games/龙胤立志传.v1.1.0f5/game/BepInEx/plugins/LongYinRoster/Slots/"
+rm -f "E:/Games/龙胤立志传.v1.1.0f5/game/BepInEx/plugins/LongYinRoster/Slots/"slot_*.json
 
 # 슬롯 메타 빠른 확인
-python -c "import json; d=json.load(open('E:/Games/龙胤立志传.v1.0.0f8.2/LongYinLiZhiZhuan/BepInEx/plugins/LongYinRoster/Slots/slot_01.json', encoding='utf-8-sig')); print(json.dumps(d['_meta']['summary'], ensure_ascii=False, indent=2))"
+python -c "import json; d=json.load(open('E:/Games/龙胤立志传.v1.1.0f5/game/BepInEx/plugins/LongYinRoster/Slots/slot_01.json', encoding='utf-8-sig')); print(json.dumps(d['_meta']['summary'], ensure_ascii=False, indent=2))"
 
 # v0.x release 패키징 (PowerShell)
 # Compress-Archive -Path "dist/LongYinRoster_v0.x.0/*" -DestinationPath "dist/LongYinRoster_v0.x.0.zip" -Force
