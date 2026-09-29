@@ -294,5 +294,9 @@
     <Compile Include="../LongYinRoster/UI/PanelRegistry.cs">
       <Link>UI/PanelRegistry.cs</Link>
     </Compile>
+    <!-- v0.8.0 S2 -->
+    <Compile Include="../LongYinRoster/UI/Layout/ItemGenLayout.cs">
+      <Link>UI/Layout/ItemGenLayout.cs</Link>
+    </Compile>
   </ItemGroup>
 </Project>
