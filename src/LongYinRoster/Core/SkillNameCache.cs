@@ -177,47 +177,50 @@ public static class SkillNameCache
             object? db = dbProp?.GetValue(gdc);
             if (db == null) { Logger.Warn("SkillNameCache: kungfuSkillDataBase null"); AssignAndExit(); return; }
 
-            var countProp = db.GetType().GetProperty("Count", F);
-            int n = countProp != null ? Convert.ToInt32(countProp.GetValue(db)) : 0;
-            var indexer = db.GetType().GetMethod("get_Item", F);
-            if (indexer == null) { Logger.Warn("SkillNameCache: kungfuSkillDataBase indexer 미발견"); AssignAndExit(); return; }
-
-            for (int i = 0; i < n; i++)
-            {
-                try
-                {
-                    var entry = indexer.Invoke(db, new object[] { i });
-                    if (entry == null) continue;
-                    int skillID = ReadIntField(entry, "skillID");
-                    if (skillID == 0) skillID = i;
-                    string raw = ReadStringField(entry, "name");
-                    string nameKr = !string.IsNullOrEmpty(raw)
-                        ? HangulDict.Translate(raw)
-                        : $"무공({skillID})";
-                    dict[skillID] = nameKr;
-
-                    // KungfuSkillData.type (0~8) — cheat SkillManager.cs:167 검증
-                    int type = ReadIntField(entry, "type");
-                    typeDict[skillID] = type;
-                    // KungfuSkillData.rareLv (0~5) — 기초/진급/상승/비전/정극/절세
-                    int rareLv = ReadIntField(entry, "rareLv");
-                    rareDict[skillID] = rareLv;
-                    // KungfuSkillData.belongForceID — 문파 ID
-                    int forceID = ReadIntField(entry, "belongForceID");
-                    forceDict[skillID] = forceID;
-                }
-                catch (Exception ex)
-                {
-                    Logger.Warn($"SkillNameCache build entry {i}: {ex.GetType().Name}: {ex.Message}");
-                }
-            }
-            Logger.Info($"SkillNameCache: built {dict.Count} entries");
+            BuildFromDb(db, dict, typeDict, rareDict, forceDict);
         }
         catch (Exception ex)
         {
             Logger.Warn($"SkillNameCache.BuildFromGame: {ex.GetType().Name}: {ex.Message}");
         }
         AssignAndExit();
+    }
+
+    /// <summary>
+    /// v0.7.13.1 — kungfuSkillDataBase 가 List(구 게임) 든 Dictionary&lt;int,T&gt;(v1.1.0f5) 든 전 항목 열거.
+    /// 인덱스 순회(i &lt; Count)는 Dictionary 에서 키 조회로 바뀌어 커스텀 무공 대역(1200~2188)에 도달 못 했음.
+    /// skillID 는 entry 필드 우선, 0 이면 컬렉션 키(index / Dictionary key)로 fallback.
+    /// </summary>
+    internal static void BuildFromDb(object db,
+        Dictionary<int, string> dict, Dictionary<int, int> typeDict,
+        Dictionary<int, int> rareDict, Dictionary<int, int> forceDict)
+    {
+        foreach (var (key, entry) in IL2CppListOps.Entries(db))
+        {
+            try
+            {
+                if (entry == null) continue;
+                int skillID = ReadIntField(entry, "skillID");
+                if (skillID == 0) skillID = key;
+                string raw = ReadStringField(entry, "name");
+                string nameKr = !string.IsNullOrEmpty(raw)
+                    ? HangulDict.Translate(raw)
+                    : $"무공({skillID})";
+                dict[skillID] = nameKr;
+
+                // KungfuSkillData.type (0~8) — cheat SkillManager.cs:167 검증
+                typeDict[skillID] = ReadIntField(entry, "type");
+                // KungfuSkillData.rareLv (0~5) — 기초/진급/상승/비전/정극/절세
+                rareDict[skillID] = ReadIntField(entry, "rareLv");
+                // KungfuSkillData.belongForceID — 문파 ID
+                forceDict[skillID] = ReadIntField(entry, "belongForceID");
+            }
+            catch (Exception ex)
+            {
+                Logger.Warn($"SkillNameCache build entry {key}: {ex.GetType().Name}: {ex.Message}");
+            }
+        }
+        Logger.Info($"SkillNameCache: built {dict.Count} entries");
     }
 
     private static int ReadIntField(object obj, string name)

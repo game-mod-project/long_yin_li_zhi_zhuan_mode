@@ -58,36 +58,39 @@ public static class ForceNameCache
             object? db = dbProp?.GetValue(gdc);
             if (db == null) { _cache = dict; return; }
 
-            var countProp = db.GetType().GetProperty("Count", F);
-            int n = countProp != null ? Convert.ToInt32(countProp.GetValue(db)) : 0;
-            var indexer = db.GetType().GetMethod("get_Item", F);
-            if (indexer == null) { _cache = dict; return; }
-
-            for (int i = 0; i < n; i++)
-            {
-                try
-                {
-                    var entry = indexer.Invoke(db, new object[] { i });
-                    if (entry == null) continue;
-                    int forceID = ReadInt(entry, "forceID");
-                    string raw  = ReadStr(entry, "forceName");
-                    string nameKr = !string.IsNullOrEmpty(raw)
-                        ? HangulDict.Translate(raw)
-                        : $"문파({forceID})";
-                    dict[forceID] = nameKr;
-                }
-                catch (Exception ex)
-                {
-                    Logger.Warn($"ForceNameCache build entry {i}: {ex.GetType().Name}: {ex.Message}");
-                }
-            }
-            Logger.Info($"ForceNameCache: built {dict.Count} entries");
+            BuildFromDb(db, dict);
         }
         catch (Exception ex)
         {
             Logger.Warn($"ForceNameCache.BuildFromGame: {ex.GetType().Name}: {ex.Message}");
         }
         _cache = dict;
+    }
+
+    /// <summary>
+    /// v0.7.13.1 — forceDataBase 가 List(구 게임) 든 Dictionary&lt;int,T&gt;(v1.1.0f5) 든 전 항목 열거.
+    /// forceID 는 entry 필드에서 읽음(컬렉션 키는 로그용).
+    /// </summary>
+    internal static void BuildFromDb(object db, Dictionary<int, string> dict)
+    {
+        foreach (var (key, entry) in IL2CppListOps.Entries(db))
+        {
+            try
+            {
+                if (entry == null) continue;
+                int forceID = ReadInt(entry, "forceID");
+                string raw  = ReadStr(entry, "forceName");
+                string nameKr = !string.IsNullOrEmpty(raw)
+                    ? HangulDict.Translate(raw)
+                    : $"문파({forceID})";
+                dict[forceID] = nameKr;
+            }
+            catch (Exception ex)
+            {
+                Logger.Warn($"ForceNameCache build entry {key}: {ex.GetType().Name}: {ex.Message}");
+            }
+        }
+        Logger.Info($"ForceNameCache: built {dict.Count} entries");
     }
 
     private static int ReadInt(object obj, string name)

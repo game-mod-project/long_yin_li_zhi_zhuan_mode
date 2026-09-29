@@ -90,17 +90,24 @@ public static class ItemDbCache
     {
         var db = gdc.GetType().GetProperty(dbProp, F)?.GetValue(gdc);
         if (db == null) { Logger.WarnOnce("ItemDbCache", $"{dbProp} null"); return; }
-        int n = IL2CppListOps.Count(db);
-        for (int i = 0; i < n; i++)
+        EnumerateDbEntries(db, cat, sub, list);
+    }
+
+    /// <summary>
+    /// v0.7.13.1 — 게임 v1.1.0f5 부터 *DataBase 가 Dictionary&lt;int,T&gt;(키 = ID). IL2CppListOps.Entries 로
+    /// List(index=ID, 구 게임) / Dictionary(key=ID) 를 같은 경로로 열거 — Count 범위 밖 ID 대역도 도달.
+    /// </summary>
+    internal static void EnumerateDbEntries(object db, ItemGenCategory cat, int sub, List<ItemGenEntry> list)
+    {
+        foreach (var (id, entry) in IL2CppListOps.Entries(db))
         {
-            var entry = IL2CppListOps.Get(db, i);
             if (entry == null) continue;
             string raw = ReadStr(entry, "name");
             if (string.IsNullOrEmpty(raw)) raw = ReadStr(entry, "itemName");
             int rare = ReadInt(entry, "rareLv");
             list.Add(new ItemGenEntry
             {
-                Id = i, NameRaw = raw,
+                Id = id, NameRaw = raw,
                 NameKr = string.IsNullOrEmpty(raw) ? null : HangulDict.Translate(raw),
                 Category = cat, SubType = sub, RareLvDefault = rare,
             });
