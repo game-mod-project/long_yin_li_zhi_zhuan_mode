@@ -1,18 +1,14 @@
 using System;
+using LongYinRoster.UI.Layout;
 using LongYinRoster.Util;
 using UnityEngine;
-using Logger = LongYinRoster.Util.Logger;   // UnityEngine.Logger 모호성 회피
 
 namespace LongYinRoster.UI;
 
 /// <summary>
 /// v0.7.6 — Hybrid stateful-only 설정 panel.
-/// hotkey 4 + ContainerPanel rect 4 buffer 편집 + [저장]/[기본값 복원]/[취소].
-/// 자동 영속화 항목 (검색·정렬·필터·last container) 은 ContainerPanel 사용 중 immediate ConfigEntry write —
-/// 본 panel 은 read-only 표시 + [영속화 정보 reset] 버튼만.
-///
-/// Task 2 (현재) — buffer / conflict / IsDirty / RestoreDefaults logic + Hydrate (Config 읽기).
-/// Task 3 — OnGUI / Draw / 키 캡처 / 충돌 표시 / 버튼.
+/// hotkey 4 + ContainerPanel rect 4 + (v0.8.0) SettingsPanel 자기 rect 4 buffer 편집 + [저장]/[기본값 복원]/[취소].
+/// v0.8.0 — 창 틀은 PanelWindow(코너 리사이즈·설정 자동 저장), 내부 치수는 SettingsLayout.
 /// </summary>
 public sealed class SettingsPanel
 {
@@ -23,11 +19,21 @@ public sealed class SettingsPanel
     internal const KeyCode DefaultSettings  = KeyCode.Alpha3;
     internal const float DefaultContainerX = 150f, DefaultContainerY = 100f;
     internal const float DefaultContainerW = 800f, DefaultContainerH = 760f;
+    internal const float DefaultSelfX = 200f, DefaultSelfY = 120f;      // v0.8.0 — Config.SettingsPanel* 기본과 동일
+    internal const float DefaultSelfW = 480f, DefaultSelfH = 600f;
 
-    public bool Visible { get; set; } = false;
-    public Rect WindowRect => _rect;
-    private Rect _rect = new(200, 120, 480, 600);
     private const int WindowID = 0x4C593733;  // "LY73"
+
+    public PanelWindow Window { get; }
+    public bool Visible { get => Window.Visible; set => Window.Visible = value; }
+    public Rect WindowRect => Window.Rect;
+
+    public SettingsPanel()
+    {
+        Window = new PanelWindow(WindowID, "설정", () => SettingsLayout.MinSize,
+            RectBinding.Of(Config.SettingsPanelX, Config.SettingsPanelY, Config.SettingsPanelW, Config.SettingsPanelH));
+        Window.OnClosed = DiscardState;
+    }
 
     // Buffer (저장 누르기 전까지 ConfigEntry 안 건드림)
     public KeyCode BufferMain        { get; private set; } = DefaultMain;
@@ -38,10 +44,15 @@ public sealed class SettingsPanel
     public float   BufferContainerY  { get; private set; } = DefaultContainerY;
     public float   BufferContainerW  { get; private set; } = DefaultContainerW;
     public float   BufferContainerH  { get; private set; } = DefaultContainerH;
+    public float   BufferSelfX       { get; private set; } = DefaultSelfX;
+    public float   BufferSelfY       { get; private set; } = DefaultSelfY;
+    public float   BufferSelfW       { get; private set; } = DefaultSelfW;
+    public float   BufferSelfH       { get; private set; } = DefaultSelfH;
 
     // Original (hydrate 시점) — IsDirty 비교용
     private KeyCode _origMain, _origCharacter, _origContainer, _origSettings;
     private float   _origContainerX, _origContainerY, _origContainerW, _origContainerH;
+    private float   _origSelfX, _origSelfY, _origSelfW, _origSelfH;
     private bool    _hydrated;
 
     public Action? OnSaved;
@@ -53,24 +64,30 @@ public sealed class SettingsPanel
         BufferMain != _origMain || BufferCharacter != _origCharacter
         || BufferContainer != _origContainer || BufferSettings != _origSettings
         || BufferContainerX != _origContainerX || BufferContainerY != _origContainerY
-        || BufferContainerW != _origContainerW || BufferContainerH != _origContainerH;
+        || BufferContainerW != _origContainerW || BufferContainerH != _origContainerH
+        || BufferSelfX != _origSelfX || BufferSelfY != _origSelfY
+        || BufferSelfW != _origSelfW || BufferSelfH != _origSelfH;
 
     public bool CanSave => IsDirty && !HasConflict;
 
-    /// <summary>Production hydrate — Config 읽기. ModWindow.Awake / Settings transition 에서 호출.</summary>
+    /// <summary>Production hydrate — Config 읽기. ModWindow Settings transition 에서 호출.</summary>
     public void Hydrate()
     {
+        // 창 rect 는 PanelRegistry.HydrateAll(Awake) 이 먼저 읽지만, 순서가 바뀌어도 안전하도록 가드
+        if (!Window.IsHydrated) Window.Hydrate(Screen.width, Screen.height);
         HydrateFromValues(
             Config.ToggleHotkey.Value, Config.HotkeyCharacterMode.Value,
             Config.HotkeyContainerMode.Value, Config.HotkeySettingsMode.Value,
             Config.ContainerPanelX.Value, Config.ContainerPanelY.Value,
-            Config.ContainerPanelW.Value, Config.ContainerPanelH.Value);
+            Config.ContainerPanelW.Value, Config.ContainerPanelH.Value,
+            Window.Rect.x, Window.Rect.y, Window.Rect.width, Window.Rect.height);
     }
 
-    /// <summary>Test-only — Config 의존성 회피.</summary>
+    /// <summary>Test-only — Config 의존성 회피. 자기 rect 4개는 선택 인자(기존 테스트 호환).</summary>
     internal void HydrateFromValues(
         KeyCode main, KeyCode ch, KeyCode co, KeyCode se,
-        float x, float y, float w, float h)
+        float x, float y, float w, float h,
+        float sx = DefaultSelfX, float sy = DefaultSelfY, float sw = DefaultSelfW, float sh = DefaultSelfH)
     {
         BufferMain       = _origMain       = main;
         BufferCharacter  = _origCharacter  = ch;
@@ -80,6 +97,10 @@ public sealed class SettingsPanel
         BufferContainerY = _origContainerY = y;
         BufferContainerW = _origContainerW = w;
         BufferContainerH = _origContainerH = h;
+        BufferSelfX      = _origSelfX      = sx;
+        BufferSelfY      = _origSelfY      = sy;
+        BufferSelfW      = _origSelfW      = sw;
+        BufferSelfH      = _origSelfH      = sh;
         _hydrated = true;
         RecomputeConflict();
     }
@@ -95,6 +116,12 @@ public sealed class SettingsPanel
         BufferContainerW = w; BufferContainerH = h;
     }
 
+    public void SetBufferSelfRect(float x, float y, float w, float h)
+    {
+        BufferSelfX = x; BufferSelfY = y;
+        BufferSelfW = w; BufferSelfH = h;
+    }
+
     public void DoRestoreDefaults()
     {
         BufferMain       = DefaultMain;
@@ -105,10 +132,12 @@ public sealed class SettingsPanel
         BufferContainerY = DefaultContainerY;
         BufferContainerW = DefaultContainerW;
         BufferContainerH = DefaultContainerH;
+        BufferSelfX = DefaultSelfX; BufferSelfY = DefaultSelfY;
+        BufferSelfW = DefaultSelfW; BufferSelfH = DefaultSelfH;
         RecomputeConflict();
     }
 
-    /// <summary>Buffer → ConfigEntry. CanSave false 면 no-op. 호출 후 OnSaved 발화.</summary>
+    /// <summary>Buffer → ConfigEntry. CanSave false 면 no-op. 자기 rect 는 Window.SetRect(클램프+저장). 호출 후 OnSaved 발화.</summary>
     public void DoSave()
     {
         if (!CanSave) return;
@@ -120,15 +149,21 @@ public sealed class SettingsPanel
         Config.ContainerPanelY.Value      = BufferContainerY;
         Config.ContainerPanelW.Value      = BufferContainerW;
         Config.ContainerPanelH.Value      = BufferContainerH;
+        Window.SetRect(BufferSelfX, BufferSelfY, BufferSelfW, BufferSelfH);
+        // 클램프된 실제 값을 버퍼에 반영
+        BufferSelfX = Window.Rect.x; BufferSelfY = Window.Rect.y;
+        BufferSelfW = Window.Rect.width; BufferSelfH = Window.Rect.height;
         // _orig 갱신 (다시 dirty 안 보이도록)
         _origMain = BufferMain; _origCharacter = BufferCharacter;
         _origContainer = BufferContainer; _origSettings = BufferSettings;
         _origContainerX = BufferContainerX; _origContainerY = BufferContainerY;
         _origContainerW = BufferContainerW; _origContainerH = BufferContainerH;
+        _origSelfX = BufferSelfX; _origSelfY = BufferSelfY; _origSelfW = BufferSelfW; _origSelfH = BufferSelfH;
+        _rectBufHydrated = false;
         OnSaved?.Invoke();
     }
 
-    /// <summary>자동 영속 항목 6개 + window rect 들 hardcoded default 로 즉시 reset.</summary>
+    /// <summary>자동 영속 항목 + 6 패널 window rect 를 hardcoded default 로 즉시 reset (v0.8.0: PlayerEditor/ItemGen/Settings 추가).</summary>
     public void DoResetPersistedView()
     {
         Config.ContainerSortKey.Value        = "Category";
@@ -141,11 +176,26 @@ public sealed class SettingsPanel
         Config.ItemDetailPanelWidth.Value = 380f; Config.ItemDetailPanelHeight.Value = 500f;
         Config.ContainerPanelX.Value     = DefaultContainerX; Config.ContainerPanelY.Value = DefaultContainerY;
         Config.ContainerPanelW.Value     = DefaultContainerW; Config.ContainerPanelH.Value = DefaultContainerH;
-        // ContainerPanel rect 도 buffer + orig 동기화 (사용자가 panel 닫고 재열 때 immediate 효과)
+        Config.PlayerEditorPanelX.Value  = 200f; Config.PlayerEditorPanelY.Value = 120f;
+        Config.PlayerEditorPanelW.Value  = 720f; Config.PlayerEditorPanelH.Value = 720f;
+        Config.ItemGenPanelX.Value       = 300f; Config.ItemGenPanelY.Value = 150f;
+        Config.ItemGenPanelW.Value       = 620f; Config.ItemGenPanelH.Value = 560f;
+        Window.SetRect(DefaultSelfX, DefaultSelfY, DefaultSelfW, DefaultSelfH);
+        // buffer + orig 동기화 (사용자가 panel 닫고 재열 때 immediate 효과)
         BufferContainerX = _origContainerX = DefaultContainerX;
         BufferContainerY = _origContainerY = DefaultContainerY;
         BufferContainerW = _origContainerW = DefaultContainerW;
         BufferContainerH = _origContainerH = DefaultContainerH;
+        BufferSelfX = _origSelfX = Window.Rect.x;  BufferSelfY = _origSelfY = Window.Rect.y;
+        BufferSelfW = _origSelfW = Window.Rect.width; BufferSelfH = _origSelfH = Window.Rect.height;
+    }
+
+    /// <summary>rect 텍스트 필드 파싱. 실패 또는 min 미만이면 false (무시).</summary>
+    internal static bool TryParseRectField(string text, float min, out float value)
+    {
+        if (float.TryParse(text, out value) && value >= min) return true;
+        value = 0f;
+        return false;
     }
 
     private void RecomputeConflict()
@@ -172,7 +222,7 @@ public sealed class SettingsPanel
         ConflictMessage = "";
     }
 
-    // Task 3 — UI / 키 캡처 / textfield buffer
+    // ── UI / 키 캡처 / textfield buffer ──
 
     private enum CaptureSlot { None, Main, Character, Container, Settings }
     private CaptureSlot _capture = CaptureSlot.None;
@@ -181,24 +231,16 @@ public sealed class SettingsPanel
 
     // Rect textfield buffer — IMGUI string 입력 → float parse
     private string _xBuf = "", _yBuf = "", _wBuf = "", _hBuf = "";
+    private string _sxBuf = "", _syBuf = "", _swBuf = "", _shBuf = "";
     private bool   _rectBufHydrated;
 
     public void OnGUI()
     {
         if (!Visible) return;
         if (!_hydrated) Hydrate();
-        try
-        {
-            _rect = GUI.Window(WindowID, _rect, (GUI.WindowFunction)Draw, "");
-        }
-        catch (Exception ex)
-        {
-            Logger.WarnOnce("SettingsPanel", $"SettingsPanel.OnGUI threw: {ex.GetType().Name}: {ex.Message}");
-        }
+        Window.OnGUI(DrawContent);
 
         // 키 캡처 — Event.current 는 OnGUI scope 안에서만 valid.
-        // v0.7.6 Task 0 spike 결과 PASS 가정 (EventType.MouseDown 검증 패턴 mirror).
-        // Strip 회귀 발견 시 fallback: ModWindow.Update 안 Input.GetKeyDown polling 으로 전환.
         if (_capture != CaptureSlot.None && Event.current != null && Event.current.type == EventType.KeyDown)
         {
             var k = Event.current.keyCode;
@@ -221,136 +263,128 @@ public sealed class SettingsPanel
         }
     }
 
-    private void Draw(int id)
+    private void DrawContent(Rect content)
     {
-        try
+        var L = SettingsLayout.Compute(content);
+
+        _scroll = GUILayout.BeginScrollView(_scroll, GUILayout.Height(L.ScrollH));
+
+        GUILayout.Label("⚠ 고급 설정은 BepInExConfigManager (F5) 에서 변경");
+        GUILayout.Space(8);
+
+        // ──── 단축키 섹션 ────
+        GUILayout.Label("▼ 단축키");
+        DrawHotkeyRow("메인 토글:",     CaptureSlot.Main,      BufferMain);
+        DrawHotkeyRow("캐릭터 관리:",   CaptureSlot.Character, BufferCharacter);
+        DrawHotkeyRow("컨테이너 관리:", CaptureSlot.Container, BufferContainer);
+        DrawHotkeyRow("설정 panel:",    CaptureSlot.Settings,  BufferSettings);
+
+        if (HasConflict)
         {
-            DialogStyle.FillBackground(_rect.width, _rect.height);
-            DialogStyle.DrawHeader(_rect.width, "설정");
-
-            if (GUI.Button(new Rect(_rect.width - 28, 4, 22, 20), "X"))
-            {
-                CloseAndDiscard();
-            }
-
-            GUILayout.Space(DialogStyle.HeaderHeight);
-            _scroll = GUILayout.BeginScrollView(_scroll, GUILayout.Height(_rect.height - 110));
-
-            GUILayout.Label("⚠ 고급 설정은 BepInExConfigManager (F5) 에서 변경");
-            GUILayout.Space(8);
-
-            // ──── 단축키 섹션 ────
-            GUILayout.Label("▼ 단축키");
-            DrawHotkeyRow("메인 토글:",     CaptureSlot.Main,      BufferMain);
-            DrawHotkeyRow("캐릭터 관리:",   CaptureSlot.Character, BufferCharacter);
-            DrawHotkeyRow("컨테이너 관리:", CaptureSlot.Container, BufferContainer);
-            DrawHotkeyRow("설정 panel:",    CaptureSlot.Settings,  BufferSettings);
-
-            if (HasConflict)
-            {
-                var prev = GUI.color;
-                GUI.color = new Color(1f, 0.4f, 0.4f, 1f);
-                GUILayout.Label(ConflictMessage);
-                GUI.color = prev;
-            }
-
-            GUILayout.Space(10);
-
-            // ──── 컨테이너 panel rect 섹션 ────
-            GUILayout.Label("▼ 컨테이너 panel 위치/크기");
-            DrawRectFields();
-
-            GUILayout.Space(10);
-
-            // ──── 영속화 정보 (read-only) ────
-            GUILayout.Label("▼ 영속화 정보 (자동 저장)");
-            DrawPersistedView();
-
-            GUILayout.EndScrollView();
-
-            // ──── 하단 버튼 (scrollview 밖 — 항상 보임) ────
-            GUILayout.BeginHorizontal();
-            var prevEnabled = GUI.enabled;
-            GUI.enabled = CanSave;
-            if (GUILayout.Button("저장", GUILayout.Height(28)))
-            {
-                DoSave();
-                ToastService.Push("✔ 설정 저장됨", ToastKind.Success);
-            }
-            GUI.enabled = prevEnabled;
-            if (GUILayout.Button("기본값 복원", GUILayout.Height(28)))
-            {
-                DoRestoreDefaults();
-                _rectBufHydrated = false;   // textfield buffer 재hydrate
-            }
-            if (GUILayout.Button("취소", GUILayout.Height(28))) CloseAndDiscard();
-            GUILayout.EndHorizontal();
-
-            GUI.DragWindow(new Rect(0, 0, _rect.width - 32, DialogStyle.HeaderHeight));
+            var prev = GUI.color;
+            GUI.color = new Color(1f, 0.4f, 0.4f, 1f);
+            GUILayout.Label(ConflictMessage);
+            GUI.color = prev;
         }
-        catch (Exception ex)
+
+        GUILayout.Space(10);
+
+        // ──── 컨테이너 panel rect 섹션 ────
+        GUILayout.Label("▼ 컨테이너 panel 위치/크기");
+        HydrateRectBuffersIfNeeded();
+        DrawRectPair("X:", ref _xBuf, "Y:", ref _yBuf, L.FieldW);
+        DrawRectPair("W:", ref _wBuf, "H:", ref _hBuf, L.FieldW);
+        if (TryParseRectField(_xBuf, float.MinValue, out var cx)) BufferContainerX = cx;
+        if (TryParseRectField(_yBuf, float.MinValue, out var cy)) BufferContainerY = cy;
+        if (TryParseRectField(_wBuf, 100f, out var cw)) BufferContainerW = cw;
+        if (TryParseRectField(_hBuf, 100f, out var chh)) BufferContainerH = chh;
+
+        GUILayout.Space(10);
+
+        // ──── v0.8.0 설정 panel 자기 rect 섹션 ────
+        GUILayout.Label("▼ 설정 panel 위치/크기 (코너 드래그로도 조절)");
+        DrawRectPair("X:", ref _sxBuf, "Y:", ref _syBuf, L.FieldW);
+        DrawRectPair("W:", ref _swBuf, "H:", ref _shBuf, L.FieldW);
+        if (TryParseRectField(_sxBuf, float.MinValue, out var sx)) BufferSelfX = sx;
+        if (TryParseRectField(_syBuf, float.MinValue, out var sy)) BufferSelfY = sy;
+        if (TryParseRectField(_swBuf, SettingsLayout.MinSize.MinW, out var sw)) BufferSelfW = sw;
+        if (TryParseRectField(_shBuf, SettingsLayout.MinSize.MinH, out var sh)) BufferSelfH = sh;
+
+        GUILayout.Space(10);
+
+        // ──── 영속화 정보 (read-only) ────
+        GUILayout.Label("▼ 영속화 정보 (자동 저장)");
+        DrawPersistedView();
+
+        GUILayout.EndScrollView();
+
+        // ──── 하단 버튼 (scrollview 밖 — 항상 보임) ────
+        GUILayout.BeginHorizontal();
+        var prevEnabled = GUI.enabled;
+        GUI.enabled = CanSave;
+        if (GUILayout.Button("저장", GUILayout.Height(DialogStyle.ButtonRowHeight)))
         {
-            Logger.WarnOnce("SettingsPanel", $"SettingsPanel.Draw threw: {ex.GetType().Name}: {ex.Message}");
+            DoSave();
+            ToastService.Push("✔ 설정 저장됨", ToastKind.Success);
         }
+        GUI.enabled = prevEnabled;
+        if (GUILayout.Button("기본값 복원", GUILayout.Height(DialogStyle.ButtonRowHeight)))
+        {
+            DoRestoreDefaults();
+            _rectBufHydrated = false;   // textfield buffer 재hydrate
+        }
+        if (GUILayout.Button("취소", GUILayout.Height(DialogStyle.ButtonRowHeight))) Window.Close();
+        GUILayout.EndHorizontal();
     }
 
-    private void CloseAndDiscard()
+    /// <summary>X / 취소 뒤 정리. Visible 은 PanelWindow 가 이미 false 로 둠.</summary>
+    private void DiscardState()
     {
-        Visible = false;
         _capture = CaptureSlot.None;
         _hydrated = false;        // 다음 진입 시 ConfigEntry 재hydrate
         _rectBufHydrated = false;
     }
 
+    private void HydrateRectBuffersIfNeeded()
+    {
+        if (_rectBufHydrated) return;
+        _xBuf = BufferContainerX.ToString("F0");
+        _yBuf = BufferContainerY.ToString("F0");
+        _wBuf = BufferContainerW.ToString("F0");
+        _hBuf = BufferContainerH.ToString("F0");
+        _sxBuf = BufferSelfX.ToString("F0");
+        _syBuf = BufferSelfY.ToString("F0");
+        _swBuf = BufferSelfW.ToString("F0");
+        _shBuf = BufferSelfH.ToString("F0");
+        _rectBufHydrated = true;
+    }
+
     private void DrawHotkeyRow(string label, CaptureSlot slot, KeyCode current)
     {
         GUILayout.BeginHorizontal();
-        GUILayout.Label(label, GUILayout.Width(120));
+        GUILayout.Label(label, GUILayout.Width(SettingsLayout.HotkeyLabelW));
         var prev = GUI.color;
         if (_capture == slot) GUI.color = Color.cyan;
         string display = _capture == slot ? "키 입력 대기..." : current.ToString();
-        GUILayout.Label($"[{display}]", GUILayout.Width(180));
+        GUILayout.Label($"[{display}]", GUILayout.Width(SettingsLayout.HotkeyDisplayW));
         GUI.color = prev;
-        if (GUILayout.Button("재설정", GUILayout.Width(80)))
+        if (GUILayout.Button("재설정", GUILayout.Width(SettingsLayout.HotkeyButtonW)))
         {
             _capture = slot;
         }
         GUILayout.EndHorizontal();
     }
 
-    private void DrawRectFields()
+    /// <summary>"X: [   ]   Y: [   ]" 한 줄. 필드 폭은 계산기가 준 값(가로 확장).</summary>
+    private static void DrawRectPair(string labelA, ref string bufA, string labelB, ref string bufB, float fieldW)
     {
-        if (!_rectBufHydrated)
-        {
-            _xBuf = BufferContainerX.ToString("F0");
-            _yBuf = BufferContainerY.ToString("F0");
-            _wBuf = BufferContainerW.ToString("F0");
-            _hBuf = BufferContainerH.ToString("F0");
-            _rectBufHydrated = true;
-        }
-
         GUILayout.BeginHorizontal();
-        GUILayout.Label("X:", GUILayout.Width(20));
-        _xBuf = GUILayout.TextField(_xBuf, GUILayout.Width(70));
-        GUILayout.Space(8);
-        GUILayout.Label("Y:", GUILayout.Width(20));
-        _yBuf = GUILayout.TextField(_yBuf, GUILayout.Width(70));
+        GUILayout.Label(labelA, GUILayout.Width(SettingsLayout.RectLabelW));
+        bufA = GUILayout.TextField(bufA, GUILayout.Width(fieldW));
+        GUILayout.Space(SettingsLayout.RectPairSpace);
+        GUILayout.Label(labelB, GUILayout.Width(SettingsLayout.RectLabelW));
+        bufB = GUILayout.TextField(bufB, GUILayout.Width(fieldW));
         GUILayout.EndHorizontal();
-
-        GUILayout.BeginHorizontal();
-        GUILayout.Label("W:", GUILayout.Width(20));
-        _wBuf = GUILayout.TextField(_wBuf, GUILayout.Width(70));
-        GUILayout.Space(8);
-        GUILayout.Label("H:", GUILayout.Width(20));
-        _hBuf = GUILayout.TextField(_hBuf, GUILayout.Width(70));
-        GUILayout.EndHorizontal();
-
-        // textfield → buffer 동기화 (parse 실패 / 너무 작은 값 무시)
-        float nx, ny, nw, nh;
-        if (float.TryParse(_xBuf, out nx)) BufferContainerX = nx;
-        if (float.TryParse(_yBuf, out ny)) BufferContainerY = ny;
-        if (float.TryParse(_wBuf, out nw) && nw >= 100f) BufferContainerW = nw;
-        if (float.TryParse(_hBuf, out nh) && nh >= 100f) BufferContainerH = nh;
     }
 
     private void DrawPersistedView()
@@ -371,6 +405,8 @@ public sealed class SettingsPanel
         GUILayout.Label($"Mod 창: ({Config.WindowX.Value:F0}, {Config.WindowY.Value:F0}, {Config.WindowW.Value:F0}×{Config.WindowH.Value:F0})");
         GUILayout.Label($"ItemDetail: ({Config.ItemDetailPanelX.Value:F0}, {Config.ItemDetailPanelY.Value:F0}, {Config.ItemDetailPanelWidth.Value:F0}×{Config.ItemDetailPanelHeight.Value:F0})");
         GUILayout.Label($"ContainerPanel: ({Config.ContainerPanelX.Value:F0}, {Config.ContainerPanelY.Value:F0}, {Config.ContainerPanelW.Value:F0}×{Config.ContainerPanelH.Value:F0})");
+        GUILayout.Label($"PlayerEditor: ({Config.PlayerEditorPanelX.Value:F0}, {Config.PlayerEditorPanelY.Value:F0}, {Config.PlayerEditorPanelW.Value:F0}×{Config.PlayerEditorPanelH.Value:F0})");
+        GUILayout.Label($"ItemGen: ({Config.ItemGenPanelX.Value:F0}, {Config.ItemGenPanelY.Value:F0}, {Config.ItemGenPanelW.Value:F0}×{Config.ItemGenPanelH.Value:F0})");
 
         GUILayout.Space(4);
         if (GUILayout.Button("영속화 정보 reset", GUILayout.Width(140)))
