@@ -14,6 +14,11 @@ public sealed class PanelRegistry
         foreach (var w in _windows) w.Hydrate(screenW, screenH);
     }
 
+    public void ReloadRects(float screenW, float screenH)
+    {
+        foreach (var w in _windows) w.ReloadRect(screenW, screenH);
+    }
+
     public void PersistAll()
     {
         foreach (var w in _windows) w.Persist();

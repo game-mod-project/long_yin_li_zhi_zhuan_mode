@@ -56,6 +56,8 @@ public sealed class SettingsPanel
     private bool    _hydrated;
 
     public Action? OnSaved;
+    /// <summary>"영속화 정보 reset" 뒤 — ModWindow 가 PanelRegistry.ReloadRects 로 이관 패널 창을 즉시 따라가게 한다.</summary>
+    public Action? OnPersistedViewReset;
 
     public bool HasConflict { get; private set; }
     public string ConflictMessage { get; private set; } = "";
@@ -69,6 +71,19 @@ public sealed class SettingsPanel
         || BufferSelfW != _origSelfW || BufferSelfH != _origSelfH;
 
     public bool CanSave => IsDirty && !HasConflict;
+    internal bool IsSelfRectDirty => BufferSelfX != _origSelfX || BufferSelfY != _origSelfY || BufferSelfW != _origSelfW || BufferSelfH != _origSelfH;
+
+    /// <summary>헤더 드래그/코너 리사이즈로 바뀐 창 rect 를 버퍼·_orig 에 반영 — 창 조작은 "편집" 이 아니므로 dirty 로 만들지 않는다.
+    /// 사용자가 필드를 직접 고치는 중(IsSelfRectDirty)이면 덮어쓰지 않음. 안 하면 [저장] 이 방금 한 드래그를 되돌린다(리뷰 I-1).</summary>
+    internal void SyncSelfRectFromWindow()
+    {
+        if (IsSelfRectDirty) return;
+        var r = Window.Rect;
+        if (r.x == _origSelfX && r.y == _origSelfY && r.width == _origSelfW && r.height == _origSelfH) return;
+        BufferSelfX = _origSelfX = r.x;     BufferSelfY = _origSelfY = r.y;
+        BufferSelfW = _origSelfW = r.width; BufferSelfH = _origSelfH = r.height;
+        _rectBufHydrated = false;
+    }
 
     /// <summary>Production hydrate — Config 읽기. ModWindow Settings transition 에서 호출.</summary>
     public void Hydrate()
@@ -149,7 +164,8 @@ public sealed class SettingsPanel
         Config.ContainerPanelY.Value      = BufferContainerY;
         Config.ContainerPanelW.Value      = BufferContainerW;
         Config.ContainerPanelH.Value      = BufferContainerH;
-        Window.SetRect(BufferSelfX, BufferSelfY, BufferSelfW, BufferSelfH);
+        // 자기 rect 는 필드로 고쳤을 때만 — 드래그/리사이즈로 바뀐 창을 옛 버퍼로 되돌리지 않는다
+        if (IsSelfRectDirty) Window.SetRect(BufferSelfX, BufferSelfY, BufferSelfW, BufferSelfH);
         // 클램프된 실제 값을 버퍼에 반영
         BufferSelfX = Window.Rect.x; BufferSelfY = Window.Rect.y;
         BufferSelfW = Window.Rect.width; BufferSelfH = Window.Rect.height;
@@ -188,6 +204,7 @@ public sealed class SettingsPanel
         BufferContainerH = _origContainerH = DefaultContainerH;
         BufferSelfX = _origSelfX = Window.Rect.x;  BufferSelfY = _origSelfY = Window.Rect.y;
         BufferSelfW = _origSelfW = Window.Rect.width; BufferSelfH = _origSelfH = Window.Rect.height;
+        OnPersistedViewReset?.Invoke();
     }
 
     /// <summary>rect 텍스트 필드 파싱. 실패 또는 min 미만이면 false (무시).</summary>
@@ -265,6 +282,7 @@ public sealed class SettingsPanel
 
     private void DrawContent(Rect content)
     {
+        SyncSelfRectFromWindow();
         var L = SettingsLayout.Compute(content);
 
         _scroll = GUILayout.BeginScrollView(_scroll, GUILayout.Height(L.ScrollH));

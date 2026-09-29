@@ -178,6 +178,8 @@ public sealed class ModWindow : MonoBehaviour
                 Config.ContainerPanelX.Value, Config.ContainerPanelY.Value,
                 Config.ContainerPanelW.Value, Config.ContainerPanelH.Value);
         };
+        // v0.8.0 — "영속화 정보 reset" 이 Config 를 바꾸면 이관 패널 창 rect 를 즉시 다시 읽는다(안 하면 다음 Persist 가 옛 값으로 되덮음)
+        _settingsPanel.OnPersistedViewReset = () => _registry.ReloadRects(Screen.width, Screen.height);
         // v0.8.0 S1 — SettingsPanel 창 틀 등록 + 설정 → rect (화면 클램프)
         _registry.Register(_settingsPanel.Window);
         // v0.7.8 — PlayerEditorPanel wire-up

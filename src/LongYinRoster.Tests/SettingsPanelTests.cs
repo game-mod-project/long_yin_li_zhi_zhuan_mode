@@ -185,4 +185,30 @@ public class SettingsPanelTests
         p.Visible.ShouldBeFalse();
         p.Window.Rect.width.ShouldBe(SettingsLayout.MinSize.MinW);
     }
+
+    // ── 리뷰 후속(2026-09-29) — 드래그/리사이즈로 바뀐 창 rect 를 저장이 되돌리지 않도록 버퍼 동기화 ──
+
+    [Fact]
+    public void SyncSelfRectFromWindow_FollowsWindowWhenNotDirty()
+    {
+        var p = MakePanel();
+        p.Window.Hydrate(1920, 1080);
+        p.Window.SetRect(50, 60, 700, 500);          // 헤더 드래그/코너 리사이즈 결과 (미바인딩이라 저장 없음)
+        p.SyncSelfRectFromWindow();
+        (p.BufferSelfX, p.BufferSelfY, p.BufferSelfW, p.BufferSelfH).ShouldBe((50f, 60f, 700f, 500f));
+        p.IsDirty.ShouldBeFalse();                   // 창 조작은 '편집' 이 아니다 — 저장 버튼이 켜지면 안 됨
+        p.IsSelfRectDirty.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void SyncSelfRectFromWindow_KeepsUserEditWhenDirty()
+    {
+        var p = MakePanel();
+        p.Window.Hydrate(1920, 1080);
+        p.SetBufferSelfRect(10, 20, 700, 800);       // 사용자가 필드에 입력 중
+        p.Window.SetRect(50, 60, 650, 500);
+        p.SyncSelfRectFromWindow();
+        (p.BufferSelfX, p.BufferSelfY, p.BufferSelfW, p.BufferSelfH).ShouldBe((10f, 20f, 700f, 800f));
+        p.IsSelfRectDirty.ShouldBeTrue();
+    }
 }
