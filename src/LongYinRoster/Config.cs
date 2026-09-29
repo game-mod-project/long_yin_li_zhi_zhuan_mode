@@ -73,6 +73,11 @@ public static class Config
     public static ConfigEntry<float>   ContainerPanelY = null!;
     public static ConfigEntry<float>   ContainerPanelW = null!;
     public static ConfigEntry<float>   ContainerPanelH = null!;
+    // v0.8.0 — SettingsPanel 크기·위치 (이전엔 480×600 고정)
+    public static ConfigEntry<float>   SettingsPanelX = null!;
+    public static ConfigEntry<float>   SettingsPanelY = null!;
+    public static ConfigEntry<float>   SettingsPanelW = null!;
+    public static ConfigEntry<float>   SettingsPanelH = null!;
 
     // v0.7.6 — 자동 영속화 (ContainerPanel 사용 중 immediate ConfigEntry write)
     public static ConfigEntry<string>  ContainerSortKey        = null!;
@@ -185,6 +190,10 @@ public static class Config
         ContainerPanelY = cfg.Bind("UI", "ContainerPanelY", 100f, "컨테이너 panel Y 좌표");
         ContainerPanelW = cfg.Bind("UI", "ContainerPanelW", 800f, "컨테이너 panel 폭");
         ContainerPanelH = cfg.Bind("UI", "ContainerPanelH", 760f, "컨테이너 panel 높이");
+        SettingsPanelX = cfg.Bind("UI", "SettingsPanelX", 200f, "설정 panel X 좌표 (v0.8.0)");
+        SettingsPanelY = cfg.Bind("UI", "SettingsPanelY", 120f, "설정 panel Y 좌표 (v0.8.0)");
+        SettingsPanelW = cfg.Bind("UI", "SettingsPanelW", 480f, "설정 panel 폭 (v0.8.0)");
+        SettingsPanelH = cfg.Bind("UI", "SettingsPanelH", 600f, "설정 panel 높이 (v0.8.0)");
 
         // v0.7.6 — 자동 영속화 (ContainerPanel 사용 중 immediate write)
         ContainerSortKey        = cfg.Bind("Container", "SortKey",        "Category",

@@ -275,5 +275,24 @@
     <Compile Include="../LongYinRoster/Core/ItemFactory.cs">
       <Link>Core/ItemFactory.cs</Link>
     </Compile>
+    <!-- v0.8.0 S1 — 레이아웃 계산기 + 창 틀 -->
+    <Compile Include="../LongYinRoster/UI/Layout/PanelBounds.cs">
+      <Link>UI/Layout/PanelBounds.cs</Link>
+    </Compile>
+    <Compile Include="../LongYinRoster/UI/Layout/LayoutMath.cs">
+      <Link>UI/Layout/LayoutMath.cs</Link>
+    </Compile>
+    <Compile Include="../LongYinRoster/UI/Layout/PanelWindowLogic.cs">
+      <Link>UI/Layout/PanelWindowLogic.cs</Link>
+    </Compile>
+    <Compile Include="../LongYinRoster/UI/Layout/SettingsLayout.cs">
+      <Link>UI/Layout/SettingsLayout.cs</Link>
+    </Compile>
+    <Compile Include="../LongYinRoster/UI/PanelWindow.cs">
+      <Link>UI/PanelWindow.cs</Link>
+    </Compile>
+    <Compile Include="../LongYinRoster/UI/PanelRegistry.cs">
+      <Link>UI/PanelRegistry.cs</Link>
+    </Compile>
   </ItemGroup>
 </Project>

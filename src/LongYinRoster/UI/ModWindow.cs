@@ -91,6 +91,8 @@ public sealed class ModWindow : MonoBehaviour
 
     // v0.7.6 — 설정 panel (ModeSelector "설정" 또는 F11+3)
     private readonly SettingsPanel    _settingsPanel = new();
+    // v0.8.0 — 이관된 패널 창의 Hydrate/Persist 묶음 (단계별로 항목 추가)
+    private readonly PanelRegistry    _registry = new();
     private bool                      _lastSettingsVisible = false;
 
     // v0.7.8 — 플레이어 편집 panel (ModeSelector "플레이어 편집" 또는 F11+4)
@@ -176,6 +178,9 @@ public sealed class ModWindow : MonoBehaviour
                 Config.ContainerPanelX.Value, Config.ContainerPanelY.Value,
                 Config.ContainerPanelW.Value, Config.ContainerPanelH.Value);
         };
+        // v0.8.0 S1 — SettingsPanel 창 틀 등록 + 설정 → rect (화면 클램프)
+        _registry.Register(_settingsPanel.Window);
+        _registry.HydrateAll(Screen.width, Screen.height);
         // v0.7.8 — PlayerEditorPanel wire-up
         _playerEditorPanel.Init(
             Config.PlayerEditorPanelX.Value,
@@ -1048,6 +1053,13 @@ public sealed class ModWindow : MonoBehaviour
         if (Config.PauseGameWhileOpen.Value)
             Time.timeScale = _visible ? 0f : 1f;
         Logger.Info($"ModWindow toggle → visible={_visible}");
+    }
+
+    // v0.8.0 — 게임 종료/씬 파괴 시 이관 패널 rect 저장 (드래그/리사이즈 종료 시에도 각자 저장하지만 안전망)
+    private void OnDestroy()
+    {
+        try { _registry.PersistAll(); }
+        catch (Exception ex) { Logger.WarnOnce("ModWindow/OnDestroy", $"PersistAll: {ex.GetType().Name}: {ex.Message}"); }
     }
 
     private void OnGUI()

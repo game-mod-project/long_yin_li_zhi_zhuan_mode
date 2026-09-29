@@ -14,6 +14,13 @@ public static class DialogStyle
     private static readonly Color OverlayTint = new(0f, 0f, 0f, 0.85f);
     private static readonly Color HeaderTint  = new(0.15f, 0.15f, 0.20f, 1.0f);
     public  const float HeaderHeight = 28f;
+    // v0.8.0 — 레이아웃 계산기(UI/Layout)와 Draw 가 공유하는 단일 출처. 계산 ≠ 렌더 어긋남 방지.
+    public  const float RowHeight       = 24f;   // 리스트 행 · 입력 행
+    public  const float ButtonRowHeight = 28f;   // 버튼 줄 (기존 GUILayout.Height(28) 관례)
+    public  const float Padding         = 12f;   // 창 내부 여백 (GUI.Window skin padding 흡수, smoke 로 조정)
+    public  const float Gap             = 4f;    // 요소 간 간격
+    public  const float ScrollbarW      = 20f;   // BeginScrollView 세로 스크롤바 폭 예약 — 행 폭 계산에서 뺀다(안 빼면 가로 스크롤바 생김)
+    public  const float ImguiSlack      = 32f;   // GUILayout 암묵 여백(스크롤뷰·버튼 margin) + GUI.Window skin padding — 2026-09-29 smoke 실측(하단 잘림)
 
     /// <summary>DrawWindow callback 시작에 호출. 좌표는 window-local (0,0 = top-left).</summary>
     public static void FillBackground(float width, float height)

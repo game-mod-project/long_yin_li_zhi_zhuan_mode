@@ -1,4 +1,5 @@
 using LongYinRoster.UI;
+using LongYinRoster.UI.Layout;
 using Shouldly;
 using UnityEngine;
 using Xunit;
@@ -138,5 +139,50 @@ public class SettingsPanelTests
         p.BufferContainerW.ShouldBe(900f);
         p.BufferContainerH.ShouldBe(700f);
         p.IsDirty.ShouldBeTrue();
+    }
+
+    // ── v0.8.0 S1 — 설정 패널 자기 rect 버퍼 ──
+
+    [Fact]
+    public void SelfRect_DefaultsAfterHydrate()
+    {
+        var p = MakePanel();
+        (p.BufferSelfX, p.BufferSelfY, p.BufferSelfW, p.BufferSelfH).ShouldBe((200f, 120f, 480f, 600f));
+        p.IsDirty.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void SetBufferSelfRect_MarksDirty()
+    {
+        var p = MakePanel();
+        p.SetBufferSelfRect(10, 20, 700, 800);
+        (p.BufferSelfX, p.BufferSelfY, p.BufferSelfW, p.BufferSelfH).ShouldBe((10f, 20f, 700f, 800f));
+        p.IsDirty.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void RestoreDefaults_ResetsSelfRectToo()
+    {
+        var p = MakePanel();
+        p.SetBufferSelfRect(10, 20, 700, 800);
+        p.DoRestoreDefaults();
+        (p.BufferSelfX, p.BufferSelfY, p.BufferSelfW, p.BufferSelfH).ShouldBe((200f, 120f, 480f, 600f));
+    }
+
+    [Fact]
+    public void SelfRect_TextParse_IgnoresGarbage()
+    {
+        SettingsPanel.TryParseRectField("abc", 100f, out _).ShouldBeFalse();
+        SettingsPanel.TryParseRectField("10", 100f, out _).ShouldBeFalse();     // 최소 미만 무시
+        SettingsPanel.TryParseRectField("640", 100f, out var v).ShouldBeTrue();
+        v.ShouldBe(640f);
+    }
+
+    [Fact]
+    public void Window_StartsHiddenWithSettingsMinSize()
+    {
+        var p = new SettingsPanel();
+        p.Visible.ShouldBeFalse();
+        p.Window.Rect.width.ShouldBe(SettingsLayout.MinSize.MinW);
     }
 }
