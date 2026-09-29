@@ -111,7 +111,6 @@ public static class HeroTagNameCache
     private static void BuildFromGame()
     {
         var meta = new Dictionary<int, TagMeta>();
-        var catSet = new HashSet<string>();
         var catOrder = new List<string>();
 
         try
@@ -127,51 +126,7 @@ public static class HeroTagNameCache
             object? db = dbProp?.GetValue(gdc);
             if (db == null) { _meta = meta; _categoryOrder = catOrder; return; }
 
-            var countProp = db.GetType().GetProperty("Count", F);
-            int n = countProp != null ? Convert.ToInt32(countProp.GetValue(db)) : 0;
-            var indexer = db.GetType().GetMethod("get_Item", F);
-            if (indexer == null) { _meta = meta; _categoryOrder = catOrder; return; }
-
-            for (int i = 0; i < n; i++)
-            {
-                try
-                {
-                    var entry = indexer.Invoke(db, new object[] { i });
-                    if (entry == null) continue;
-
-                    int tagID  = i;   // index = tagID (cheat 패턴)
-                    string raw = ReadStr(entry, "name");
-                    int    val = ReadInt(entry, "value");
-                    string catRaw  = ReadStr(entry, "category");
-                    string sameRaw = ReadStr(entry, "sameMeaning");
-                    int    order = ReadInt(entry, "order");
-
-                    string nameKr = !string.IsNullOrEmpty(raw)
-                        ? HangulDict.Translate(raw)
-                        : $"태그({tagID})";
-                    string catKr  = !string.IsNullOrEmpty(catRaw)
-                        ? HangulDict.Translate(catRaw)
-                        : "";
-
-                    meta[tagID] = new TagMeta
-                    {
-                        TagID = tagID,
-                        NameKr = nameKr,
-                        Value = val,
-                        CategoryKr = catKr,
-                        SameMeaning = sameRaw,
-                        Order = order,
-                    };
-
-                    if (!string.IsNullOrEmpty(catKr) && catSet.Add(catKr))
-                        catOrder.Add(catKr);
-                }
-                catch (Exception ex)
-                {
-                    Logger.WarnOnce("HeroTagNameCache", $"HeroTagNameCache build {i}: {ex.GetType().Name}: {ex.Message}");
-                }
-            }
-            Logger.Info($"HeroTagNameCache: built {meta.Count} entries, {catOrder.Count} categories");
+            BuildFromDb(db, meta, catOrder);
         }
         catch (Exception ex)
         {
@@ -179,6 +134,53 @@ public static class HeroTagNameCache
         }
         _meta = meta;
         _categoryOrder = catOrder;
+    }
+
+    /// <summary>
+    /// v0.7.13.1 — heroTagDataBase 가 List(구 게임, index=tagID) 든 Dictionary&lt;int,T&gt;(v1.1.0f5, key=tagID) 든
+    /// 컬렉션 키를 tagID 로 써서 전 항목 열거. catOrder 는 발견 순서 보존(기존 항목 뒤에 append).
+    /// </summary>
+    internal static void BuildFromDb(object db, Dictionary<int, TagMeta> meta, List<string> catOrder)
+    {
+        var catSet = new HashSet<string>(catOrder);
+        foreach (var (tagID, entry) in IL2CppListOps.Entries(db))
+        {
+            try
+            {
+                if (entry == null) continue;
+
+                string raw = ReadStr(entry, "name");
+                int    val = ReadInt(entry, "value");
+                string catRaw  = ReadStr(entry, "category");
+                string sameRaw = ReadStr(entry, "sameMeaning");
+                int    order = ReadInt(entry, "order");
+
+                string nameKr = !string.IsNullOrEmpty(raw)
+                    ? HangulDict.Translate(raw)
+                    : $"태그({tagID})";
+                string catKr  = !string.IsNullOrEmpty(catRaw)
+                    ? HangulDict.Translate(catRaw)
+                    : "";
+
+                meta[tagID] = new TagMeta
+                {
+                    TagID = tagID,
+                    NameKr = nameKr,
+                    Value = val,
+                    CategoryKr = catKr,
+                    SameMeaning = sameRaw,
+                    Order = order,
+                };
+
+                if (!string.IsNullOrEmpty(catKr) && catSet.Add(catKr))
+                    catOrder.Add(catKr);
+            }
+            catch (Exception ex)
+            {
+                Logger.WarnOnce("HeroTagNameCache", $"HeroTagNameCache build {tagID}: {ex.GetType().Name}: {ex.Message}");
+            }
+        }
+        Logger.Info($"HeroTagNameCache: built {meta.Count} entries, {catOrder.Count} categories");
     }
 
     private static int ReadInt(object obj, string name)

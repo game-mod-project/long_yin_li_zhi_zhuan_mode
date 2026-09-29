@@ -3,7 +3,7 @@
 **작성**: 2026-05-10
 **현재 baseline**: **v0.7.12** (commit `3cee426`, tag `v0.7.12` pushed) — Cat 3 deferred 완료
 **저장소**: https://github.com/game-mod-project/long_yin_li_zhi_zhuan_mode (`main`)
-**프로젝트 루트**: `E:/Games/龙胤立志传.v1.0.0f8.2/LongYinLiZhiZhuan/Save/_PlayerExport/`
+**프로젝트 루트**: `E:/Games/龙胤立志传.v1.1.0f5/game/LongYinLiZhiZhuan_Data/Save/_PlayerExport/`
 
 ---
 
@@ -21,11 +21,11 @@ v0.7.12 release 완료 (push + GitHub release 모두 OK). 399 tests PASS. **단 
 
 ```bash
 # 1. DLL 재배포 (build trigger, 자동 deploy)
-cd "E:/Games/龙胤立志传.v1.0.0f8.2/LongYinLiZhiZhuan/Save/_PlayerExport"
+cd "E:/Games/龙胤立志传.v1.1.0f5/game/LongYinLiZhiZhuan_Data/Save/_PlayerExport"
 dotnet build -c Release src/LongYinRoster/LongYinRoster.csproj
 
 # 2. DLL deploy 확인
-ls -la "E:/Games/龙胤立志传.v1.0.0f8.2/LongYinLiZhiZhuan/BepInEx/plugins/LongYinRoster/LongYinRoster.dll"
+ls -la "E:/Games/龙胤立志传.v1.1.0f5/game/BepInEx/plugins/LongYinRoster/LongYinRoster.dll"
 # 갱신 timestamp 확인
 
 # 3. 게임 실행 → F11+2 (ContainerPanel)

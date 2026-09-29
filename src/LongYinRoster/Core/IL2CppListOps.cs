@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Reflection;
 
 namespace LongYinRoster.Core;
@@ -68,5 +69,64 @@ public static class IL2CppListOps
             throw new InvalidOperationException(
                 $"IL2CppListOps.Add: type {t.FullName} has no Add(T) method");
         add.Invoke(il2List, new[] { item });
+    }
+
+    /// <summary>
+    /// Dictionary 모양(Keys 프로퍼티 보유)인지 판별. v0.7.13.1 — 게임 v1.1.0f5 에서
+    /// GameDataController.*DataBase 가 List&lt;T&gt; → Dictionary&lt;int,T&gt; 로 바뀌어,
+    /// Count/get_Item(int) 인덱스 순회가 '키 조회'로 오동작하는 것을 분기하기 위한 판별.
+    /// </summary>
+    public static bool IsDictionary(object il2Coll)
+    {
+        if (il2Coll == null) throw new ArgumentNullException(nameof(il2Coll));
+        return il2Coll.GetType().GetProperty("Keys", F) != null;
+    }
+
+    /// <summary>
+    /// (key, value) 열거. List → (index, item). Dictionary&lt;int,T&gt; → (key, value).
+    /// Dictionary 는 GetEnumerator()/MoveNext()/Current → Key/Value 를 reflection 으로 호출 —
+    /// Il2Cpp 래퍼(Dictionary`2 / Enumerator / KeyValuePair`2)와 .NET Dictionary 가 같은 멤버 이름을 가진다.
+    /// 키가 Count 범위 밖(예: 커스텀 무공 ID 1200~2188)이거나 중간이 비어도 전부 도달.
+    /// </summary>
+    public static IEnumerable<KeyValuePair<int, object?>> Entries(object il2Coll)
+    {
+        if (il2Coll == null) throw new ArgumentNullException(nameof(il2Coll));
+        if (!IsDictionary(il2Coll))
+        {
+            int n = Count(il2Coll);
+            for (int i = 0; i < n; i++)
+                yield return new KeyValuePair<int, object?>(i, Get(il2Coll, i));
+            yield break;
+        }
+
+        var t = il2Coll.GetType();
+        var getEnumerator = t.GetMethod("GetEnumerator", F, null, Type.EmptyTypes, null)
+            ?? throw new InvalidOperationException(
+                $"IL2CppListOps.Entries: type {t.FullName} has no GetEnumerator()");
+        var enumerator = getEnumerator.Invoke(il2Coll, null)
+            ?? throw new InvalidOperationException(
+                $"IL2CppListOps.Entries: {t.FullName}.GetEnumerator() returned null");
+        var et = enumerator.GetType();
+        var moveNext = et.GetMethod("MoveNext", F, null, Type.EmptyTypes, null)
+            ?? throw new InvalidOperationException(
+                $"IL2CppListOps.Entries: enumerator {et.FullName} has no MoveNext()");
+        var current = et.GetProperty("Current", F)
+            ?? throw new InvalidOperationException(
+                $"IL2CppListOps.Entries: enumerator {et.FullName} has no Current");
+
+        // .NET Dictionary 의 Enumerator 는 struct — boxed 인스턴스에 Invoke 하면 box 내부가 갱신되므로
+        // 같은 boxed 객체를 계속 사용해야 한다. Il2Cpp 래퍼는 class 라 무관.
+        PropertyInfo? keyProp = null, valueProp = null;
+        while ((bool)moveNext.Invoke(enumerator, null)!)
+        {
+            var kv = current.GetValue(enumerator);
+            if (kv == null) continue;
+            var kvt = kv.GetType();
+            keyProp ??= kvt.GetProperty("Key", F)
+                ?? throw new InvalidOperationException($"IL2CppListOps.Entries: {kvt.FullName} has no Key");
+            valueProp ??= kvt.GetProperty("Value", F)
+                ?? throw new InvalidOperationException($"IL2CppListOps.Entries: {kvt.FullName} has no Value");
+            yield return new KeyValuePair<int, object?>(Convert.ToInt32(keyProp.GetValue(kv)), valueProp.GetValue(kv));
+        }
     }
 }
