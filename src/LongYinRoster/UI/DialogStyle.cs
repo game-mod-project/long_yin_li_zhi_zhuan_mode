@@ -19,6 +19,8 @@ public static class DialogStyle
     public  const float ButtonRowHeight = 28f;   // 버튼 줄 (기존 GUILayout.Height(28) 관례)
     public  const float Padding         = 12f;   // 창 내부 여백 (GUI.Window skin padding 흡수, smoke 로 조정)
     public  const float Gap             = 4f;    // 요소 간 간격
+    public  const float ScrollbarW      = 20f;   // BeginScrollView 세로 스크롤바 폭 예약 — 행 폭 계산에서 뺀다(안 빼면 가로 스크롤바 생김)
+    public  const float ImguiSlack      = 32f;   // GUILayout 암묵 여백(스크롤뷰·버튼 margin) + GUI.Window skin padding — 2026-09-29 smoke 실측(하단 잘림)
 
     /// <summary>DrawWindow callback 시작에 호출. 좌표는 window-local (0,0 = top-left).</summary>
     public static void FillBackground(float width, float height)

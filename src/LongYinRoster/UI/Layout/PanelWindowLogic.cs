@@ -6,6 +6,12 @@ namespace LongYinRoster.UI.Layout;
 /// <summary>v0.8.0 — PanelWindow 의 순수 부분. Screen 크기는 호출자가 숫자로 넘긴다(테스트 가능).</summary>
 public static class PanelWindowLogic
 {
+    public const float HandleSize = 16f;
+
+    /// <summary>코너 리사이즈 핸들(화면 좌표). 창 밖 OnGUI 에서 MouseDown 판정에 쓴다 — 콜백 안(창 로컬)에서 잡으면 창 밖으로 나간 드래그를 놓친다.</summary>
+    public static Rect ResizeHandleRect(Rect window)
+        => new(window.x + window.width - HandleSize, window.y + window.height - HandleSize, HandleSize, HandleSize);
+
     /// <summary>헤더·여백을 뺀 내용 영역. 창 로컬 좌표(0,0 = 창 좌상단). 폭·높이는 0 미만으로 내려가지 않음.</summary>
     public static Rect ContentRect(Rect window, float headerH, float padding)
     {

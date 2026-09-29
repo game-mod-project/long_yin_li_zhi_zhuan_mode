@@ -80,4 +80,12 @@ public class PanelWindowLogicTests
         var r = PanelWindowLogic.ClampToScreen(new Rect(100, 100, 700, 500), 1920, 1080, B);
         (r.x, r.y, r.width, r.height).ShouldBe((100f, 100f, 700f, 500f));
     }
+
+    [Fact]
+    public void ResizeHandleRect_IsBottomRightCornerInScreenCoords()
+    {
+        // 창 밖 OnGUI 에서 판정하므로 화면 좌표: (x+w-16, y+h-16, 16, 16)
+        var h = PanelWindowLogic.ResizeHandleRect(new Rect(100, 50, 400, 300));
+        (h.x, h.y, h.width, h.height).ShouldBe((484f, 334f, 16f, 16f));
+    }
 }

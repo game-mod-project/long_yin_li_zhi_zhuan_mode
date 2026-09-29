@@ -133,4 +133,47 @@ public class PanelWindowTests
         b1.X.Value.ShouldBe(1520f);
         b2.W.Value.ShouldBe(300f);
     }
+
+    // ── 코너 리사이즈는 GUI.Window 콜백 밖(OnGUI, 화면 좌표)에서 처리 — 마우스가 창 밖으로 나가도 드래그가 이어진다 ──
+    // 스텁의 GUI.Window 는 콜백을 호출하지 않으므로, 아래가 통과하면 이벤트 처리가 콜백 밖에 있다는 뜻.
+
+    [Fact]
+    public void CornerDrag_ContinuesOutsideWindow_AndPersistsOnMouseUp()
+    {
+        var b = MakeBinding(100, 100, 400, 300);
+        var w = Make(b);
+        w.Hydrate(1920, 1080);
+        w.Visible = true;
+        var e = Event.current;
+        try
+        {
+            e.type = EventType.MouseDown; e.mousePosition = new Vector2(492, 392);   // 핸들(484..500, 384..400) 안
+            w.OnGUI(_ => { });
+            e.type = EventType.MouseDrag; e.mousePosition = new Vector2(700, 600);   // 창 밖으로 한 번에 이동
+            w.OnGUI(_ => { });
+            (w.Rect.width, w.Rect.height).ShouldBe((608f, 508f));
+            e.type = EventType.MouseUp;
+            w.OnGUI(_ => { });
+            (b.W.Value, b.H.Value).ShouldBe((608f, 508f));
+        }
+        finally { e.type = EventType.Repaint; e.mousePosition = default; }
+    }
+
+    [Fact]
+    public void MouseDownOutsideHandle_DoesNotStartResize()
+    {
+        var w = Make(MakeBinding(100, 100, 400, 300));
+        w.Hydrate(1920, 1080);
+        w.Visible = true;
+        var e = Event.current;
+        try
+        {
+            e.type = EventType.MouseDown; e.mousePosition = new Vector2(200, 200);
+            w.OnGUI(_ => { });
+            e.type = EventType.MouseDrag; e.mousePosition = new Vector2(700, 600);
+            w.OnGUI(_ => { });
+            (w.Rect.width, w.Rect.height).ShouldBe((400f, 300f));
+        }
+        finally { e.type = EventType.Repaint; e.mousePosition = default; }
+    }
 }

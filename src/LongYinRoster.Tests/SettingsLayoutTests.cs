@@ -16,15 +16,16 @@ public class SettingsLayoutTests
     public void Compute_DefaultWindow_ScrollTakesRemainingHeight()
     {
         var L = SettingsLayout.Compute(Default);
-        L.ScrollH.ShouldBe(548f - DialogStyle.ButtonRowHeight - DialogStyle.Gap);   // 516
+        // 버튼 줄 + gap + IMGUI 암묵 여백(스크롤뷰·버튼 margin, window padding — smoke 실측)
+        L.ScrollH.ShouldBe(548f - DialogStyle.ButtonRowHeight - DialogStyle.Gap - DialogStyle.ImguiSlack);   // 484
     }
 
     [Fact]
     public void Compute_DefaultWindow_FieldWidthSplitsRemaining()
     {
         var L = SettingsLayout.Compute(Default);
-        // (456 - 2*20 - 8 - 4) / 2 = 202
-        L.FieldW.ShouldBe(202f);
+        // (456 - 스크롤바 20 - 2*20 - 8 - 6*Gap 24) / 2 = 182 — 세로 스크롤바 폭과 컨트롤 margin 을 빼야 가로 스크롤바가 안 생김
+        L.FieldW.ShouldBe(182f);
     }
 
     [Fact]
@@ -47,8 +48,8 @@ public class SettingsLayoutTests
     public void MinSize_FitsFixedPartsPlusThreeRows()
     {
         var m = SettingsLayout.MinSize;
-        m.MinW.ShouldBe(120f + 180f + 80f + 2 * DialogStyle.Gap + 2 * DialogStyle.Padding);   // 412
+        m.MinW.ShouldBe(120f + 180f + 80f + 4 * DialogStyle.Gap + DialogStyle.ScrollbarW + 2 * DialogStyle.Padding);   // 440
         m.MinH.ShouldBe(DialogStyle.HeaderHeight + 2 * DialogStyle.Padding
-                        + 3 * DialogStyle.RowHeight + DialogStyle.Gap + DialogStyle.ButtonRowHeight);   // 156
+                        + 3 * DialogStyle.RowHeight + DialogStyle.Gap + DialogStyle.ButtonRowHeight + DialogStyle.ImguiSlack);   // 188
     }
 }

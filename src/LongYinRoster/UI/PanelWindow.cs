@@ -111,6 +111,7 @@ public sealed class PanelWindow
         if (!Visible) return;
         if (!_hydrated) Hydrate(Screen.width, Screen.height);
         _drawContent = drawContent;
+        HandleResizeEvents();   // GUI.Window 앞: 창 밖으로 나간 드래그도 받고, 스크롤바·버튼보다 먼저 핸들이 이벤트를 잡는다
         try
         {
             _rect = GUI.Window(_id, _rect, (GUI.WindowFunction)DrawWindow, "");
@@ -165,18 +166,15 @@ public sealed class PanelWindow
         }
     }
 
-    private void DrawResizeHandle()
+    /// <summary>코너 리사이즈 이벤트 — 화면 좌표. 콜백 안(창 로컬)에서 처리하면 창이 마우스보다 느리게 커질 때
+    /// 마우스가 창 밖으로 나가 MouseDrag 를 못 받는다(2026-09-29 smoke: 늘리기가 자꾸 끊김·최소 크기에서 늘리기 불가).</summary>
+    private void HandleResizeEvents()
     {
-        var handleRect = new Rect(_rect.width - 16, _rect.height - 16, 16, 16);
-        var prev = GUI.color;
-        GUI.color = new Color(0.6f, 0.6f, 0.6f, 0.8f);
-        GUI.DrawTexture(handleRect, Texture2D.whiteTexture);
-        GUI.color = prev;
-
         var e = Event.current;
         if (e == null) return;
-        if (e.type == EventType.MouseDown && handleRect.Contains(e.mousePosition))
+        if (e.type == EventType.MouseDown)
         {
+            if (!PanelWindowLogic.ResizeHandleRect(_rect).Contains(e.mousePosition)) return;
             _resizing        = true;
             _resizeStart     = e.mousePosition;
             _resizeStartSize = new Vector2(_rect.width, _rect.height);
@@ -194,6 +192,17 @@ public sealed class PanelWindow
             Persist();
             e.Use();
         }
+    }
+
+    /// <summary>핸들 그리기만(창 로컬 좌표). 이벤트는 HandleResizeEvents.</summary>
+    private void DrawResizeHandle()
+    {
+        float s = PanelWindowLogic.HandleSize;
+        var handleRect = new Rect(_rect.width - s, _rect.height - s, s, s);
+        var prev = GUI.color;
+        GUI.color = _resizing ? new Color(0.9f, 0.9f, 0.9f, 0.9f) : new Color(0.6f, 0.6f, 0.6f, 0.8f);
+        GUI.DrawTexture(handleRect, Texture2D.whiteTexture);
+        GUI.color = prev;
     }
 
     private static bool SameRect(Rect a, Rect b)
