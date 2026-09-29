@@ -282,5 +282,8 @@
     <Compile Include="../LongYinRoster/UI/Layout/LayoutMath.cs">
       <Link>UI/Layout/LayoutMath.cs</Link>
     </Compile>
+    <Compile Include="../LongYinRoster/UI/Layout/PanelWindowLogic.cs">
+      <Link>UI/Layout/PanelWindowLogic.cs</Link>
+    </Compile>
   </ItemGroup>
 </Project>
