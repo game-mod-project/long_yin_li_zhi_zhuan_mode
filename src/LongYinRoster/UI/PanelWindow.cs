@@ -57,6 +57,9 @@ public sealed class PanelWindow
     public Rect Rect => _rect;
     public Rect ContentRect => PanelWindowLogic.ContentRect(_rect, DialogStyle.HeaderHeight, DialogStyle.Padding, DialogStyle.ImguiSlack);
     public bool IsHydrated => _hydrated;
+    /// <summary>등록된 레지스트리. 있으면 코너 리사이즈 이벤트는 레지스트리가 z-order 로 라우팅한다(OnGUI 가 직접 처리하지 않음).</summary>
+    internal PanelRegistry? Registry { get; set; }
+    internal bool IsResizing => _resizing;
     private bool _visible;
     /// <summary>표시 여부. 바뀔 때 Open 엔트리에 즉시 반영 — ModWindow 모드 전환이 직접 세팅하는 경로도 영속화(v0.7.13 per-frame 저장 대체).
     /// BepInEx ConfigEntry 는 값이 같으면 저장하지 않으므로 매 프레임 대입해도 파일 I/O 없음.</summary>
@@ -136,7 +139,7 @@ public sealed class PanelWindow
         if (!Visible) return;
         if (!_hydrated) Hydrate(Screen.width, Screen.height);
         _drawContent = drawContent;
-        HandleResizeEvents();   // GUI.Window 앞: 창 밖으로 나간 드래그도 받고, 스크롤바·버튼보다 먼저 핸들이 이벤트를 잡는다
+        if (Registry == null) HandleResizeEvents();   // 미등록(단독) 창만 직접 처리 — 등록 창은 PanelRegistry.HandleEvents 가 z-order 로 라우팅(D2)
         try
         {
             _rect = GUI.Window(_id, _rect, (GUI.WindowFunction)DrawWindow, "");
@@ -191,37 +194,52 @@ public sealed class PanelWindow
         }
     }
 
-    /// <summary>코너 리사이즈 이벤트 — 화면 좌표. 콜백 안(창 로컬)에서 처리하면 창이 마우스보다 느리게 커질 때
-    /// 마우스가 창 밖으로 나가 MouseDrag 를 못 받는다(2026-09-29 smoke: 늘리기가 자꾸 끊김·최소 크기에서 늘리기 불가).</summary>
+    /// <summary>미등록 창의 코너 리사이즈 — 화면 좌표. 콜백 안(창 로컬)에서 처리하면 창이 마우스보다 느리게 커질 때
+    /// 마우스가 창 밖으로 나가 MouseDrag 를 못 받는다(2026-09-29 smoke). 등록 창은 PanelRegistry.HandleEvents 가 같은 두 메서드를 호출한다.</summary>
     private void HandleResizeEvents()
     {
         var e = Event.current;
         if (e == null) return;
-        if (e.type == EventType.MouseDown)
-        {
-            if (!PanelWindowLogic.ResizeHandleRect(_rect).Contains(e.mousePosition)) return;
-            _resizing        = true;
-            _resizeStart     = e.mousePosition;
-            _resizeStartSize = new Vector2(_rect.width, _rect.height);
-            e.Use();
-        }
-        else if (_resizing && e.type == EventType.MouseDrag)
+        if (e.type == EventType.MouseDown) TryBeginResize(e);
+        else HandleResizeContinuation(e);
+    }
+
+    /// <summary>MouseDown 이 코너 핸들(화면 좌표) 안이면 리사이즈 시작 + Use. 레지스트리는 "그 자리의 맨 앞 창" 에 대해서만 호출한다.</summary>
+    internal bool TryBeginResize(Event e)
+    {
+        if (e.type != EventType.MouseDown) return false;
+        if (!PanelWindowLogic.ResizeHandleRect(_rect).Contains(e.mousePosition)) return false;
+        _resizing        = true;
+        _resizeStart     = e.mousePosition;
+        _resizeStartSize = new Vector2(_rect.width, _rect.height);
+        e.Use();
+        return true;
+    }
+
+    /// <summary>리사이즈 중이면 MouseDrag → 크기 갱신, MouseUp → 종료 + 저장. 이벤트를 소비했으면 true.</summary>
+    internal bool HandleResizeContinuation(Event e)
+    {
+        if (!_resizing) return false;
+        if (e.type == EventType.MouseDrag)
         {
             _rect = PanelWindowLogic.Resize(_rect, _resizeStart, _resizeStartSize, e.mousePosition,
                                             _bounds(), Screen.width, Screen.height);
             // e.Use() 필수: 리사이즈로 PageSize 등이 바뀌어 같은 패스의 GUILayout 컨트롤 수가 Layout 캐시와 달라져도,
             // 이벤트가 Used 면 GUILayoutUtility 가 더미 rect 를 돌려줘 "Getting control N position" ArgumentException 이 나지 않는다.
             e.Use();
+            return true;
         }
-        else if (_resizing && e.type == EventType.MouseUp)
+        if (e.type == EventType.MouseUp)
         {
             _resizing = false;
             Persist();
             e.Use();
+            return true;
         }
+        return false;
     }
 
-    /// <summary>핸들 그리기만(창 로컬 좌표). 이벤트는 HandleResizeEvents.</summary>
+    /// <summary>핸들 그리기만(창 로컬 좌표). 이벤트는 TryBeginResize / HandleResizeContinuation.</summary>
     private void DrawResizeHandle()
     {
         float s = PanelWindowLogic.HandleSize;
