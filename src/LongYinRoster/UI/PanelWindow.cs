@@ -55,7 +55,7 @@ public sealed class PanelWindow
     }
 
     public Rect Rect => _rect;
-    public Rect ContentRect => PanelWindowLogic.ContentRect(_rect, DialogStyle.HeaderHeight, DialogStyle.Padding);
+    public Rect ContentRect => PanelWindowLogic.ContentRect(_rect, DialogStyle.HeaderHeight, DialogStyle.Padding, DialogStyle.ImguiSlack);
     public bool IsHydrated => _hydrated;
     private bool _visible;
     /// <summary>표시 여부. 바뀔 때 Open 엔트리에 즉시 반영 — ModWindow 모드 전환이 직접 세팅하는 경로도 영속화(v0.7.13 per-frame 저장 대체).

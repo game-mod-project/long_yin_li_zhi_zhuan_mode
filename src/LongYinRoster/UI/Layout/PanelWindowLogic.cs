@@ -12,11 +12,12 @@ public static class PanelWindowLogic
     public static Rect ResizeHandleRect(Rect window)
         => new(window.x + window.width - HandleSize, window.y + window.height - HandleSize, HandleSize, HandleSize);
 
-    /// <summary>헤더·여백을 뺀 내용 영역. 창 로컬 좌표(0,0 = 창 좌상단). 폭·높이는 0 미만으로 내려가지 않음.</summary>
-    public static Rect ContentRect(Rect window, float headerH, float padding)
+    /// <summary>헤더·여백·하단 암묵 여백(GUILayout margin + window skin padding)을 뺀 내용 영역. 창 로컬 좌표(0,0 = 창 좌상단).
+    /// 폭·높이는 0 미만으로 내려가지 않음. 계산기는 이 높이를 그대로 쓴다(슬랙을 다시 빼지 않음).</summary>
+    public static Rect ContentRect(Rect window, float headerH, float padding, float bottomSlack)
     {
         float w = Math.Max(0f, window.width - 2f * padding);
-        float h = Math.Max(0f, window.height - headerH - 2f * padding);
+        float h = Math.Max(0f, window.height - headerH - 2f * padding - bottomSlack);
         return new Rect(padding, headerH + padding, w, h);
     }
 

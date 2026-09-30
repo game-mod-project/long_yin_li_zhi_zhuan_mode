@@ -7,7 +7,7 @@ namespace LongYinRoster.UI.Layout;
 /// v0.8.0 — ItemGeneratorPanel 계산기. 고정: 탭 셀 폭(카테고리 55 / 2차 45), 검색 라벨 40, 등급·품질 버튼 48,
 /// 검색 행·페이저 행(24), 등급·품질·수량 줄(28). 세로 확장: 결과 리스트 → PageSize = 높이에서 계산(최소 3).
 /// 탭은 폭에 맞춰 줄바꿈(Wrap) — 줄 수가 늘면 리스트가 그만큼 줄어든다.
-/// 리스트 높이에서 DialogStyle.ImguiSlack(GUILayout 암묵 여백)을 뺀다 — 1단계 smoke 에서 확인된 하단 잘림 방지.
+/// 암묵 여백은 PanelWindowLogic.ContentRect 가 뺀다(D1) — 여기서 다시 빼지 않는다.
 /// </summary>
 public readonly record struct ItemGenLayout(
     int CategoryPerRow, int CategoryRows, int SecondaryPerRow, int SecondaryRows,
@@ -30,11 +30,10 @@ public readonly record struct ItemGenLayout(
         MinW: Math.Max(6f * GradeCellW + SearchLabelW + 7f * DialogStyle.Gap,                       // 등급/품질 줄 (356)
                        CategoryCount * CategoryCellW + (CategoryCount - 1) * DialogStyle.Gap)       // 카테고리 탭 한 줄 (409) — 최소 폭에서 탭이 접히지 않게
               + 2f * DialogStyle.Padding,
-        MinH: DialogStyle.HeaderHeight + 2f * DialogStyle.Padding
+        MinH: DialogStyle.ChromeH
               + 2f * (DialogStyle.ButtonRowHeight + DialogStyle.Gap)                            // 탭 2줄(한 줄씩)
               + FixedRowsH
-              + MinListRows * DialogStyle.RowHeight + (MinListRows - 1) * DialogStyle.Gap
-              + DialogStyle.ImguiSlack);
+              + MinListRows * DialogStyle.RowHeight + (MinListRows - 1) * DialogStyle.Gap);
 
     public static ItemGenLayout Compute(Rect content, bool hasSecondary)
     {
@@ -44,8 +43,7 @@ public readonly record struct ItemGenLayout(
         int secRows   = hasSecondary ? (SecondaryCount + secPerRow - 1) / secPerRow : 0;
 
         float tabsH  = (catRows + secRows) * (DialogStyle.ButtonRowHeight + DialogStyle.Gap);
-        float listH  = Math.Max(MinListRows * DialogStyle.RowHeight,
-                                content.height - tabsH - FixedRowsH - DialogStyle.ImguiSlack);
+        float listH  = Math.Max(MinListRows * DialogStyle.RowHeight, content.height - tabsH - FixedRowsH);
         int pageSize = LayoutMath.RowsThatFit(listH, DialogStyle.RowHeight, DialogStyle.Gap, MinListRows);
 
         float searchW = Math.Max(60f, content.width - SearchLabelW - DialogStyle.Gap);

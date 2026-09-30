@@ -9,8 +9,8 @@ namespace LongYinRoster.Tests;
 /// <summary>v0.8.0 S2 — 아이템 생성 패널 계산기. 세로 확장 = 결과 리스트(페이지 크기 자동), 탭은 폭에 맞춰 줄바꿈.</summary>
 public class ItemGenLayoutTests
 {
-    // 기본 창 620×560 → 내용 596×508
-    private static readonly Rect Default = new(12, 40, 596, 508);
+    // 기본 창 620×560 → 내용 596×476 (ChromeH 84 — ContentRect 가 이미 뺀다, D1)
+    private static readonly Rect Default = new(12, 40, 596, 476);
 
     [Fact]
     public void Compute_DefaultWindow_TabsFitOneRowEach()
@@ -24,10 +24,9 @@ public class ItemGenLayoutTests
     [Fact]
     public void Compute_DefaultWindow_PageSizeFromHeight()
     {
-        // 탭 2줄(2×32) + 고정 행(검색 24 + 페이저 24 + 등급/품질/수량 3×28 + 5×4 = 152) + IMGUI 암묵 여백 32
-        // → 리스트 508-64-152-32 = 260 → floor(264/28) = 9
+        // 탭 2줄(2×32) + 고정 행(검색 24 + 페이저 24 + 등급/품질/수량 3×28 + 5×4 = 152) → 리스트 476-64-152 = 260 → floor(264/28) = 9
         var L = ItemGenLayout.Compute(Default, hasSecondary: true);
-        L.ListH.ShouldBe(508f - 64f - 152f - DialogStyle.ImguiSlack);
+        L.ListH.ShouldBe(476f - 64f - 152f);
         L.PageSize.ShouldBe(9);
     }
 
@@ -44,7 +43,7 @@ public class ItemGenLayoutTests
     public void Compute_NarrowContent_WrapsTabs()
     {
         var wide = ItemGenLayout.Compute(Default, hasSecondary: true);
-        var L = ItemGenLayout.Compute(new Rect(12, 40, 300, 508), hasSecondary: true);
+        var L = ItemGenLayout.Compute(new Rect(12, 40, 300, 476), hasSecondary: true);
         L.CategoryPerRow.ShouldBe(5);    // floor(304/59)
         L.CategoryRows.ShouldBe(2);
         L.SecondaryPerRow.ShouldBe(6);   // floor(304/49)
@@ -82,7 +81,7 @@ public class ItemGenLayoutTests
         var m = ItemGenLayout.MinSize;
         // 카테고리 탭 한 줄(7×55 + 6×4 = 409)이 등급 줄(356)보다 넓다 → 409 + 24 = 433
         m.MinW.ShouldBe(ItemGenLayout.CategoryCount * ItemGenLayout.CategoryCellW + (ItemGenLayout.CategoryCount - 1) * DialogStyle.Gap + 2 * DialogStyle.Padding);
-        var L = ItemGenLayout.Compute(new Rect(12, 40, m.MinW - 2 * DialogStyle.Padding, m.MinH - DialogStyle.HeaderHeight - 2 * DialogStyle.Padding), true);
+        var L = ItemGenLayout.Compute(new Rect(12, 40, m.MinW - 2 * DialogStyle.Padding, m.MinH - DialogStyle.ChromeH), true);
         L.CategoryRows.ShouldBe(1);   // 최소 폭에서도 탭은 한 줄
         L.PageSize.ShouldBe(3);
     }

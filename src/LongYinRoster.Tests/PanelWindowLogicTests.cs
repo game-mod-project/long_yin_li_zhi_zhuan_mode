@@ -11,16 +11,17 @@ public class PanelWindowLogicTests
     private static readonly PanelBounds B = new(600f, 400f);
 
     [Fact]
-    public void ContentRect_SubtractsHeaderAndPadding_InLocalCoords()
+    public void ContentRect_SubtractsHeaderPaddingAndBottomSlack_InLocalCoords()
     {
-        var c = PanelWindowLogic.ContentRect(new Rect(100, 50, 800, 600), headerH: 28f, padding: 12f);
-        (c.x, c.y, c.width, c.height).ShouldBe((12f, 40f, 776f, 548f));
+        // 800×600 창, 헤더 28, 여백 12, 하단 암묵 여백 32 → (12, 40, 776, 516). 계산기는 이 516 을 그대로 쓴다(D1).
+        var c = PanelWindowLogic.ContentRect(new Rect(100, 50, 800, 600), headerH: 28f, padding: 12f, bottomSlack: 32f);
+        (c.x, c.y, c.width, c.height).ShouldBe((12f, 40f, 776f, 516f));
     }
 
     [Fact]
     public void ContentRect_NeverNegative()
     {
-        var c = PanelWindowLogic.ContentRect(new Rect(0, 0, 10, 10), 28f, 12f);
+        var c = PanelWindowLogic.ContentRect(new Rect(0, 0, 10, 10), 28f, 12f, 32f);
         (c.width, c.height).ShouldBe((0f, 0f));
     }
 
