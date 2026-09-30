@@ -197,8 +197,8 @@ public sealed class ModWindow : MonoBehaviour
         _itemGenPanel.GetPlayer = Core.HeroLocator.GetPlayer;
         _registry.Register(_itemGenPanel.Window);
         _registry.HydrateAll(Screen.width, Screen.height);   // 등록 순서: Container → Settings → ItemGen → HydrateAll
-        // v0.8.0 S3 (D2) — 아직 이관 안 된 창(ItemDetail/그 Selector/PlayerEditor/본체/모드 메뉴)이 덮은 자리에서는
-        // 등록 창의 코너 리사이즈를 시작하지 않는다. 6단계에 전부 등록되면 삭제.
+        // v0.8.0 S3 (D2) — 아직 이관 안 된 창(ItemDetail/그 Selector/PlayerEditor/본체/모드 메뉴)의 영역. 레지스트리는 마지막 클릭으로
+        // 그 창들의 앞/뒤를 추적해, 앞일 때만 겹친 자리의 코너 리사이즈를 양보한다. 6단계에 전부 등록되면 삭제.
         _registry.IsCoveredByForeign = pos =>
             (_itemDetailPanel.Visible && _itemDetailPanel.WindowRect.Contains(pos))
             || (_itemDetailPanel.Selector.Visible && _itemDetailPanel.Selector.WindowRect.Contains(pos))

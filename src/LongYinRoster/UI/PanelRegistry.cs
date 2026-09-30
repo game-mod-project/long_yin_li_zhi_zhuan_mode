@@ -8,7 +8,7 @@ namespace LongYinRoster.UI;
 /// v0.8.0 — 이관된 패널 창의 Hydrate/Persist 를 묶고(1단계), 코너 리사이즈 이벤트를 z-order 로 라우팅한다(3단계, D2).
 /// 리스트 순서 = z-order(끝 = 맨 앞). MouseDown 이 어떤 등록 창 안이면 그 창을 맨 앞으로 올린다 — Unity 도 같은 클릭으로
 /// GUI.Window 를 앞으로 가져오므로 두 순서가 함께 움직인다. 핸들 판정은 그 맨 앞 창에만 시킨다.
-/// 아직 이관 안 된 창(ItemDetail/PlayerEditor/본체)이 덮은 자리는 IsCoveredByForeign 으로 막는다 — 6단계에 전부 등록되면 제거.
+/// 아직 이관 안 된 창(ItemDetail/PlayerEditor/본체)은 IsCoveredByForeign 으로 알려 받고, 그 창들이 앞일 때만(마지막 클릭 기준) 겹친 자리를 양보한다 — 6단계에 전부 등록되면 제거.
 /// </summary>
 public sealed class PanelRegistry
 {
@@ -16,6 +16,11 @@ public sealed class PanelRegistry
 
     /// <summary>등록 안 된 창이 이 화면 좌표를 덮고 있으면 true. ModWindow 가 세팅. null 이면 검사 안 함.</summary>
     public Func<Vector2, bool>? IsCoveredByForeign;
+
+    /// <summary>미이관 창(한 묶음)이 등록 창보다 앞인가. 마지막 MouseDown 이 미이관 창에만 닿았으면 앞, 등록 창에만 닿았으면 뒤, 겹친 자리면 그대로.
+    /// 초기값 앞 — ModWindow 가 ItemDetail 등을 등록 창보다 나중에 그린다. 겹친 자리의 클릭은 이 값이 앞일 때만 미이관 창 몫(리뷰 I-1).</summary>
+    private bool _foreignInFront = true;
+    internal bool ForeignInFront => _foreignInFront;
 
     public void Register(PanelWindow window)
     {
@@ -46,9 +51,11 @@ public sealed class PanelRegistry
         if (e.type == EventType.MouseDown)
         {
             var top = TopmostVisibleAt(e.mousePosition);
-            if (top == null) return;
+            bool inForeign = IsCoveredByForeign != null && IsCoveredByForeign(e.mousePosition);
+            if (top == null) { if (inForeign) _foreignInFront = true; return; }
+            if (inForeign && _foreignInFront) return;   // 겹친 자리 + 미이관 창이 앞 → 그 창의 클릭(앞으로 올리지도 않음)
+            _foreignInFront = false;
             BringToFront(top);
-            if (IsCoveredByForeign != null && IsCoveredByForeign(e.mousePosition)) return;
             top.TryBeginResize(e);
         }
         else if (e.type == EventType.MouseDrag || e.type == EventType.MouseUp)

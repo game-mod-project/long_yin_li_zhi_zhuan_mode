@@ -133,4 +133,60 @@ public class PanelRegistryTests
         }
         finally { Reset(); }
     }
+
+    // ── 리뷰 후속(I-1): 미이관 창의 앞/뒤를 마지막 클릭으로 추적 — 겹친 자리는 미이관 창이 앞일 때만 막는다 ──
+    // F = 미이관 창 (450,350,300,300) → A 의 핸들 (484..500, 384..400) 을 덮는다.
+    private static bool InF(Vector2 p) => p.x >= 450 && p.x < 750 && p.y >= 350 && p.y < 650;
+
+    [Fact]
+    public void ForeignBehind_RegisteredCornerStillResizable()
+    {
+        var a = Make(1, 100, 100, 400, 300);
+        var reg = new PanelRegistry { IsCoveredByForeign = InF };
+        reg.Register(a);
+        try
+        {
+            Fire(reg, EventType.MouseDown, 150, 150);   // A 만 있는 자리 클릭 → A 가 앞, F 는 뒤
+            Fire(reg, EventType.MouseUp,   150, 150);
+            Fire(reg, EventType.MouseDown, 492, 392);   // A 핸들(F 영역과 겹침) — F 가 뒤라 A 가 잡는다
+            Fire(reg, EventType.MouseDrag, 700, 600);
+            (a.Rect.width, a.Rect.height).ShouldBe((608f, 508f));
+            Fire(reg, EventType.MouseUp, 700, 600);
+        }
+        finally { Reset(); }
+    }
+
+    [Fact]
+    public void ForeignInFront_BlocksRegisteredCorner()
+    {
+        var a = Make(1, 100, 100, 400, 300);
+        var reg = new PanelRegistry { IsCoveredByForeign = InF };
+        reg.Register(a);
+        try
+        {
+            Fire(reg, EventType.MouseDown, 150, 150);   // A 앞
+            Fire(reg, EventType.MouseUp,   150, 150);
+            Fire(reg, EventType.MouseDown, 700, 600);   // F 만 있는 자리 → F 가 앞
+            Fire(reg, EventType.MouseUp,   700, 600);
+            Fire(reg, EventType.MouseDown, 492, 392);   // 겹친 자리 — F 가 앞이라 F 의 클릭
+            Fire(reg, EventType.MouseDrag, 700, 600);
+            (a.Rect.width, a.Rect.height).ShouldBe((400f, 300f));
+        }
+        finally { Reset(); }
+    }
+
+    [Fact]
+    public void ForeignClick_DoesNotBringRegisteredWindowToFront()
+    {
+        // 미이관 창이 앞인 채로 그 창과 A 가 겹친 자리를 클릭 → Unity 는 미이관 창을 올린다. 레지스트리도 A 를 올리면 안 된다.
+        var (reg, a, b) = Overlapping();
+        reg.IsCoveredByForeign = p => p.x < 200;   // (150,150) 은 A 와 미이관 창이 겹친 자리
+        try
+        {
+            Fire(reg, EventType.MouseDown, 150, 150);
+            Fire(reg, EventType.MouseUp,   150, 150);
+            reg.TopmostVisibleAt(new Vector2(492, 392)).ShouldBeSameAs(b);
+        }
+        finally { Reset(); }
+    }
 }
