@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using LongYinRoster.Containers;
+using LongYinRoster.UI.Layout;
 using LongYinRoster.Util;
 using UnityEngine;
 
@@ -44,10 +45,18 @@ public sealed class ContainerPanel
         public int     KungfuType  { get; init; } = -1;
     }
 
-    public bool Visible { get; set; } = false;
-    public Rect WindowRect => _rect;
-    private Rect _rect = new Rect(150, 100, 800, 760);
     private const int WindowID = 0x4C593732;  // "LY72"
+
+    /// <summary>v0.8.0 S3 — 창 틀. 배경/헤더/X/드래그/코너 리사이즈/화면 클램프/rect↔Config 는 전부 PanelWindow.</summary>
+    public PanelWindow Window { get; }
+    public bool Visible { get => Window.Visible; set => Window.Visible = value; }
+    public Rect WindowRect => Window.Rect;
+
+    public ContainerPanel()
+    {
+        Window = new PanelWindow(WindowID, "컨테이너 관리", () => ContainerLayout.MinSize,
+            RectBinding.Of(Config.ContainerPanelX, Config.ContainerPanelY, Config.ContainerPanelW, Config.ContainerPanelH));
+    }
 
     private ItemCategory _filter = ItemCategory.All;
     private static readonly ItemCategory[] TabOrder = {
@@ -83,15 +92,6 @@ public sealed class ContainerPanel
 
     // v0.7.11 Cat 5A — 삭제 confirm dialog (panel-local, ModWindow 와 별도 instance)
     private readonly ConfirmDialog _confirmDialog = new();
-
-    // v0.7.11 Cat 9A/9D — corner resize handle (사용자 panel 안에서 width/height drag-resize)
-    private bool    _resizing;
-    private Vector2 _resizeStart;
-    private Vector2 _resizeStartSize;
-    private const float MIN_W = 600f;
-    private const float MAX_W = 1600f;
-    private const float MIN_H = 400f;
-    private const float MAX_H = 1080f;
 
     public bool HasFocus => _focus.HasValue;
     public (ContainerArea Area, int Index)? Focus => _focus;
@@ -177,7 +177,7 @@ public sealed class ContainerPanel
     }
 
     /// <summary>
-    /// v0.7.6 — Config 의 영속화 항목 (sort/filter/lastIndex/rect) 을 hydrate.
+    /// v0.7.6 — Config 의 영속화 항목 (sort/filter/lastIndex) 을 hydrate.
     /// SetRepository 다음 호출 — containerList 가 채워진 상태에서 lastIndex 검증 가능.
     /// </summary>
     public void HydrateFromConfig()
@@ -195,15 +195,7 @@ public sealed class ContainerPanel
             _initialContainerLoadPending = true;
         }
         // 삭제된 컨테이너 가리킴 → RefreshContainerList 의 default (첫 컨테이너) 유지
-
-        _rect = new Rect(Config.ContainerPanelX.Value, Config.ContainerPanelY.Value,
-                         Config.ContainerPanelW.Value, Config.ContainerPanelH.Value);
-    }
-
-    /// <summary>v0.7.6 — SettingsPanel.OnSaved 에서 호출. ContainerPanel rect 갱신.</summary>
-    public void SetRect(float x, float y, float w, float h)
-    {
-        _rect = new Rect(x, y, w, h);
+        // rect 는 PanelWindow(PanelRegistry.HydrateAll) 가 읽는다 — v0.8.0 S3
     }
 
     public void SetInventoryRows(List<ItemRow> rows, List<object> rawItems, float maxWeight = 964f)
@@ -289,61 +281,40 @@ public sealed class ContainerPanel
             try { OnContainerSelected.Invoke(_selectedContainerIdx); }
             catch (System.Exception ex) { Util.Logger.WarnOnce("ContainerPanel", $"ContainerPanel initial container load: {ex.Message}"); }
         }
-        try
-        {
-            _rect = GUI.Window(WindowID, _rect, (GUI.WindowFunction)Draw, "");
-        }
-        catch (System.Exception ex)
-        {
-            // v0.7.0.1 fix — IMGUI frame 폐기 회피. 미래 strip 회귀 발견 시 진단 가능.
-            Util.Logger.WarnOnce("ContainerPanel", $"ContainerPanel.OnGUI threw: {ex.GetType().Name}: {ex.Message}");
-        }
+        Window.OnGUI(DrawContent);   // 예외는 PanelWindow 가 WarnOnce 로 잡는다
     }
 
-    private void Draw(int id)
+    /// <summary>창 로컬 내용 영역. 창 틀(배경/헤더/X/드래그/코너)은 PanelWindow 가 그린다.</summary>
+    private void DrawContent(Rect content)
     {
-        try
+        // v0.7.2 D-3 — grade/quality reflection 미발견 1회 토스트
+        if (!_gradeQualityEnabled && !_gradeQualityToastShown)
         {
-            // v0.7.2 D-3 — grade/quality reflection 미발견 1회 토스트
-            if (!_gradeQualityEnabled && !_gradeQualityToastShown)
-            {
-                ToastService.Push(KoreanStrings.Tip_GradeQualityUnavailable, ToastKind.Info);
-                _gradeQualityToastShown = true;
-            }
-
-            DialogStyle.FillBackground(_rect.width, _rect.height);
-            DialogStyle.DrawHeader(_rect.width, "컨테이너 관리");
-
-            // 닫기 버튼 (창 우상단) — 헤더 높이 28 안에 배치
-            if (GUI.Button(new Rect(_rect.width - 28, 4, 22, 20), "X"))
-                Visible = false;
-
-            // content 시작 — 헤더 28 + 여백 4
-            GUILayout.Space(DialogStyle.HeaderHeight);
-            DrawCategoryTabs();
-            GUILayout.Space(2);
-            DrawGlobalToolbar();   // v0.7.2 D-3 — global toolbar (인벤/창고/컨테이너 통합)
-            GUILayout.Space(4);
-            GUILayout.BeginHorizontal();
-            DrawLeftColumn();
-            GUILayout.Space(4);
-            DrawRightColumn();
-            GUILayout.EndHorizontal();
-            DrawToast();
-            // v0.7.11 Cat 5A — 삭제 confirm dialog (modal overlay)
-            _confirmDialog.Draw();
-            // v0.7.11 Cat 9A/9D — corner resize handle (DragWindow 보다 먼저 — corner 영역 우선)
-            DrawResizeHandle();
-            // DragWindow 영역 — 헤더 전체 (X 버튼 제외)
-            GUI.DragWindow(new Rect(0, 0, _rect.width - 32, DialogStyle.HeaderHeight));
+            ToastService.Push(KoreanStrings.Tip_GradeQualityUnavailable, ToastKind.Info);
+            _gradeQualityToastShown = true;
         }
-        catch (System.Exception ex)
-        {
-            Util.Logger.WarnOnce("ContainerPanel", $"ContainerPanel.Draw threw: {ex.GetType().Name}: {ex.Message}");
-        }
+
+        var subTabs = CategorySecondaryTabs.ForCategory(_filter);
+        int extraRightRows = (_newMode ? 1 : 0) + (_renameMode ? 1 : 0) + (_dropdownOpen ? _containerList.Count : 0);
+        var L = ContainerLayout.Compute(content, new ContainerLayoutState(
+            HasSecondaryTabs: subTabs.Count > 0,
+            InvCollapsed:     Config.ContainerInventoryCollapsed.Value,
+            StoCollapsed:     Config.ContainerStorageCollapsed.Value,
+            SplitPreset:      Config.ContainerSplitPreset.Value,
+            ExtraRightRows:   extraRightRows));
+
+        DrawCategoryTabs(subTabs);
+        DrawGlobalToolbar(L);   // v0.7.2 D-3 — global toolbar (인벤/창고/컨테이너 통합)
+        GUILayout.BeginHorizontal();
+        DrawLeftColumn(L);
+        GUILayout.Space(DialogStyle.Gap);
+        DrawRightColumn(L);
+        GUILayout.EndHorizontal();
+        // v0.7.11 Cat 5A — 삭제 confirm dialog (modal overlay, 창 로컬)
+        _confirmDialog.Draw();
     }
 
-    private void DrawCategoryTabs()
+    private void DrawCategoryTabs(IReadOnlyList<(string Label, int Value)> subTabs)
     {
         GUILayout.BeginHorizontal();
         foreach (var cat in TabOrder)
@@ -351,7 +322,7 @@ public sealed class ContainerPanel
             bool active = _filter == cat;
             var prevColor = GUI.color;
             if (active) GUI.color = Color.cyan;
-            if (GUILayout.Button(ItemCategoryFilter.KoreanLabel(cat), GUILayout.Width(70)))
+            if (GUILayout.Button(ItemCategoryFilter.KoreanLabel(cat), GUILayout.Width(ContainerLayout.CategoryTabW), GUILayout.Height(DialogStyle.ButtonRowHeight)))
             {
                 if (_filter != cat)
                 {
@@ -369,12 +340,8 @@ public sealed class ContainerPanel
         }
         GUILayout.EndHorizontal();
 
-        // 카테고리별 secondary tab — 장비/음식/비급/재료 만 표시 (단약/보물/말/기타는 정의 없음).
-        var subTabs = CategorySecondaryTabs.ForCategory(_filter);
-        if (subTabs.Count > 0)
-        {
-            DrawSecondaryTabs(subTabs);
-        }
+        // 카테고리별 secondary tab — 장비/음식/비급/재료 만 표시 (단약/보물/말/기타는 정의 없음). 계산기도 같은 subTabs 로 행 수를 셌다.
+        if (subTabs.Count > 0) DrawSecondaryTabs(subTabs);
     }
 
     /// <summary>카테고리별 secondary tab — "전체" + 카테고리 정의 tabs.</summary>
@@ -385,7 +352,7 @@ public sealed class ContainerPanel
         bool active = filter == -1;
         var prev = GUI.color;
         if (active) GUI.color = Color.cyan;
-        if (GUILayout.Button("전체", GUILayout.Width(50)))
+        if (GUILayout.Button("전체", GUILayout.Width(ContainerLayout.SecondaryTabW), GUILayout.Height(DialogStyle.ButtonRowHeight)))
         {
             if (filter != -1)
             {
@@ -399,7 +366,7 @@ public sealed class ContainerPanel
             active = filter == value;
             prev = GUI.color;
             if (active) GUI.color = Color.cyan;
-            if (GUILayout.Button(label, GUILayout.Width(50)))
+            if (GUILayout.Button(label, GUILayout.Width(ContainerLayout.SecondaryTabW), GUILayout.Height(DialogStyle.ButtonRowHeight)))
             {
                 if (filter != value)
                 {
@@ -412,57 +379,24 @@ public sealed class ContainerPanel
         GUILayout.EndHorizontal();
     }
 
-    private void DrawLeftColumn()
+    private void DrawLeftColumn(ContainerLayout L)
     {
-        GUILayout.BeginVertical(GUILayout.Width(390));
+        GUILayout.BeginVertical(GUILayout.Width(L.LeftW));
 
-        // v0.7.11 Cat 1A/1B — collapse 토글 + split preset
+        // v0.7.11 Cat 1A/1B — collapse 토글 + split preset. 높이 분배는 ContainerLayout(SplitHeight) 이 계산 — v0.8.0 S3
         bool invCollapsed = Config.ContainerInventoryCollapsed.Value;
         bool stoCollapsed = Config.ContainerStorageCollapsed.Value;
         int  preset       = Config.ContainerSplitPreset.Value;
-
-        // 사용 가능 height = 640 (기존 outer ScrollView height). 두 list 의 content area 에 분배.
-        // EXPANDED_OVERHEAD = 헤더(28) + 버튼row(28) ≈ 56 per section.
-        const float TOTAL_H            = 640f;
-        const float EXPANDED_OVERHEAD  = 56f;
-        const float COLLAPSED_OVERHEAD = 28f;   // 헤더만
-
-        float invContentH, stoContentH;
-        if (invCollapsed && stoCollapsed)
-        {
-            invContentH = 0f; stoContentH = 0f;
-        }
-        else if (invCollapsed)
-        {
-            invContentH = 0f;
-            stoContentH = TOTAL_H - COLLAPSED_OVERHEAD - EXPANDED_OVERHEAD - 4f;
-        }
-        else if (stoCollapsed)
-        {
-            invContentH = TOTAL_H - EXPANDED_OVERHEAD - COLLAPSED_OVERHEAD - 4f;
-            stoContentH = 0f;
-        }
-        else
-        {
-            float available = TOTAL_H - 2 * EXPANDED_OVERHEAD - 4f;
-            (invContentH, stoContentH) = preset switch
-            {
-                1 => (available * 0.7f, available * 0.3f),  // 70:30
-                2 => (available * 0.3f, available * 0.7f),  // 30:70
-                3 => (available - 60f, 60f),                // 인벤 확장 / 창고 최소
-                _ => (available * 0.5f, available * 0.5f),  // 50:50
-            };
-        }
 
         // ─── 인벤토리 ───
         DrawSectionHeader(invCollapsed,
             () => Config.ContainerInventoryCollapsed.Value = !invCollapsed,
             KoreanStrings.Lbl_Inventory, _inventoryRows, _inventoryChecks, _inventoryMaxWeight, allowOvercap: true);
-        if (!invCollapsed && invContentH > 10f)
+        if (!invCollapsed && L.InvListH > 0f)
         {
             var invView = _invView.ApplyView(_inventoryRows, _globalState, _filter);
             DrawSelectionBulkRow(invView, _inventoryChecks);
-            DrawItemList(ContainerArea.Inventory, invView, _inventoryChecks, ref _invScroll, invContentH);
+            DrawItemList(ContainerArea.Inventory, invView, _inventoryChecks, ref _invScroll, L.InvListH);
             // v0.7.11 Cat 3G — selection 0 또는 컨테이너 미선택 시 disabled, ≥1 시 녹색 강조
             DrawMoveCopyRow(_inventoryChecks,
                 onMove: c => OnInventoryToContainerMove?.Invoke(c),
@@ -470,17 +404,15 @@ public sealed class ContainerPanel
                 requireContainerSelection: true);
         }
 
-        GUILayout.Space(4);
-
         // ─── 창고 ───
         DrawSectionHeader(stoCollapsed,
             () => Config.ContainerStorageCollapsed.Value = !stoCollapsed,
             KoreanStrings.Lbl_Storage, _storageRows, _storageChecks, _storageMaxWeight, allowOvercap: false);
-        if (!stoCollapsed && stoContentH > 10f)
+        if (!stoCollapsed && L.StoListH > 0f)
         {
             var stoView = _stoView.ApplyView(_storageRows, _globalState, _filter);
             DrawSelectionBulkRow(stoView, _storageChecks);
-            DrawItemList(ContainerArea.Storage, stoView, _storageChecks, ref _stoScroll, stoContentH);
+            DrawItemList(ContainerArea.Storage, stoView, _storageChecks, ref _stoScroll, L.StoListH);
             DrawMoveCopyRow(_storageChecks,
                 onMove: c => OnStorageToContainerMove?.Invoke(c),
                 onCopy: c => OnStorageToContainerCopy?.Invoke(c),
@@ -488,9 +420,8 @@ public sealed class ContainerPanel
         }
 
         // Split preset cycle button
-        GUILayout.Space(4);
         string presetLabel = preset switch { 1 => "70:30", 2 => "30:70", 3 => "확장:최소", _ => "50:50" };
-        if (GUILayout.Button($"비율 {presetLabel} ▼", GUILayout.Width(120)))
+        if (GUILayout.Button($"비율 {presetLabel} ▼", GUILayout.Width(120), GUILayout.Height(DialogStyle.ButtonRowHeight)))
         {
             Config.ContainerSplitPreset.Value = (preset + 1) % 4;
         }
@@ -503,7 +434,7 @@ public sealed class ContainerPanel
                                    List<ItemRow> rows, HashSet<int> checks, float maxWeight, bool allowOvercap)
     {
         GUILayout.BeginHorizontal();
-        if (GUILayout.Button(collapsed ? "▶" : "▼", GUILayout.Width(24))) onToggle();
+        if (GUILayout.Button(collapsed ? "▶" : "▼", GUILayout.Width(24), GUILayout.Height(DialogStyle.ButtonRowHeight))) onToggle();
         float totalWeight = 0f;
         foreach (var r in rows) totalWeight += r.Weight;
 
@@ -513,11 +444,11 @@ public sealed class ContainerPanel
         {
             float selWeight = 0f;
             foreach (var r in rows) if (checks.Contains(r.Index)) selWeight += r.Weight;
-            GUILayout.Label($"{title} (선택: {selCount} / {rows.Count}개, {selWeight:F1}/{totalWeight:F1}kg / 최대 {maxWeight:F1}kg)");
+            GUILayout.Label($"{title} (선택: {selCount} / {rows.Count}개, {selWeight:F1}/{totalWeight:F1}kg / 최대 {maxWeight:F1}kg)", GUILayout.Height(DialogStyle.ButtonRowHeight));
         }
         else
         {
-            GUILayout.Label(FormatCount(title, rows.Count, totalWeight, maxWeight, allowOvercap));
+            GUILayout.Label(FormatCount(title, rows.Count, totalWeight, maxWeight, allowOvercap), GUILayout.Height(DialogStyle.ButtonRowHeight));
         }
         GUILayout.EndHorizontal();
     }
@@ -527,13 +458,13 @@ public sealed class ContainerPanel
     {
         GUILayout.BeginHorizontal();
         // [☑ 전체] — 현재 visible (filtered) row 모두 선택
-        if (GUILayout.Button("☑ 전체", GUILayout.Width(60)))
+        if (GUILayout.Button("☑ 전체", GUILayout.Width(60), GUILayout.Height(DialogStyle.ButtonRowHeight)))
             foreach (var r in view) checks.Add(r.Index);
         // [☐ 해제] — 선택 모두 제거
-        if (GUILayout.Button("☐ 해제", GUILayout.Width(60)))
+        if (GUILayout.Button("☐ 해제", GUILayout.Width(60), GUILayout.Height(DialogStyle.ButtonRowHeight)))
             checks.Clear();
         // [↺ 반전] — visible row 의 currently checked 빼고 unchecked 는 추가
-        if (GUILayout.Button("↺ 반전", GUILayout.Width(60)))
+        if (GUILayout.Button("↺ 반전", GUILayout.Width(60), GUILayout.Height(DialogStyle.ButtonRowHeight)))
         {
             foreach (var r in view)
             {
@@ -546,7 +477,7 @@ public sealed class ContainerPanel
         string rareLabel = min < 0 ? "등급 전체"
             : (min == 0 ? "≥ 열악" : min == 1 ? "≥ 보통" : min == 2 ? "≥ 정량"
             : min == 3 ? "≥ 비전" : min == 4 ? "≥ 정극" : "≥ 절세");
-        if (GUILayout.Button($"[{rareLabel}]", GUILayout.Width(80)))
+        if (GUILayout.Button($"[{rareLabel}]", GUILayout.Width(80), GUILayout.Height(DialogStyle.ButtonRowHeight)))
         {
             // -1 → 0 → 1 → ... → 5 → -1
             int next = min < 5 ? min + 1 : -1;
@@ -573,25 +504,25 @@ public sealed class ContainerPanel
         var prevEnabled = GUI.enabled;
         GUI.enabled = enabled;
         if (enabled) GUI.color = new Color(0.5f, 1.0f, 0.5f);   // 녹색 강조
-        if (GUILayout.Button(moveLabel)) onMove?.Invoke(new HashSet<int>(checks));
-        if (GUILayout.Button(copyLabel)) onCopy?.Invoke(new HashSet<int>(checks));
+        if (GUILayout.Button(moveLabel, GUILayout.Height(DialogStyle.ButtonRowHeight))) onMove?.Invoke(new HashSet<int>(checks));
+        if (GUILayout.Button(copyLabel, GUILayout.Height(DialogStyle.ButtonRowHeight))) onCopy?.Invoke(new HashSet<int>(checks));
         GUI.color   = prevColor;
         GUI.enabled = prevEnabled;
         GUILayout.EndHorizontal();
     }
 
-    private void DrawRightColumn()
+    private void DrawRightColumn(ContainerLayout L)
     {
-        GUILayout.BeginVertical(GUILayout.Width(390));
+        GUILayout.BeginVertical(GUILayout.Width(L.RightW));
 
         GUILayout.BeginHorizontal();
         string sel = _selectedContainerIdx > 0
             ? _containerList.Find(c => c.ContainerIndex == _selectedContainerIdx)?.ContainerName ?? "(미선택)"
             : "(미선택)";
-        if (GUILayout.Button($"[{sel} ▼]", GUILayout.Width(150)))
+        if (GUILayout.Button($"[{sel} ▼]", GUILayout.Width(150), GUILayout.Height(DialogStyle.ButtonRowHeight)))
             _dropdownOpen = !_dropdownOpen;
-        if (GUILayout.Button("신규", GUILayout.Width(45))) { _newMode = true; _newNameBuffer = ""; _dropdownOpen = false; }
-        if (GUILayout.Button("이름변경", GUILayout.Width(60)))
+        if (GUILayout.Button("신규", GUILayout.Width(45), GUILayout.Height(DialogStyle.ButtonRowHeight))) { _newMode = true; _newNameBuffer = ""; _dropdownOpen = false; }
+        if (GUILayout.Button("이름변경", GUILayout.Width(60), GUILayout.Height(DialogStyle.ButtonRowHeight)))
         {
             if (_selectedContainerIdx > 0)
             {
@@ -601,7 +532,7 @@ public sealed class ContainerPanel
             }
         }
         // v0.7.11 Cat 5C — 컨테이너 복사 (Clone)
-        if (GUILayout.Button("복사", GUILayout.Width(45)))
+        if (GUILayout.Button("복사", GUILayout.Width(45), GUILayout.Height(DialogStyle.ButtonRowHeight)))
         {
             if (_repo != null && _selectedContainerIdx > 0)
             {
@@ -622,7 +553,7 @@ public sealed class ContainerPanel
             }
         }
         // v0.7.11 Cat 5A — 삭제 confirm dialog (즉시 삭제 → 사용자 확인 후 삭제)
-        if (GUILayout.Button("삭제", GUILayout.Width(45)))
+        if (GUILayout.Button("삭제", GUILayout.Width(45), GUILayout.Height(DialogStyle.ButtonRowHeight)))
         {
             if (_repo != null && _selectedContainerIdx > 0)
             {
@@ -645,7 +576,7 @@ public sealed class ContainerPanel
             {
                 // v0.7.11 Cat 5B — dropdown entry 에 ItemCount + TotalWeight 표시
                 string dropdownLabel = $"{m.ContainerIndex:D2}: {m.ContainerName} ({m.ItemCount}개, {m.TotalWeight:F1}kg)";
-                if (GUILayout.Button(dropdownLabel))
+                if (GUILayout.Button(dropdownLabel, GUILayout.Height(DialogStyle.ButtonRowHeight)))
                 {
                     _selectedContainerIdx = m.ContainerIndex;
                     Config.ContainerLastIndex.Value = m.ContainerIndex;   // v0.7.6 immediate write
@@ -658,9 +589,9 @@ public sealed class ContainerPanel
         if (_newMode)
         {
             GUILayout.BeginHorizontal();
-            GUILayout.Label("이름:");
-            _newNameBuffer = GUILayout.TextField(_newNameBuffer, GUILayout.Width(180));
-            if (GUILayout.Button("확인", GUILayout.Width(45)) && _repo != null)
+            GUILayout.Label("이름:", GUILayout.Height(DialogStyle.ButtonRowHeight));
+            _newNameBuffer = GUILayout.TextField(_newNameBuffer, GUILayout.Width(180), GUILayout.Height(DialogStyle.ButtonRowHeight));
+            if (GUILayout.Button("확인", GUILayout.Width(45), GUILayout.Height(DialogStyle.ButtonRowHeight)) && _repo != null)
             {
                 int idx = _repo.CreateNew(string.IsNullOrWhiteSpace(_newNameBuffer)
                     ? $"컨테이너{System.DateTime.Now:HHmmss}" : _newNameBuffer);
@@ -671,29 +602,29 @@ public sealed class ContainerPanel
                 OnContainerSelected?.Invoke(idx);
                 Toast($"신규 컨테이너 #{idx} 생성");
             }
-            if (GUILayout.Button("취소", GUILayout.Width(45))) _newMode = false;
+            if (GUILayout.Button("취소", GUILayout.Width(45), GUILayout.Height(DialogStyle.ButtonRowHeight))) _newMode = false;
             GUILayout.EndHorizontal();
         }
 
         if (_renameMode)
         {
             GUILayout.BeginHorizontal();
-            GUILayout.Label("새 이름:");
-            _renameBuffer = GUILayout.TextField(_renameBuffer, GUILayout.Width(180));
-            if (GUILayout.Button("확인", GUILayout.Width(45)) && _repo != null && _selectedContainerIdx > 0)
+            GUILayout.Label("새 이름:", GUILayout.Height(DialogStyle.ButtonRowHeight));
+            _renameBuffer = GUILayout.TextField(_renameBuffer, GUILayout.Width(180), GUILayout.Height(DialogStyle.ButtonRowHeight));
+            if (GUILayout.Button("확인", GUILayout.Width(45), GUILayout.Height(DialogStyle.ButtonRowHeight)) && _repo != null && _selectedContainerIdx > 0)
             {
                 _repo.Rename(_selectedContainerIdx, _renameBuffer);
                 _renameMode = false;
                 RefreshContainerList();
                 Toast("이름 변경 완료");
             }
-            if (GUILayout.Button("취소", GUILayout.Width(45))) _renameMode = false;
+            if (GUILayout.Button("취소", GUILayout.Width(45), GUILayout.Height(DialogStyle.ButtonRowHeight))) _renameMode = false;
             GUILayout.EndHorizontal();
         }
 
         var conView = _conView.ApplyView(_containerRows, _globalState, _filter);
-        GUILayout.Label($"{KoreanStrings.Lbl_Container} ({_containerRows.Count}개)");
-        DrawItemList(ContainerArea.Container, conView, _containerChecks, ref _conScroll, 500);
+        GUILayout.Label($"{KoreanStrings.Lbl_Container} ({_containerRows.Count}개)", GUILayout.Height(DialogStyle.RowHeight));
+        DrawItemList(ContainerArea.Container, conView, _containerChecks, ref _conScroll, L.ContainerListH);
 
         // v0.7.1: destination 별 4 버튼 (좌측 column mirror) + 삭제
         // v0.7.11 Cat 3G — selection 0 시 disabled, ≥1 시 녹색 강조
@@ -714,7 +645,7 @@ public sealed class ContainerPanel
         var prevEnabled = GUI.enabled;
         GUI.enabled = hasContainerSel;
         if (hasContainerSel) GUI.color = new Color(1.0f, 0.5f, 0.5f);   // 빨강 — destructive
-        if (GUILayout.Button("☓ 삭제")) OnContainerDelete?.Invoke(new HashSet<int>(_containerChecks));
+        if (GUILayout.Button("☓ 삭제", GUILayout.Height(DialogStyle.ButtonRowHeight))) OnContainerDelete?.Invoke(new HashSet<int>(_containerChecks));
         GUI.color   = prevColor;
         GUI.enabled = prevEnabled;
         GUILayout.EndHorizontal();
@@ -734,9 +665,9 @@ public sealed class ContainerPanel
         Toast("컨테이너 삭제됨");
     }
 
-    private void DrawGlobalToolbar()
+    private void DrawGlobalToolbar(ContainerLayout L)
     {
-        var newState = SearchSortToolbar.Draw(_globalState, _gradeQualityEnabled);
+        var newState = SearchSortToolbar.Draw(_globalState, _gradeQualityEnabled, L.SearchFieldW);
         if (!newState.Equals(_globalState))
         {
             _globalState = newState;
@@ -755,14 +686,14 @@ public sealed class ContainerPanel
         bool detailVisible = IsItemDetailPanelVisible?.Invoke() ?? false;
         var prevColor = GUI.color;
         if (detailVisible) GUI.color = Color.cyan;
-        if (GUILayout.Button("ⓘ 상세", GUILayout.Width(60)))
+        if (GUILayout.Button("ⓘ 상세", GUILayout.Width(60), GUILayout.Height(DialogStyle.RowHeight)))
             OnToggleItemDetailPanel?.Invoke();
         GUI.color = prevColor;
 
         // v0.7.11 Cat 2H/4E — 착용중 제외 toggle (filter context, all 3 areas 영향)
         GUILayout.Space(8);
         bool exclude = _globalState.ExcludeEquipped;
-        bool newExclude = GUILayout.Toggle(exclude, "착용중 제외", GUILayout.Width(100));
+        bool newExclude = GUILayout.Toggle(exclude, "착용중 제외", GUILayout.Width(100), GUILayout.Height(DialogStyle.RowHeight));
         if (newExclude != exclude)
         {
             _globalState = _globalState.WithExcludeEquipped(newExclude);
@@ -777,7 +708,7 @@ public sealed class ContainerPanel
         var undoPrevEnabled = GUI.enabled;
         GUI.enabled = Containers.ContainerOpUndo.CanUndo;
         if (GUI.enabled) GUI.color = new Color(1.0f, 0.9f, 0.5f);   // 노랑 (warning-ish)
-        if (GUILayout.Button("↶ Undo", GUILayout.Width(80))) OnUndoRequested?.Invoke();
+        if (GUILayout.Button("↶ Undo", GUILayout.Width(80), GUILayout.Height(DialogStyle.RowHeight))) OnUndoRequested?.Invoke();
         GUI.color   = undoPrevColor;
         GUI.enabled = undoPrevEnabled;
 
@@ -787,9 +718,9 @@ public sealed class ContainerPanel
         int rawTotal      = _inventoryRows.Count + _storageRows.Count + _containerRows.Count;
         int filteredTotal = _invView.LastViewCount + _stoView.LastViewCount + _conView.LastViewCount;
         if (filteredTotal == rawTotal)
-            GUILayout.Label($"({rawTotal}개)", GUILayout.Width(80));
+            GUILayout.Label($"({rawTotal}개)", GUILayout.Width(80), GUILayout.Height(DialogStyle.RowHeight));
         else
-            GUILayout.Label($"(결과: {filteredTotal} / {rawTotal})", GUILayout.Width(140));
+            GUILayout.Label($"(결과: {filteredTotal} / {rawTotal})", GUILayout.Width(140), GUILayout.Height(DialogStyle.RowHeight));
         GUILayout.EndHorizontal();
     }
 
@@ -876,56 +807,5 @@ public sealed class ContainerPanel
         string s = $"{label} ({countN}개, {currentWeight:F1} / {maxWeight:F1} kg)";
         if (allowOvercap && currentWeight > maxWeight) s += KoreanStrings.Lbl_OvercapMarker;
         return s;
-    }
-
-    /// <summary>
-    /// v0.7.11 Cat 9A/9D — panel 우하단 corner 영역 (16×16) drag-resize.
-    /// MouseDown 으로 _resizing 활성화, MouseDrag 로 _rect width/height 갱신,
-    /// MouseUp 시 ConfigEntry 영속화. width/height clamp [MIN_W/MAX_W × MIN_H/MAX_H].
-    /// strip-safe: v0.7.4 검증 EventType.MouseDown + v0.7.6 검증 패턴. MouseDrag/MouseUp 은
-    /// 동일 enum surface 라 strip-safe 추정 (Phase 0 spike).
-    /// </summary>
-    private void DrawResizeHandle()
-    {
-        var handleRect = new Rect(_rect.width - 16, _rect.height - 16, 16, 16);
-        var prev = GUI.color;
-        GUI.color = new Color(0.6f, 0.6f, 0.6f, 0.8f);
-        GUI.DrawTexture(handleRect, Texture2D.whiteTexture);
-        GUI.color = prev;
-
-        var e = Event.current;
-        if (e == null) return;
-        if (e.type == EventType.MouseDown && handleRect.Contains(e.mousePosition))
-        {
-            _resizing        = true;
-            _resizeStart     = e.mousePosition;
-            _resizeStartSize = new Vector2(_rect.width, _rect.height);
-            e.Use();
-        }
-        else if (_resizing && e.type == EventType.MouseDrag)
-        {
-            // Vector2 직접 빼기 — UnityStubs 가 Vector2 의 - operator 미정의 (test compile 만 영향)
-            float dx = e.mousePosition.x - _resizeStart.x;
-            float dy = e.mousePosition.y - _resizeStart.y;
-            float newW = System.Math.Max(MIN_W, System.Math.Min(MAX_W, _resizeStartSize.x + dx));
-            float newH = System.Math.Max(MIN_H, System.Math.Min(MAX_H, _resizeStartSize.y + dy));
-            _rect = new Rect(_rect.x, _rect.y, newW, newH);
-            e.Use();
-        }
-        else if (_resizing && e.type == EventType.MouseUp)
-        {
-            _resizing = false;
-            // v0.7.11 — ConfigEntry 영속화 (BepInEx 자동 file write)
-            Config.ContainerPanelW.Value = _rect.width;
-            Config.ContainerPanelH.Value = _rect.height;
-            e.Use();
-        }
-    }
-
-    private void DrawToast()
-    {
-        // v0.7.0.1 fix — IL2CPP IMGUI 가 GUILayout.FlexibleSpace() 를 strip → 매 frame 호출 시
-        // unhandled exception → IMGUI frame 폐기 (사용자 보고 "UI 전부 날라감 → 다시 표시").
-        // global ToastService 로 통합. 본 method 는 backwards-compat 으로 남겨둠 (no-op).
     }
 }

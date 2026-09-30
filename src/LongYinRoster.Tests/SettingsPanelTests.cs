@@ -211,4 +211,13 @@ public class SettingsPanelTests
         (p.BufferSelfX, p.BufferSelfY, p.BufferSelfW, p.BufferSelfH).ShouldBe((10f, 20f, 700f, 800f));
         p.IsSelfRectDirty.ShouldBeTrue();
     }
+
+    [Fact]
+    public void ContainerRect_TextParse_BelowLayoutMin_Ignored()
+    {
+        // 설정 패널의 컨테이너 W/H 필드 하한은 ContainerLayout.MinSize (구 하한 100) — 700 은 무시, 900 은 통과
+        SettingsPanel.TryParseRectField("700", ContainerLayout.MinSize.MinW, out _).ShouldBeFalse();
+        SettingsPanel.TryParseRectField("900", ContainerLayout.MinSize.MinW, out var v).ShouldBeTrue();
+        v.ShouldBe(900f);
+    }
 }
