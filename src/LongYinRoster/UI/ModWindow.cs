@@ -174,13 +174,14 @@ public sealed class ModWindow : MonoBehaviour
         _settingsPanel.OnSaved = () =>
         {
             HotkeyMap.Bind();
-            _containerPanel.SetRect(
-                Config.ContainerPanelX.Value, Config.ContainerPanelY.Value,
-                Config.ContainerPanelW.Value, Config.ContainerPanelH.Value);
+            _registry.ReloadRects(Screen.width, Screen.height);   // 설정 패널이 Config 에 쓴 rect(컨테이너 등)를 창이 즉시 따라감 — v0.8.0 S3
+            _registry.PersistAll();                                 // 클램프된 실제 값을 Config 에 되씀
         };
         // v0.8.0 — "영속화 정보 reset" 이 Config 를 바꾸면 이관 패널 창 rect 를 즉시 다시 읽는다(안 하면 다음 Persist 가 옛 값으로 되덮음)
         _settingsPanel.OnPersistedViewReset = () => _registry.ReloadRects(Screen.width, Screen.height);
         // v0.8.0 S1 — SettingsPanel 창 틀 등록 + 설정 → rect (화면 클램프)
+        // v0.8.0 S3 — ContainerPanel 창 틀 등록. 그리는 순서(Container → Settings → ItemGen)대로 등록 = 초기 z-order
+        _registry.Register(_containerPanel.Window);
         _registry.Register(_settingsPanel.Window);
         // v0.7.8 — PlayerEditorPanel wire-up
         _playerEditorPanel.Init(
@@ -195,7 +196,15 @@ public sealed class ModWindow : MonoBehaviour
         // v0.7.13 — ItemGeneratorPanel wire-up / v0.8.0 S2 — 창 틀 등록 (rect·Open 은 Hydrate 가 읽음)
         _itemGenPanel.GetPlayer = Core.HeroLocator.GetPlayer;
         _registry.Register(_itemGenPanel.Window);
-        _registry.HydrateAll(Screen.width, Screen.height);   // 등록 순서: Settings → ItemGen → HydrateAll
+        _registry.HydrateAll(Screen.width, Screen.height);   // 등록 순서: Container → Settings → ItemGen → HydrateAll
+        // v0.8.0 S3 (D2) — 아직 이관 안 된 창(ItemDetail/그 Selector/PlayerEditor/본체/모드 메뉴)의 영역. 레지스트리는 마지막 클릭으로
+        // 그 창들의 앞/뒤를 추적해, 앞일 때만 겹친 자리의 코너 리사이즈를 양보한다. 6단계에 전부 등록되면 삭제.
+        _registry.IsCoveredByForeign = pos =>
+            (_itemDetailPanel.Visible && _itemDetailPanel.WindowRect.Contains(pos))
+            || (_itemDetailPanel.Selector.Visible && _itemDetailPanel.Selector.WindowRect.Contains(pos))
+            || (_playerEditorPanel.Visible && _playerEditorPanel.WindowRect.Contains(pos))
+            || (_visible && _rect.Contains(pos))
+            || (_modeSelector.MenuVisible && _modeSelector.WindowRect.Contains(pos));
         // ContainerPanel 영속화 hydrate (containerList 가 SetRepository 안에서 채워졌으므로 그 후 안전)
         _containerPanel.HydrateFromConfig();
 
@@ -1062,6 +1071,8 @@ public sealed class ModWindow : MonoBehaviour
     private void OnGUI()
     {
         ToastService.Draw();
+        // v0.8.0 S3 (D2) — 등록 창의 코너 리사이즈를 z-order 로 라우팅. 패널 OnGUI(GUI.Window) 보다 먼저.
+        _registry.HandleEvents();
 
         // v0.7.0 — ModeSelector + ContainerPanel (캐릭터 panel 과 독립)
         _modeSelector.OnGUI();
@@ -1080,11 +1091,6 @@ public sealed class ModWindow : MonoBehaviour
         Config.ItemDetailPanelWidth.Value  = _itemDetailPanel.WindowRect.width;
         Config.ItemDetailPanelHeight.Value = _itemDetailPanel.WindowRect.height;
         Config.ItemDetailPanelOpen.Value   = _itemDetailPanel.Visible;
-        // v0.7.6 — ContainerPanel rect 영속화 (ItemDetailPanel mirror)
-        Config.ContainerPanelX.Value = _containerPanel.WindowRect.x;
-        Config.ContainerPanelY.Value = _containerPanel.WindowRect.y;
-        Config.ContainerPanelW.Value = _containerPanel.WindowRect.width;
-        Config.ContainerPanelH.Value = _containerPanel.WindowRect.height;
         // v0.7.8 — PlayerEditorPanel rect/visibility 영속화
         Config.PlayerEditorPanelX.Value    = _playerEditorPanel.WindowRect.x;
         Config.PlayerEditorPanelY.Value    = _playerEditorPanel.WindowRect.y;

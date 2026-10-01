@@ -105,7 +105,7 @@ public class PanelWindowTests
         var c = w.ContentRect;
         (c.x, c.y, c.width, c.height).ShouldBe(
             (DialogStyle.Padding, DialogStyle.HeaderHeight + DialogStyle.Padding,
-             400f - 2 * DialogStyle.Padding, 300f - DialogStyle.HeaderHeight - 2 * DialogStyle.Padding));
+             400f - 2 * DialogStyle.Padding, 300f - DialogStyle.ChromeH));
     }
 
     [Fact]

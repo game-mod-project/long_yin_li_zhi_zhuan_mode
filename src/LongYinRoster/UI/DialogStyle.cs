@@ -21,6 +21,9 @@ public static class DialogStyle
     public  const float Gap             = 4f;    // 요소 간 간격
     public  const float ScrollbarW      = 20f;   // BeginScrollView 세로 스크롤바 폭 예약 — 행 폭 계산에서 뺀다(안 빼면 가로 스크롤바 생김)
     public  const float ImguiSlack      = 32f;   // GUILayout 암묵 여백(스크롤뷰·버튼 margin) + GUI.Window skin padding — 2026-09-29 smoke 실측(하단 잘림)
+    /// <summary>창 크롬 총 높이 = 헤더 + 상하 여백 + 암묵 여백(84). 창 높이 − ChromeH = 계산기가 쓸 수 있는 내용 높이(PanelWindow.ContentRect.height).
+    /// 계산기 MinH 는 ChromeH + 내용 최소 — Compute 에서 ImguiSlack 을 다시 빼지 않는다.</summary>
+    public  const float ChromeH         = HeaderHeight + 2f * Padding + ImguiSlack;
 
     /// <summary>DrawWindow callback 시작에 호출. 좌표는 window-local (0,0 = top-left).</summary>
     public static void FillBackground(float width, float height)

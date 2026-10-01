@@ -314,8 +314,8 @@ public sealed class SettingsPanel
         DrawRectPair("W:", ref _wBuf, "H:", ref _hBuf, L.FieldW);
         if (TryParseRectField(_xBuf, float.MinValue, out var cx)) BufferContainerX = cx;
         if (TryParseRectField(_yBuf, float.MinValue, out var cy)) BufferContainerY = cy;
-        if (TryParseRectField(_wBuf, 100f, out var cw)) BufferContainerW = cw;
-        if (TryParseRectField(_hBuf, 100f, out var chh)) BufferContainerH = chh;
+        if (TryParseRectField(_wBuf, ContainerLayout.MinSize.MinW, out var cw)) BufferContainerW = cw;
+        if (TryParseRectField(_hBuf, ContainerLayout.MinSize.MinH, out var chh)) BufferContainerH = chh;
 
         GUILayout.Space(10);
 

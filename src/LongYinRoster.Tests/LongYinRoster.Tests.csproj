@@ -298,5 +298,9 @@
     <Compile Include="../LongYinRoster/UI/Layout/ItemGenLayout.cs">
       <Link>UI/Layout/ItemGenLayout.cs</Link>
     </Compile>
+    <!-- v0.8.0 S3 -->
+    <Compile Include="../LongYinRoster/UI/Layout/ContainerLayout.cs">
+      <Link>UI/Layout/ContainerLayout.cs</Link>
+    </Compile>
   </ItemGroup>
 </Project>

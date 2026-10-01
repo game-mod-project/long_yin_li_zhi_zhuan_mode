@@ -9,15 +9,15 @@ namespace LongYinRoster.Tests;
 /// <summary>v0.8.0 S1 — 설정 패널 계산기. 세로 확장 = 설정 스크롤, 가로 확장 = rect 입력 필드.</summary>
 public class SettingsLayoutTests
 {
-    // 기본 창 480×600 → 내용 456×548 (Padding 12, Header 28)
-    private static readonly Rect Default = new(12, 40, 456, 548);
+    // 기본 창 480×600 → 내용 456×516 (ChromeH 84 = 헤더 28 + 여백 24 + 암묵 여백 32 — ContentRect 가 이미 뺀다, D1)
+    private static readonly Rect Default = new(12, 40, 456, 516);
 
     [Fact]
     public void Compute_DefaultWindow_ScrollTakesRemainingHeight()
     {
         var L = SettingsLayout.Compute(Default);
-        // 버튼 줄 + gap + IMGUI 암묵 여백(스크롤뷰·버튼 margin, window padding — smoke 실측)
-        L.ScrollH.ShouldBe(548f - DialogStyle.ButtonRowHeight - DialogStyle.Gap - DialogStyle.ImguiSlack);   // 484
+        // 버튼 줄 + gap 만 뺀다 — 암묵 여백은 ContentRect 가 이미 뺐다(D1)
+        L.ScrollH.ShouldBe(516f - DialogStyle.ButtonRowHeight - DialogStyle.Gap);   // 484
     }
 
     [Fact]
@@ -39,7 +39,7 @@ public class SettingsLayoutTests
     [Fact]
     public void Compute_TallerContent_MonotonicScroll()
     {
-        var a = SettingsLayout.Compute(new Rect(12, 40, 456, 548));
+        var a = SettingsLayout.Compute(new Rect(12, 40, 456, 516));
         var b = SettingsLayout.Compute(new Rect(12, 40, 456, 900));
         b.ScrollH.ShouldBeGreaterThan(a.ScrollH);
     }
@@ -49,7 +49,6 @@ public class SettingsLayoutTests
     {
         var m = SettingsLayout.MinSize;
         m.MinW.ShouldBe(120f + 180f + 80f + 4 * DialogStyle.Gap + DialogStyle.ScrollbarW + 2 * DialogStyle.Padding);   // 440
-        m.MinH.ShouldBe(DialogStyle.HeaderHeight + 2 * DialogStyle.Padding
-                        + 3 * DialogStyle.RowHeight + DialogStyle.Gap + DialogStyle.ButtonRowHeight + DialogStyle.ImguiSlack);   // 188
+        m.MinH.ShouldBe(DialogStyle.ChromeH + 3 * DialogStyle.RowHeight + DialogStyle.Gap + DialogStyle.ButtonRowHeight);   // 188
     }
 }
